@@ -39,7 +39,7 @@ SIGNAL_DB  = _DS_ROOT / "data" / "signal_log.db"
 REGIME_MAP = _DS_ROOT / "data" / "regime_signal_map.json"
 OUT        = _DS_ROOT / "data" / "ensemble_report.json"
 
-KILLED    = {"NEW_HIGH", "RANGE_BO", "CONSOL_BO", "ROC_MOM"}
+KILLED    = {"NEW_HIGH", "RANGE_BO", "CONSOL_BO", "ROC_MOM", "DON_BO", "RSI_CROSS", "KC_BREAK", "VOL_SURGE"}
 SURVIVORS = [a for a in ALL_ALGO_IDS if a not in KILLED]
 ANNUAL    = 252 * 288   # 5m bars
 
@@ -387,7 +387,6 @@ SOFT_REGIME_MULT: dict[str, dict[str, float]] = {
     "ADX_TREND":   {_T: 1.5, _B: 0.05, _R: 0.30, _O: 0.30},  # TRENDING-only
     "PULLBACK":    {_T: 1.5, _B: 0.05, _R: 0.10, _O: 0.10},  # TRENDING-only
     # Mean-reversion oscillators — suppress in trending/breakout
-    "RSI_CROSS":   {_T: 0.10, _B: 0.10, _R: 1.5, _O: 1.5},
     "RSI_STRONG":  {_T: 0.10, _B: 0.10, _R: 1.5, _O: 1.5},
     "STOCH_CROSS": {_T: 0.10, _B: 0.10, _R: 1.5, _O: 1.5},
     "MFI_CROSS":   {_T: 0.10, _B: 0.10, _R: 1.5, _O: 1.5},
@@ -396,16 +395,10 @@ SOFT_REGIME_MULT: dict[str, dict[str, float]] = {
     # BREAKOUT specialists — confirmed positive regime IC (walkforward 2026-04-19)
     "VOL_BO":      {_T: 1.2, _B: 1.5, _R: 0.10, _O: 0.10},  # +0.031 ✓
     "BB_BREAK":    {_T: 0.3, _B: 1.5, _R: 0.30, _O: 0.10},  # +0.001 WATCH
-    "KC_BREAK":    {_T: 0.3, _B: 1.5, _R: 0.30, _O: 0.10},  # +0.001 WATCH
     "SQZPOP":      {_T: 0.3, _B: 1.5, _R: 0.05, _O: 0.10},  # +0.033 ✓ top BREAKOUT
     "ATR_EXP":     {_T: 1.2, _B: 1.5, _R: 0.20, _O: 0.10},  # +0.001 WATCH
-    "DON_BO":      {_T: 1.2, _B: 1.5, _R: 0.10, _O: 0.10},  # +0.016 ✓
-    "NEW_HIGH":    {_T: 1.2, _B: 1.5, _R: 0.10, _O: 0.10},  # +0.011 ✓
-    "RANGE_BO":    {_T: 0.3, _B: 1.5, _R: 0.30, _O: 0.10},  # +0.023 ✓
     # RISK-OFF specialists — suppress in BREAKOUT
-    "VOL_SURGE":   {_T: 1.2, _B: 0.10, _R: 0.10, _O: 0.30},
     "CONSEC_BULL": {_T: 1.2, _B: 0.10, _R: 0.10, _O: 0.10},
-    "ROC_MOM":     {_T: 1.5, _B: 0.05, _R: 0.10, _O: 0.30},
     "CONSOL_BO":   {_T: 0.3, _B: 1.5,  _R: 0.10, _O: 0.10},
 }
 
