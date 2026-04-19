@@ -1,0 +1,268 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © LonesomeTheBlue
+
+//@version=6
+indicator('S/R Zones · Vol-Heat (FX)', 'SRHeat', overlay = true, max_bars_back = 501, max_boxes_count = 20, max_labels_count = 50)
+prd = input.int(defval = 10, title = 'Pivot Period', minval = 4, maxval = 30, group = 'Settings 🔨', tooltip = 'Used while calculating Pivot Points, checks left&right bars')
+ppsrc = input.string(defval = 'High/Low', title = 'Source', options = ['High/Low', 'Close/Open'], group = 'Settings 🔨', tooltip = 'Source for Pivot Points')
+ChannelW = input.int(defval = 5, title = 'Maximum Channel Width %', minval = 1, maxval = 8, group = 'Settings 🔨', tooltip = 'Calculated using Highest/Lowest levels in 300 bars')
+minstrength = input.int(defval = 1, title = 'Minimum Strength', minval = 1, group = 'Settings 🔨', tooltip = 'Channel must contain at least 2 Pivot Points')
+maxnumsr = input.int(defval = 4, title = 'Maximum zones (fewer = less noise)', minval = 1, maxval = 10, group = 'Settings 🔨', tooltip = 'Vol+heat keeps strongest bands only') - 1
+loopback = input.int(defval = 290, title = 'Loopback Period', minval = 100, maxval = 400, group = 'Settings 🔨', tooltip = 'While calculating S/R levels it checks Pivots in Loopback Period')
+res_col = input.color(defval = color.new(color.red, 75), title = 'Resistance Color', group = 'Colors 🟡🟢🟣')
+sup_col = input.color(defval = color.new(color.lime, 75), title = 'Support Color', group = 'Colors 🟡🟢🟣')
+inch_col = input.color(defval = color.new(color.gray, 75), title = 'Color When Price in Channel', group = 'Colors 🟡🟢🟣')
+showpp = input.bool(defval = false, title = 'Show Pivot Points', group = 'Extras ⏶⏷')
+showsrbroken = input.bool(defval = false, title = 'Show Broken Support/Resistance', group = 'Extras ⏶⏷')
+showthema1en = input.bool(defval = false, title = 'MA 1', inline = 'ma1')
+showthema1len = input.int(defval = 50, title = '', inline = 'ma1')
+showthema1type = input.string(defval = 'SMA', title = '', options = ['SMA', 'EMA'], inline = 'ma1')
+showthema2en = input.bool(defval = false, title = 'MA 2', inline = 'ma2')
+showthema2len = input.int(defval = 200, title = '', inline = 'ma2')
+showthema2type = input.string(defval = 'SMA', title = '', options = ['SMA', 'EMA'], inline = 'ma2')
+
+// Vol × pivot → stronger targets: formation vol at each pivot + optional touch vol in zone
+var GRP_VOL = 'Vol + pivot targets'
+usePivotVol    = input.bool(defval = true, title = 'Weight: pivot formation volume', group = GRP_VOL, tooltip = 'Each pivot in a cluster adds its confirmation-bar volume (scaled vs SMA vol).')
+pivotVolMult   = input.float(defval = 0.08, title = 'Pivot vol multiplier', minval = 0.0, step = 0.01, group = GRP_VOL)
+useTouchVol    = input.bool(defval = true, title = 'Weight: volume on bars touching zone', group = GRP_VOL)
+touchVolMult   = input.float(defval = 0.04, title = 'Touch vol multiplier', minval = 0.0, step = 0.01, group = GRP_VOL)
+volNormLen     = input.int(defval = 50, title = 'Vol SMA (normalise)', minval = 10, group = GRP_VOL)
+showMidTarget  = input.bool(defval = true, title = 'Plot mid of strongest zone (target)', group = GRP_VOL)
+midTgtColor    = input.color(defval = color.new(#dc2626, 28), title = 'Target line (~70% red)', group = GRP_VOL, tooltip = 'Strongest vol+pivot band mid')
+
+// Heat flame palette + black BG + codified score (AI-ready 0–100)
+var GRP_HEAT = 'Heat flame · FX readout'
+useHeatFlame    = input.bool(defval = true, title = 'Flame fill (blue calm → orange → red target)', group = GRP_HEAT, tooltip = 'Replaces gray R/S tint with vol-weighted heat.')
+heatCalmBlue    = input.color(defval = color.new(#1d4ed8, 78), 'Calm (cool)', group = GRP_HEAT, inline = 'fl')
+heatMidOrange   = input.color(defval = color.new(#ea580c, 68), 'Mid flame', group = GRP_HEAT, inline = 'fl')
+heatTargetRed   = input.color(defval = color.new(#dc2626, 30), 'Target (~70% red)', group = GRP_HEAT, tooltip = 'Highest heat slot; transparency 30 ≈ 70% solid', inline = 'fl')
+forceBlackBg    = input.bool(defval = true, title = 'Full black chart background', group = GRP_HEAT)
+useLegacyTint   = input.bool(defval = false, title = 'Use classic R/S colors (not flame)', group = GRP_HEAT)
+boxBorderW      = input.int(defval = 1, title = 'Zone border width', minval = 0, maxval = 2, group = GRP_HEAT)
+showHeatHud     = input.bool(defval = true, title = 'Show HEAT score HUD (0–100, AI hook)', group = GRP_HEAT)
+
+bgcolor(forceBlackBg ? color.black : na, title = 'SR: black BG')
+
+ma1 = showthema1en ? showthema1type == 'SMA' ? ta.sma(close, showthema1len) : ta.ema(close, showthema1len) : na
+ma2 = showthema2en ? showthema2type == 'SMA' ? ta.sma(close, showthema2len) : ta.ema(close, showthema2len) : na
+
+plot(ma1, color = not na(ma1) ? color.blue : na)
+plot(ma2, color = not na(ma2) ? color.red : na)
+
+// get Pivot High/low
+float src1 = ppsrc == 'High/Low' ? high : math.max(close, open)
+float src2 = ppsrc == 'High/Low' ? low : math.min(close, open)
+float ph = ta.pivothigh(src1, prd, prd)
+float pl = ta.pivotlow(src2, prd, prd)
+
+// draw Pivot points
+plotshape(bool(ph) and showpp, text = 'H', style = shape.labeldown, color = na, textcolor = color.new(color.red, 0), location = location.abovebar, offset = -prd)
+plotshape(bool(pl) and showpp, text = 'L', style = shape.labelup, color = na, textcolor = color.new(color.lime, 0), location = location.belowbar, offset = -prd)
+
+//calculate maximum S/R channel width
+prdhighest = ta.highest(300)
+prdlowest = ta.lowest(300)
+cwidth = (prdhighest - prdlowest) * ChannelW / 100
+
+// get/keep Pivot levels + volume at pivot confirmation bar (same lag as pivothigh/low)
+var pivotvals = array.new_float(0)
+var pivotlocs = array.new_float(0)
+var pivotvols = array.new_float(0)
+if bool(ph) or bool(pl)
+    array.unshift(pivotvals, bool(ph) ? ph : pl)
+    array.unshift(pivotlocs, bar_index)
+    array.unshift(pivotvols, volume[prd])
+    for x = array.size(pivotvals) - 1 to 0 by 1
+        if bar_index - array.get(pivotlocs, x) > loopback // remove old pivot points
+            array.pop(pivotvals)
+            array.pop(pivotlocs)
+            array.pop(pivotvols)
+            continue
+        break
+
+volNorm = ta.sma(volume, volNormLen)
+float volNormSafe = math.max(volNorm, 1e-10)
+
+//find/create SR channel of a pivot point (+ sum formation volume of pivots in cluster)
+get_sr_vals(ind) =>
+    float lo = array.get(pivotvals, ind)
+    float hi = lo
+    int numpp = 0
+    float pvol = 0.0
+    for y = 0 to array.size(pivotvals) - 1 by 1
+        float cpp = array.get(pivotvals, y)
+        float wdth = cpp <= hi ? hi - cpp : cpp - lo
+        if wdth <= cwidth // fits the max channel width?
+            if cpp <= hi
+                lo := math.min(lo, cpp)
+                lo
+            else
+                hi := math.max(hi, cpp)
+                hi
+
+            numpp := numpp + 20 // each pivot point added as 20
+            pvol += array.get(pivotvols, y)
+            numpp
+    [hi, lo, numpp, pvol]
+
+// keep old SR channels and calculate/sort new channels if we met new pivot point
+var suportresistance = array.new_float(20, 0) // min/max levels
+var strenHeat = array.new_float(10, 0.0) // persisted vol+pivot strength per slot (matches sort order)
+changeit(x, y) =>
+    tmp = array.get(suportresistance, y * 2)
+    array.set(suportresistance, y * 2, array.get(suportresistance, x * 2))
+    array.set(suportresistance, x * 2, tmp)
+    tmp := array.get(suportresistance, y * 2 + 1)
+    array.set(suportresistance, y * 2 + 1, array.get(suportresistance, x * 2 + 1))
+    array.set(suportresistance, x * 2 + 1, tmp)
+
+if bool(ph) or bool(pl)
+    supres = array.new_float(0) // number of pivot, strength, min/max levels
+    stren = array.new_float(10, 0)
+    // get levels and strengs
+    for x = 0 to array.size(pivotvals) - 1 by 1
+        [hi, lo, strength, pvolsum] = get_sr_vals(x)
+        pvBonus = usePivotVol ? pvolsum / volNormSafe * pivotVolMult : 0.0
+        array.push(supres, strength + pvBonus)
+        array.push(supres, hi)
+        array.push(supres, lo)
+
+    // add each HL touch count + optional touch-volume score
+    for x = 0 to array.size(pivotvals) - 1 by 1
+        h = array.get(supres, x * 3 + 1)
+        l = array.get(supres, x * 3 + 2)
+        s = 0
+        tvol = 0.0
+        for y = 0 to loopback by 1
+            if high[y] <= h and high[y] >= l or low[y] <= h and low[y] >= l
+                s := s + 1
+                if useTouchVol
+                    tvol += volume[y]
+                s
+        touchBonus = useTouchVol ? tvol / volNormSafe * touchVolMult : 0.0
+        array.set(supres, x * 3, array.get(supres, x * 3) + s + touchBonus)
+
+    //reset SR levels
+    array.fill(suportresistance, 0)
+    // get strongest SRs
+    src = 0
+    for x = 0 to array.size(pivotvals) - 1 by 1
+        stv = -1. // value
+        stl = -1 // location
+        for y = 0 to array.size(pivotvals) - 1 by 1
+            if array.get(supres, y * 3) > stv and array.get(supres, y * 3) >= minstrength * 20
+                stv := array.get(supres, y * 3)
+                stl := y
+                stl
+        if stl >= 0
+            //get sr level
+            hh = array.get(supres, stl * 3 + 1)
+            ll = array.get(supres, stl * 3 + 2)
+            array.set(suportresistance, src * 2, hh)
+            array.set(suportresistance, src * 2 + 1, ll)
+            array.set(stren, src, array.get(supres, stl * 3))
+
+            // make included pivot points' strength zero 
+            for y = 0 to array.size(pivotvals) - 1 by 1
+                if array.get(supres, y * 3 + 1) <= hh and array.get(supres, y * 3 + 1) >= ll or array.get(supres, y * 3 + 2) <= hh and array.get(supres, y * 3 + 2) >= ll
+                    array.set(supres, y * 3, -1)
+
+            src := src + 1
+            if src >= 10
+                break
+
+    for x = 0 to 8 by 1
+        for y = x + 1 to 9 by 1
+            if array.get(stren, y) > array.get(stren, x)
+                tmp = array.get(stren, y)
+                array.set(stren, y, array.get(stren, x))
+                changeit(x, y)
+
+    for xi = 0 to 9
+        array.set(strenHeat, xi, array.get(stren, xi))
+
+get_level(ind) =>
+    float ret = na
+    if ind < array.size(suportresistance)
+        if array.get(suportresistance, ind) != 0
+            ret := array.get(suportresistance, ind)
+            ret
+    ret
+
+get_color(ind) =>
+    color ret = na
+    if ind < array.size(suportresistance)
+        if array.get(suportresistance, ind) != 0
+            ret := array.get(suportresistance, ind) > close and array.get(suportresistance, ind + 1) > close ? res_col : array.get(suportresistance, ind) < close and array.get(suportresistance, ind + 1) < close ? sup_col : inch_col
+            ret
+    ret
+
+// Gas-flame heat: t=0 cool blue (quiet vol band), t=1 target red (~opaque)
+flameFromT(float t) =>
+    float u = math.max(0.0, math.min(1.0, t))
+    u < 0.5 ? color.from_gradient(u, 0.0, 0.5, heatCalmBlue, heatMidOrange) : color.from_gradient(u, 0.5, 1.0, heatMidOrange, heatTargetRed)
+
+var srchannels = array.new_box(10)
+float hSmax = 0.0
+float hSmin = 1.0e20
+for k = 0 to math.min(9, maxnumsr) by 1
+    if array.get(suportresistance, k * 2) != 0
+        float sk = array.get(strenHeat, k)
+        hSmax := math.max(hSmax, sk)
+        hSmin := math.min(hSmin, sk)
+
+for x = 0 to math.min(9, maxnumsr) by 1
+    box.delete(array.get(srchannels, x))
+    float hiSlot = array.get(suportresistance, x * 2)
+    if hiSlot != 0
+        float tHeat = hSmax > hSmin ? (array.get(strenHeat, x) - hSmin) / (hSmax - hSmin) : 1.0
+        color fillCol = useHeatFlame and not useLegacyTint ? flameFromT(tHeat) : get_color(x * 2)
+        color brdCol = fillCol
+        int bw = boxBorderW
+        array.set(srchannels, x, box.new(left = bar_index, top = get_level(x * 2), right = bar_index + 1, bottom = get_level(x * 2 + 1), border_color = brdCol, border_width = bw, extend = extend.both, bgcolor = fillCol))
+
+// HUD: codified 0–100 heat for primary target (AI / rule engine hook)
+float heatScore01 = hSmax > hSmin ? (array.get(strenHeat, 0) - hSmin) / (hSmax - hSmin) : (array.get(suportresistance, 0) != 0 ? 1.0 : 0.0)
+int heatScore100 = int(math.round(heatScore01 * 100))
+var table heatHud = table.new(position.top_right, 1, 4, bgcolor = color.new(#000000, 10), border_width = 1, border_color = color.new(#444, 1), frame_width = 1, frame_color = color.new(#333, 0))
+if barstate.islast and showHeatHud
+    table.cell(heatHud, 0, 0, 'HEAT (vol+pivot)', text_color = color.new(#94a3b8, 0), text_size = size.small, bgcolor = color.new(#0a0a0a, 5))
+    table.cell(heatHud, 0, 1, str.tostring(heatScore100) + '/100  #1 zone', text_color = heatTargetRed, text_size = size.normal, bgcolor = color.new(#000000, 5))
+    table.cell(heatHud, 0, 2, 'Map: blue=calm → orange → red=tgt', text_color = color.new(#64748b, 5), text_size = size.tiny, bgcolor = color.new(#000000, 5))
+    table.cell(heatHud, 0, 3, 'Feed AI: heatScore01 in script', text_color = color.new(#475569, 15), text_size = size.tiny, bgcolor = color.new(#000000, 5))
+
+resistancebroken = false
+supportbroken = false
+
+// check if it's not in a channel
+not_in_a_channel = true
+for x = 0 to math.min(9, maxnumsr) by 1
+    if close <= array.get(suportresistance, x * 2) and close >= array.get(suportresistance, x * 2 + 1)
+        not_in_a_channel := false
+        not_in_a_channel
+
+// if price is not in a channel then check broken ones
+if not_in_a_channel
+    for x = 0 to math.min(9, maxnumsr) by 1
+        if close[1] <= array.get(suportresistance, x * 2) and close > array.get(suportresistance, x * 2)
+            resistancebroken := true
+            resistancebroken
+        if close[1] >= array.get(suportresistance, x * 2 + 1) and close < array.get(suportresistance, x * 2 + 1)
+            supportbroken := true
+            supportbroken
+
+alertcondition(resistancebroken, title = 'Resistance Broken', message = 'Resistance Broken')
+alertcondition(supportbroken, title = 'Support Broken', message = 'Support Broken')
+plotshape(showsrbroken and resistancebroken, style = shape.triangleup, location = location.belowbar, color = color.new(color.lime, 0), size = size.tiny)
+plotshape(showsrbroken and supportbroken, style = shape.triangledown, location = location.abovebar, color = color.new(color.red, 0), size = size.tiny)
+
+// Mid-price target of strongest S/R band (after ranking): vol+pivot scoring promotes "real" liquidity magnets
+float tgtMid = na
+if showMidTarget and array.size(suportresistance) > 1
+    topH = array.get(suportresistance, 0)
+    topL = array.get(suportresistance, 1)
+    if topH != 0 and topL != 0
+        tgtMid := (topH + topL) / 2
+
+plot(showMidTarget ? tgtMid : na, 'Vol-pivot target (mid)', midTgtColor, 2, plot.style_linebr)

@@ -1,0 +1,338 @@
+{
+  "_meta": {
+    "version": "v2",
+    "focus": "crypto-native daily OHLCV",
+    "created": "2026-04-03",
+    "philosophy": "Simple, few-parameter algos with genuine edge in trending/volatile crypto markets. Each uses ONE signal family. Anti-overfit: walk-forward IS/OOS validation, min 20 trades gate, OOS Sharpe > 0.5 required.",
+    "exit_strategy": "standardised per-algo (ATR trailing or hold_bars + stop_loss_pct). Exit params NOT grid-searched — preserves alpha.",
+    "jedi_threshold": 9,
+    "jedi_rule": "sum of all 27 votes; >=+9 = GO LONG, <=-9 = GO SHORT"
+  },
+  "banks": {
+    "A": {
+      "name": "BREAK",
+      "theme": "Price breakouts from range/consolidation",
+      "why_crypto": "Crypto trends violently after compression. Breakouts have high hit rate in trending regimes.",
+      "algos": [
+        {
+          "id": "DON_BO",
+          "name": "DONCHIAN BREAKOUT",
+          "description": "Close breaks above N-bar rolling high (Donchian channel). Classic turtle-style.",
+          "entry": "close > rolling_max(high, n, offset=1)",
+          "exit": "close < rolling_min(low, exit_n, offset=1)",
+          "params": {"n": {"default": 20, "grid": [15, 20, 25, 30]}, "exit_n": {"default": 10, "grid": [8, 10, 12]}},
+          "stop_loss_pct": 5.0,
+          "hold_bars": 30,
+          "crypto_edge": "Strong in trending crypto; captures momentum after compression"
+        },
+        {
+          "id": "BB_BREAK",
+          "name": "BOLLINGER BREAKOUT",
+          "description": "Close crosses above upper Bollinger Band (basis + mult*std). Exit on midline tag.",
+          "entry": "close > basis + mult * std(close, period)",
+          "exit": "close < rolling_mean(close, period)",
+          "params": {"period": {"default": 20, "grid": [15, 20, 25]}, "mult": {"default": 2.0, "grid": [1.8, 2.0, 2.2]}},
+          "stop_loss_pct": 5.0,
+          "hold_bars": 15,
+          "crypto_edge": "Identifies volatility expansion entries in crypto bull runs"
+        },
+        {
+          "id": "KC_BREAK",
+          "name": "KELTNER BREAKOUT",
+          "description": "Close breaks above upper Keltner Channel (EMA + mult*ATR). More stable than BB in crypto.",
+          "entry": "close > ema(close, period) + mult * atr(period)",
+          "exit": "close < ema(close, period)",
+          "params": {"period": {"default": 20, "grid": [15, 20, 25]}, "mult": {"default": 2.0, "grid": [1.5, 2.0, 2.5]}},
+          "stop_loss_pct": 5.0,
+          "hold_bars": 15,
+          "crypto_edge": "ATR-normalized channel adapts well to crypto vol regime shifts"
+        },
+        {
+          "id": "SQZPOP",
+          "name": "SQUEEZE POP",
+          "description": "Bollinger Bands compressed inside Keltner (squeeze). Entry on first bull bar after release.",
+          "entry": "BB inside KC on prior bar AND BB expands outside KC on current bar AND bullish close",
+          "exit": "close < ema(close, length)",
+          "params": {"length": {"default": 20, "grid": [15, 20, 25]}},
+          "stop_loss_pct": 5.0,
+          "hold_bars": 10,
+          "crypto_edge": "Crypto consolidates in tight ranges before explosive moves"
+        },
+        {
+          "id": "ATR_EXP",
+          "name": "ATR EXPANSION",
+          "description": "Current bar range > mult * ATR AND bullish (close > open) AND above EMA50.",
+          "entry": "(high - low) > mult * atr(period) AND close > open AND close > ema(close, 50)",
+          "exit": "close < ema(close, 13)",
+          "params": {"period": {"default": 14, "grid": [10, 14, 20]}, "mult": {"default": 1.5, "grid": [1.2, 1.5, 2.0]}},
+          "stop_loss_pct": 5.0,
+          "hold_bars": 8,
+          "crypto_edge": "Identifies institutional buying pressure on large-range bars"
+        },
+        {
+          "id": "VOL_BO",
+          "name": "VOLUME BREAKOUT",
+          "description": "Volume surge (> mult * MA_vol) + close > prior N-bar high. Confirms real breakout.",
+          "entry": "volume > vol_mult * rolling_mean(volume, vol_n) AND close > rolling_max(high, price_n, offset=1)",
+          "exit": "close < ema(close, 21)",
+          "params": {"vol_n": {"default": 20, "grid": [15, 20, 25]}, "vol_mult": {"default": 2.0, "grid": [1.5, 2.0, 2.5]}, "price_n": {"default": 10, "grid": [8, 10, 15]}},
+          "stop_loss_pct": 5.0,
+          "hold_bars": 12,
+          "crypto_edge": "Volume confirmation filters false breakouts common in crypto"
+        },
+        {
+          "id": "CONSOL_BO",
+          "name": "CONSOLIDATION BREAKOUT",
+          "description": "N tight bars (ATR < X% of price) followed by expansion bar > expand_mult * recent ATR.",
+          "entry": "tight_bars: range/close < tight_pct for N bars, then (high - low) > expand_mult * atr(14)",
+          "exit": "close < rolling_min(low, 5)",
+          "params": {"tight_n": {"default": 5, "grid": [3, 5, 7]}, "expand_mult": {"default": 1.5, "grid": [1.2, 1.5, 2.0]}},
+          "stop_loss_pct": 5.0,
+          "hold_bars": 10,
+          "crypto_edge": "Catches NVT-style compression→explosion moves in alt-coins"
+        },
+        {
+          "id": "NEW_HIGH",
+          "name": "NEW HIGH CLOSE",
+          "description": "Close at highest close in N bars (continuation, not counter-trend). Momentum continuation.",
+          "entry": "close == rolling_max(close, n)",
+          "exit": "close < rolling_min(close, exit_n)",
+          "params": {"n": {"default": 20, "grid": [15, 20, 30, 52]}, "exit_n": {"default": 10, "grid": [7, 10, 15]}},
+          "stop_loss_pct": 5.0,
+          "hold_bars": 20,
+          "crypto_edge": "Crypto trends persistently; new high = strength, not overbought"
+        },
+        {
+          "id": "RANGE_BO",
+          "name": "RANGE BREAKOUT",
+          "description": "Previous N bars in tight range (high-low spread < pct_thresh). Break above range high.",
+          "entry": "range_width = (max_high - min_low) / close < pct_thresh for N bars; close > max_high",
+          "exit": "close < ema(close, 21)",
+          "params": {"n": {"default": 10, "grid": [7, 10, 15]}, "pct_thresh": {"default": 0.08, "grid": [0.05, 0.08, 0.12]}},
+          "stop_loss_pct": 5.0,
+          "hold_bars": 15,
+          "crypto_edge": "Range compression before breakout is a universal crypto accumulation pattern"
+        }
+      ]
+    },
+    "B": {
+      "name": "TREND",
+      "theme": "Trend identification and riding",
+      "why_crypto": "Crypto has prolonged trending phases. Trend-following captures the bulk of returns.",
+      "algos": [
+        {
+          "id": "EMA_CROSS",
+          "name": "EMA CROSS",
+          "description": "Fast EMA crosses above slow EMA. Simple, robust trend entry.",
+          "entry": "ema(close, fast) crosses above ema(close, slow)",
+          "exit": "ema(close, fast) crosses below ema(close, slow)",
+          "params": {"fast": {"default": 9, "grid": [7, 9, 12]}, "slow": {"default": 21, "grid": [18, 21, 26]}},
+          "stop_loss_pct": 7.0,
+          "hold_bars": 40,
+          "crypto_edge": "EMA crosses reliably identify crypto regime shifts"
+        },
+        {
+          "id": "EMA_STACK",
+          "name": "EMA STACK",
+          "description": "Three EMAs fully stacked bullish (fast > mid > slow). Price above all three.",
+          "entry": "ema_fast > ema_mid > ema_slow AND close > ema_fast (all three newly aligned)",
+          "exit": "close < ema_mid",
+          "params": {"fast": {"default": 8, "grid": [7, 8, 10]}, "mid": {"default": 21, "grid": [18, 21, 26]}, "slow": {"default": 55, "grid": [50, 55, 63]}},
+          "stop_loss_pct": 7.0,
+          "hold_bars": 30,
+          "crypto_edge": "Full EMA alignment captures sustained crypto bull phases"
+        },
+        {
+          "id": "MACD_CROSS",
+          "name": "MACD SIGNAL CROSS",
+          "description": "MACD line crosses above signal line. Momentum shift confirmation.",
+          "entry": "macd_line crosses above signal_line",
+          "exit": "macd_line crosses below signal_line",
+          "params": {"fast": {"default": 12, "grid": [10, 12, 14]}, "slow": {"default": 26, "grid": [22, 26, 30]}, "signal": {"default": 9, "grid": [7, 9, 11]}},
+          "stop_loss_pct": 6.0,
+          "hold_bars": 25,
+          "crypto_edge": "MACD is a reliable momentum trend indicator in crypto daily timeframe"
+        },
+        {
+          "id": "SUPERTREND",
+          "name": "SUPERTREND",
+          "description": "ATR-based dynamic support/resistance flip. Bullish when price above SuperTrend line.",
+          "entry": "SuperTrend flips from bearish to bullish",
+          "exit": "SuperTrend flips from bullish to bearish",
+          "params": {"period": {"default": 10, "grid": [7, 10, 14]}, "mult": {"default": 3.0, "grid": [2.5, 3.0, 3.5]}},
+          "stop_loss_pct": 7.0,
+          "hold_bars": 40,
+          "crypto_edge": "ATR-adaptive trailing stop rides crypto trends and avoids chop"
+        },
+        {
+          "id": "ADX_TREND",
+          "name": "ADX TREND FILTER",
+          "description": "ADX > threshold (trend present) AND +DI > -DI (bullish direction). Only trades trending markets.",
+          "entry": "adx > thresh AND plus_di > minus_di AND previous bar: plus_di <= minus_di",
+          "exit": "adx < thresh OR minus_di > plus_di",
+          "params": {"period": {"default": 14, "grid": [10, 14, 20]}, "thresh": {"default": 20, "grid": [18, 20, 25]}},
+          "stop_loss_pct": 6.0,
+          "hold_bars": 20,
+          "crypto_edge": "ADX filters crypto chop; DI alignment confirms directional momentum"
+        },
+        {
+          "id": "GOLDEN",
+          "name": "GOLDEN CROSS",
+          "description": "SMA fast crosses above SMA slow (golden cross). Major trend shift signal.",
+          "entry": "sma(fast) crosses above sma(slow)",
+          "exit": "sma(fast) crosses below sma(slow)",
+          "params": {"fast": {"default": 50, "grid": [40, 50, 60]}, "slow": {"default": 200, "grid": [180, 200, 220]}},
+          "stop_loss_pct": 10.0,
+          "hold_bars": 90,
+          "crypto_edge": "Golden cross has historically preceded major crypto bull runs"
+        },
+        {
+          "id": "PSAR",
+          "name": "PARABOLIC SAR",
+          "description": "Parabolic SAR flips bullish. Accelerating trailing stop that rides strong trends.",
+          "entry": "psar flips below price (bearish to bullish)",
+          "exit": "psar flips above price (bullish to bearish)",
+          "params": {"step": {"default": 0.02, "grid": [0.01, 0.02, 0.03]}, "max_step": {"default": 0.2, "grid": [0.1, 0.2, 0.3]}},
+          "stop_loss_pct": 7.0,
+          "hold_bars": 40,
+          "crypto_edge": "PSAR adapts acceleration to crypto momentum intensity"
+        },
+        {
+          "id": "PULLBACK",
+          "name": "EMA PULLBACK",
+          "description": "Price in uptrend (above slow EMA) pulls back to fast EMA then bounces (close > open).",
+          "entry": "close > ema_slow AND low <= ema_fast * (1 + touch_pct/100) AND close > open",
+          "exit": "close < ema_slow",
+          "params": {"fast": {"default": 21, "grid": [18, 21, 26]}, "slow": {"default": 55, "grid": [50, 55, 63]}, "touch_pct": {"default": 1.0, "grid": [0.5, 1.0, 2.0]}},
+          "stop_loss_pct": 5.0,
+          "hold_bars": 20,
+          "crypto_edge": "EMA pullbacks in bull markets offer high risk/reward entries"
+        },
+        {
+          "id": "TREND_SMA",
+          "name": "SMA SLOPE TREND",
+          "description": "Price above SMA AND SMA slope positive over N bars. Simple regime filter.",
+          "entry": "close > sma AND (sma - sma[slope_n]) > 0 AND prev bar: close was below or just crossed",
+          "exit": "close < sma OR sma slope turns negative",
+          "params": {"sma_n": {"default": 50, "grid": [30, 50, 70]}, "slope_n": {"default": 10, "grid": [5, 10, 15]}},
+          "stop_loss_pct": 6.0,
+          "hold_bars": 25,
+          "crypto_edge": "Rising SMA with price above = cleanest definition of a crypto uptrend"
+        }
+      ]
+    },
+    "C": {
+      "name": "MOMENTUM",
+      "theme": "Momentum and volume confirmation signals",
+      "why_crypto": "Crypto is driven by momentum. These algos catch the middle of strong moves.",
+      "algos": [
+        {
+          "id": "RSI_CROSS",
+          "name": "RSI 50 CROSS",
+          "description": "RSI crosses above 50 from below. Momentum regime shift from bearish to bullish.",
+          "entry": "rsi crosses above 50",
+          "exit": "rsi crosses below 50",
+          "params": {"period": {"default": 14, "grid": [10, 14, 18]}},
+          "stop_loss_pct": 6.0,
+          "hold_bars": 20,
+          "crypto_edge": "RSI 50 cross reliably marks crypto trend shifts on daily timeframe"
+        },
+        {
+          "id": "RSI_STRONG",
+          "name": "RSI STRONG MOM",
+          "description": "RSI > threshold AND above EMA (trend confirmed). Catches momentum continuation.",
+          "entry": "rsi crosses above threshold AND close > ema(close, ema_n)",
+          "exit": "rsi < 50 OR close < ema(close, ema_n)",
+          "params": {"period": {"default": 14, "grid": [10, 14, 18]}, "threshold": {"default": 60, "grid": [55, 60, 65]}, "ema_n": {"default": 21, "grid": [18, 21, 26]}},
+          "stop_loss_pct": 6.0,
+          "hold_bars": 15,
+          "crypto_edge": "RSI > 60 in uptrend = strong momentum phase, not overbought in crypto"
+        },
+        {
+          "id": "ROC_MOM",
+          "name": "RATE OF CHANGE",
+          "description": "N-bar rate of change crosses above threshold %. Simple momentum signal.",
+          "entry": "roc(close, period) crosses above threshold",
+          "exit": "roc(close, period) crosses below 0",
+          "params": {"period": {"default": 10, "grid": [7, 10, 14]}, "threshold": {"default": 3.0, "grid": [2.0, 3.0, 5.0]}},
+          "stop_loss_pct": 5.0,
+          "hold_bars": 15,
+          "crypto_edge": "ROC momentum is predictive in crypto over 7-14 day windows"
+        },
+        {
+          "id": "VOL_SURGE",
+          "name": "VOLUME SURGE",
+          "description": "Volume > mult * MA_vol AND bullish close (close > open) AND above EMA50.",
+          "entry": "volume > mult * sma(volume, n) AND close > open AND close > ema(close, 50)",
+          "exit": "close < ema(close, 21)",
+          "params": {"n": {"default": 20, "grid": [15, 20, 25]}, "mult": {"default": 2.0, "grid": [1.5, 2.0, 3.0]}},
+          "stop_loss_pct": 5.0,
+          "hold_bars": 10,
+          "crypto_edge": "Volume spikes in crypto often mark institutional accumulation"
+        },
+        {
+          "id": "CONSEC_BULL",
+          "name": "CONSECUTIVE BULL BARS",
+          "description": "N consecutive bullish bars (close > open each bar) AND above EMA50.",
+          "entry": "all(close > open for last N bars) AND close > ema(close, 50)",
+          "exit": "bearish bar (close < open) OR close < ema(close, 21)",
+          "params": {"n_bars": {"default": 3, "grid": [2, 3, 4]}},
+          "stop_loss_pct": 5.0,
+          "hold_bars": 10,
+          "crypto_edge": "Consecutive bull bars = controlled persistent buying, strong signal in crypto"
+        },
+        {
+          "id": "OBV_TREND",
+          "name": "OBV BREAKOUT",
+          "description": "On-Balance Volume at N-bar high (OBV making new highs). Volume accumulation signal.",
+          "entry": "obv == rolling_max(obv, n)",
+          "exit": "obv < rolling_mean(obv, n)",
+          "params": {"n": {"default": 20, "grid": [15, 20, 30]}},
+          "stop_loss_pct": 5.0,
+          "hold_bars": 15,
+          "crypto_edge": "OBV leading indicator: smart money accumulating before price breaks out"
+        },
+        {
+          "id": "STOCH_CROSS",
+          "name": "STOCHASTIC CROSS",
+          "description": "Stochastic %K crosses above %D from below oversold level. Reversal/momentum signal.",
+          "entry": "stoch_k crosses above stoch_d AND prev stoch_k < oversold",
+          "exit": "stoch_k crosses below stoch_d OR stoch_k > 80",
+          "params": {"k_period": {"default": 14, "grid": [10, 14, 18]}, "d_period": {"default": 3, "grid": [3, 5]}, "oversold": {"default": 25, "grid": [20, 25, 30]}},
+          "stop_loss_pct": 5.0,
+          "hold_bars": 12,
+          "crypto_edge": "Stochastic oversold cross in crypto uptrend = reliable mean-reversion entry"
+        },
+        {
+          "id": "MFI_CROSS",
+          "name": "MFI 50 CROSS",
+          "description": "Money Flow Index crosses above 50. Volume-weighted RSI momentum shift.",
+          "entry": "mfi(period) crosses above 50",
+          "exit": "mfi(period) crosses below 50",
+          "params": {"period": {"default": 14, "grid": [10, 14, 18]}},
+          "stop_loss_pct": 5.0,
+          "hold_bars": 15,
+          "crypto_edge": "MFI integrates volume; 50 cross signals real money flow shift in crypto"
+        },
+        {
+          "id": "CMF_POS",
+          "name": "CMF POSITIVE",
+          "description": "Chaikin Money Flow crosses above threshold (sustained positive money flow).",
+          "entry": "cmf(period) crosses above threshold",
+          "exit": "cmf(period) < 0",
+          "params": {"period": {"default": 20, "grid": [15, 20, 25]}, "threshold": {"default": 0.05, "grid": [0.0, 0.05, 0.1]}},
+          "stop_loss_pct": 5.0,
+          "hold_bars": 15,
+          "crypto_edge": "CMF > 0 = consistent accumulation pressure; strong in crypto trending phases"
+        }
+      ]
+    }
+  },
+  "jedi": {
+    "id": "JEDI",
+    "name": "JEDI MASTER",
+    "description": "Equal-weight sum of all 27 algo votes. Score: -27 to +27. GO LONG if score >= +9 (33%). GO SHORT if score <= -9.",
+    "vote_rule": "sum(all_27_votes); threshold +/-9",
+    "score_normalise": "jedi_score / 27 * 100  (maps to -100..+100)"
+  }
+}

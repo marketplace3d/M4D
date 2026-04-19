@@ -1,0 +1,181 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+.wrap{padding:1.2rem 0;font-family:var(--font-sans,sans-serif)}
+.tier-label{font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--color-text-tertiary);margin:0 0 6px 2px}
+.tier{display:grid;gap:8px;margin-bottom:6px}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g1{grid-template-columns:1fr}
+.card{border:0.5px solid var(--color-border-tertiary);border-radius:8px;padding:9px 11px;cursor:pointer;transition:border-color .15s,background .15s}
+.card:hover{border-color:var(--color-border-secondary);background:var(--color-background-secondary)}
+.ct{font-size:12px;font-weight:500;color:var(--color-text-primary);line-height:1.3;margin-bottom:2px}
+.cs{font-size:10px;color:var(--color-text-tertiary);line-height:1.4}
+.badge{display:inline-block;font-size:9px;font-weight:500;padding:1px 5px;border-radius:3px;margin-bottom:4px}
+.b-p{background:#EEEDFE;color:#534AB7}
+.b-t{background:#E1F5EE;color:#0F6E56}
+.b-a{background:#FAEEDA;color:#854F0B}
+.b-c{background:#FAECE7;color:#993C1D}
+.b-b{background:#E6F1FB;color:#185FA5}
+.b-g{background:#EAF3DE;color:#3B6D11}
+.b-s{background:#F1EFE8;color:#5F5E5A}
+@media(prefers-color-scheme:dark){
+.b-p{background:#3C3489;color:#AFA9EC}
+.b-t{background:#085041;color:#9FE1CB}
+.b-a{background:#633806;color:#FAC775}
+.b-c{background:#712B13;color:#F0997B}
+.b-b{background:#0C447C;color:#85B7EB}
+.b-g{background:#27500A;color:#C0DD97}
+.b-s{background:#444441;color:#B4B2A9}
+}
+.arrow-row{display:flex;align-items:center;justify-content:center;height:20px;color:var(--color-text-tertiary);font-size:13px}
+.featured{border-color:var(--color-border-secondary);border-width:1px}
+.sep{width:100%;height:0.5px;background:var(--color-border-tertiary);margin:10px 0}
+.ensemble-box{border:0.5px solid var(--color-border-secondary);border-radius:12px;padding:12px;margin-bottom:6px}
+.stat-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:8px}
+.stat{background:var(--color-background-secondary);border-radius:8px;padding:8px 10px}
+.stat-n{font-size:18px;font-weight:500;color:var(--color-text-primary)}
+.stat-l{font-size:10px;color:var(--color-text-tertiary);margin-top:1px}
+</style>
+<div class="wrap">
+
+<div class="tier-label">Layer 1 — Raw TV signal streams</div>
+<div class="tier g4">
+  <div class="card" onclick="sendPrompt('Give me the full Pine Script spec for ICT Order Block detection with MTF confluence scoring')">
+    <div class="badge b-c">ICT</div>
+    <div class="ct">Order block detector</div>
+    <div class="cs">OB formation · mitigation · MTF confluence · bullish/bearish tag</div>
+  </div>
+  <div class="card" onclick="sendPrompt('Give me the Pine Script spec for FVG detection, fill tracking, and decay scoring')">
+    <div class="badge b-c">ICT</div>
+    <div class="ct">FVG engine</div>
+    <div class="cs">Gap size · partial fill % · age decay · nested FVG stack</div>
+  </div>
+  <div class="card" onclick="sendPrompt('Give me the Pine Script spec for multi-session Opening Range Breakout with extension levels')">
+    <div class="badge b-b">Range</div>
+    <div class="ct">Opening range</div>
+    <div class="cs">NY/London/Asia · ORB breakout · 50% midpoint · extension levels</div>
+  </div>
+  <div class="card" onclick="sendPrompt('What Pine Script indicators best capture institutional liquidity sweeps and stop hunts?')">
+    <div class="badge b-a">Liq</div>
+    <div class="ct">Liquidity sweep</div>
+    <div class="cs">EQ highs/lows · buyside/sellside · sweep+reject bar · fake breakout score</div>
+  </div>
+</div>
+<div class="tier g4">
+  <div class="card" onclick="sendPrompt('How do I build a relative volume + volume delta indicator in Pine Script for institutional flow detection?')">
+    <div class="badge b-t">Vol</div>
+    <div class="ct">Volume profile</div>
+    <div class="cs">RVOL · delta · VAH/VAL/POC · absorption candles</div>
+  </div>
+  <div class="card" onclick="sendPrompt('How do I code a multi-timeframe VWAP with standard deviation bands in Pine Script?')">
+    <div class="badge b-t">VWAP</div>
+    <div class="ct">MTF VWAP stack</div>
+    <div class="cs">Daily/weekly anchored · SD bands · price vs VWAP regime</div>
+  </div>
+  <div class="card" onclick="sendPrompt('How do I detect market structure shifts and CHoCH in Pine Script across multiple timeframes?')">
+    <div class="badge b-p">MSS</div>
+    <div class="ct">Structure engine</div>
+    <div class="cs">HH/HL/LH/LL · CHoCH · BOS · displacement candle ID</div>
+  </div>
+  <div class="card" onclick="sendPrompt('What are the most important previous day/week/month levels to track and how do I code them in Pine Script?')">
+    <div class="badge b-s">PDL</div>
+    <div class="ct">Institutional levels</div>
+    <div class="cs">PDH/PDL · PWH/PWL · PMH/PML · session opens</div>
+  </div>
+</div>
+
+<div class="arrow-row">↓</div>
+
+<div class="tier-label">Layer 2 — signal normalization + alpha scoring</div>
+<div class="tier g3">
+  <div class="card" onclick="sendPrompt('How do I normalize multiple Pine Script indicator signals to a common -1 to +1 scale for ensemble scoring?')">
+    <div class="badge b-s">Norm</div>
+    <div class="ct">Signal normalizer</div>
+    <div class="cs">All inputs → z-score → [-1, +1] scale · rolling 20-bar window</div>
+  </div>
+  <div class="card" onclick="sendPrompt('How do I score confluence between ICT levels and indicator alignment in Pine Script?')">
+    <div class="badge b-a">Conf</div>
+    <div class="ct">Confluence scorer</div>
+    <div class="cs">N signals agree at price → score 0-10 · decay by distance from level</div>
+  </div>
+  <div class="card" onclick="sendPrompt('What is regime detection in trading and how do I code a market regime filter in Pine Script?')">
+    <div class="badge b-g">Regime</div>
+    <div class="ct">Regime classifier</div>
+    <div class="cs">Trending/ranging/volatile · ATR percentile · ADX filter · session tag</div>
+  </div>
+</div>
+
+<div class="arrow-row">↓</div>
+
+<div class="tier-label">Layer 3 — ensemble model (WorldQuant-equivalent)</div>
+<div class="ensemble-box featured">
+  <div class="tier g2">
+    <div class="card" onclick="sendPrompt('How does a weighted ensemble model work for trading signals, and what weights should ICT signals get?')">
+      <div class="badge b-p">Ensemble</div>
+      <div class="ct">Weighted signal combiner</div>
+      <div class="cs">ICT weight 40% · volume 25% · structure 20% · levels 15% · softmax normalization</div>
+    </div>
+    <div class="card" onclick="sendPrompt('How do I run a walk-forward backtest on an ensemble trading model to validate edge?')">
+      <div class="badge b-p">Validation</div>
+      <div class="ct">Walk-forward validator</div>
+      <div class="cs">OOS testing · IS/OOS split · Sharpe per regime · degradation check</div>
+    </div>
+  </div>
+  <div class="stat-row">
+    <div class="stat"><div class="stat-n">Sharpe</div><div class="stat-l">Target &gt; 1.5</div></div>
+    <div class="stat"><div class="stat-n">Calmar</div><div class="stat-l">Target &gt; 2.0</div></div>
+    <div class="stat"><div class="stat-n">Win%</div><div class="stat-l">Target &gt; 55%</div></div>
+    <div class="stat"><div class="stat-n">Corr</div><div class="stat-l">To mkt &lt; 0.3</div></div>
+  </div>
+</div>
+
+<div class="arrow-row">↓</div>
+
+<div class="tier-label">Layer 4 — Claude AI arbitration layer</div>
+<div class="tier g3">
+  <div class="card featured" onclick="sendPrompt('How do I prompt Claude to act as a senior trader and arbitrate between conflicting signals in real time?')">
+    <div class="badge b-p">Claude</div>
+    <div class="ct">Signal arbitrator</div>
+    <div class="cs">Receives ensemble score + context → confirm/fade/hold → reasoning logged</div>
+  </div>
+  <div class="card" onclick="sendPrompt('How do I use Claude to analyze anomalies in trading signal behavior versus historical patterns?')">
+    <div class="badge b-p">Claude</div>
+    <div class="ct">Anomaly detector</div>
+    <div class="cs">Compares current signal cluster vs historical analogs · flags regime break</div>
+  </div>
+  <div class="card" onclick="sendPrompt('How do I use Claude to generate a trade narrative that explains why a signal is valid?')">
+    <div class="badge b-p">Claude</div>
+    <div class="ct">Trade narrator</div>
+    <div class="cs">Produces HTF context + LTF trigger + target + invalidation in plain text</div>
+  </div>
+</div>
+
+<div class="arrow-row">↓</div>
+
+<div class="tier-label">Layer 5 — execution + portfolio management</div>
+<div class="tier g4">
+  <div class="card" onclick="sendPrompt('How do I size positions using Kelly Criterion adjusted for win rate and risk-reward in Python?')">
+    <div class="badge b-a">Size</div>
+    <div class="ct">Position sizer</div>
+    <div class="cs">Half-Kelly · vol-weighted · max 2% risk per trade · correlation-adjusted</div>
+  </div>
+  <div class="card" onclick="sendPrompt('How do I implement a portfolio-level drawdown circuit breaker in a trading system?')">
+    <div class="badge b-c">Risk</div>
+    <div class="ct">Risk circuit breaker</div>
+    <div class="cs">Daily DD limit · corr spike halt · VaR breach → reduce sizing</div>
+  </div>
+  <div class="card" onclick="sendPrompt('How do I connect TradingView alerts to an execution broker via Python webhook?')">
+    <div class="badge b-b">Exec</div>
+    <div class="ct">Execution bridge</div>
+    <div class="cs">TV webhook → Python → broker API · slippage model · partial fill logic</div>
+  </div>
+  <div class="card" onclick="sendPrompt('What metrics should I track on a trading performance dashboard to compete with hedge fund standards?')">
+    <div class="badge b-g">PnL</div>
+    <div class="ct">Performance tracker</div>
+    <div class="cs">Live P&L · per-alpha attribution · Sharpe rolling · drawdown heatmap</div>
+  </div>
+</div>
+
+</div>

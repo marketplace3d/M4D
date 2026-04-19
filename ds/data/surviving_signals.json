@@ -1,0 +1,59 @@
+{
+  "horizon": "4h",
+  "min_sharpe": 1.0,
+  "max_corr": 0.3,
+  "min_instruments": 3,
+  "gate1_count": 22,
+  "gate2_count": 13,
+  "gate3_count": 13,
+  "gate4_count": 2,
+  "signals": [
+    {
+      "algo_id": "GOLDEN",
+      "horizon": "4h",
+      "gate1_oos_sharpe": 1.761,
+      "gate2_pass": null,
+      "gate3_n_instruments": 4,
+      "gate4_regime_sharpes": {
+        "TRENDING": null,
+        "RANGING": 1.252,
+        "BREAKOUT": 3.548,
+        "RISK-OFF": 3.069
+      },
+      "passes_all": false,
+      "n_trades_oos": 3047,
+      "hit_rate_oos": 0.527,
+      "avg_return_oos": 0.0505,
+      "symbols_pass": [
+        "6E",
+        "CL",
+        "NQ",
+        "RTY"
+      ]
+    },
+    {
+      "algo_id": "VOL_SURGE",
+      "horizon": "4h",
+      "gate1_oos_sharpe": 1.48,
+      "gate2_pass": null,
+      "gate3_n_instruments": 5,
+      "gate4_regime_sharpes": {
+        "TRENDING": 0.354,
+        "RANGING": 1.167,
+        "BREAKOUT": 0.996,
+        "RISK-OFF": 3.159
+      },
+      "passes_all": false,
+      "n_trades_oos": 26214,
+      "hit_rate_oos": 0.522,
+      "avg_return_oos": 0.0479,
+      "symbols_pass": [
+        "CL",
+        "ES",
+        "GC",
+        "NQ",
+        "SI"
+      ]
+    }
+  ]
+}

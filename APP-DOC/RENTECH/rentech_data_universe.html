@@ -1,0 +1,144 @@
+
+<style>
+  @keyframes orbit { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+  .ring-spin { transform-origin: 340px 300px; animation: orbit 60s linear infinite; }
+  .ring-spin-2 { transform-origin: 340px 300px; animation: orbit 90s linear infinite reverse; }
+  .ring-spin-3 { transform-origin: 340px 300px; animation: orbit 130s linear infinite; }
+  .dot { cursor:pointer; }
+  .dot:hover circle { r: 9; }
+  text { pointer-events: none; }
+</style>
+<svg width="100%" viewBox="0 0 680 620">
+<defs>
+  <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </marker>
+</defs>
+
+<!-- orbit rings -->
+<circle cx="340" cy="300" r="80"  fill="none" stroke="var(--b)" stroke-width="0.5" opacity="0.3"/>
+<circle cx="340" cy="300" r="150" fill="none" stroke="var(--b)" stroke-width="0.5" opacity="0.25"/>
+<circle cx="340" cy="300" r="230" fill="none" stroke="var(--b)" stroke-width="0.5" opacity="0.2"/>
+
+<!-- CENTER: the fund -->
+<g class="c-purple">
+  <circle cx="340" cy="300" r="52" stroke-width="0.5"/>
+  <text class="th" x="340" y="295" text-anchor="middle" dominant-baseline="central">Medallion</text>
+  <text class="ts" x="340" y="313" text-anchor="middle" dominant-baseline="central">signal engine</text>
+</g>
+
+<!-- RING 1 (r=80): conventional alt-data — close orbit -->
+<g class="ring-spin">
+  <g class="dot c-blue" onclick="sendPrompt('How do quantitative funds use credit card transaction data as trading signal? What does aggregated consumer spending reveal before earnings? How do you acquire, clean and normalise this data?')">
+    <circle cx="340" cy="220" r="7" stroke-width="0.5"/>
+  </g>
+  <g class="dot c-blue" onclick="sendPrompt('How is options flow used as a leading indicator? What does unusual options activity, dark pool prints, and put/call ratio reveal about informed money positioning?')">
+    <circle cx="420" cy="300" r="7" stroke-width="0.5"/>
+  </g>
+  <g class="dot c-blue" onclick="sendPrompt('Congressional trading data — STOCK Act disclosures. How do quant funds systematically mine politician trade filings for alpha? What is the documented edge and how has it decayed?')">
+    <circle cx="340" cy="380" r="7" stroke-width="0.5"/>
+  </g>
+  <g class="dot c-blue" onclick="sendPrompt('Short interest and borrow cost data as signal. How does rising borrow cost predict squeeze events? How do you model the short float squeeze signal with entry/exit discipline?')">
+    <circle cx="260" cy="300" r="7" stroke-width="0.5"/>
+  </g>
+</g>
+
+<!-- RING 1 labels — static, outside ring -->
+<text class="ts" x="340" y="196" text-anchor="middle" fill="#185FA5">credit card spend</text>
+<text class="ts" x="448" y="304" text-anchor="start" fill="#185FA5">options flow</text>
+<text class="ts" x="340" y="404" text-anchor="middle" fill="#185FA5">congressional trades</text>
+<text class="ts" x="228" y="304" text-anchor="end" fill="#185FA5">short interest</text>
+
+<!-- RING 2 (r=150): physical world data -->
+<g class="ring-spin-2">
+  <g class="dot c-teal" onclick="sendPrompt('Satellite imagery as trading signal: how do quants count cars in retail parking lots, measure oil tank shadow levels, track construction progress, monitor factory activity? What vendors provide this data and what is the signal extraction methodology?')">
+    <circle cx="340" cy="150" r="7" stroke-width="0.5"/>
+  </g>
+  <g class="dot c-teal" onclick="sendPrompt('AIS shipping data and commodity freight signals: how does vessel tracking predict commodity supply/demand weeks before price moves? How do you track dark fleet activity, port congestion, and rerouting as leading indicators?')">
+    <circle cx="446" cy="193" r="7" stroke-width="0.5"/>
+  </g>
+  <g class="dot c-teal" onclick="sendPrompt('Weather patterns as trading signal: how does precipitation, drought, temperature anomaly, and El Nino/La Nina predict agricultural commodity prices, energy demand, and retail sales? Build the weather signal extraction model.')">
+    <circle cx="490" cy="300" r="7" stroke-width="0.5"/>
+  </g>
+  <g class="dot c-teal" onclick="sendPrompt('Cellphone mobility and foot traffic data as signal: how does aggregated GPS data predict retail sales, office occupancy, supply chain stress, and economic activity? What are the privacy and data acquisition considerations?')">
+    <circle cx="446" cy="407" r="7" stroke-width="0.5"/>
+  </g>
+  <g class="dot c-teal" onclick="sendPrompt('Satellite night light intensity data: how does measuring electricity usage from space predict economic activity, industrial output, and GDP in real-time before official statistics are released?')">
+    <circle cx="340" cy="450" r="7" stroke-width="0.5"/>
+  </g>
+  <g class="dot c-teal" onclick="sendPrompt('Energy grid and power consumption data: how does real-time electricity demand, natural gas pipeline flows, and refinery utilisation predict energy prices and industrial output?')">
+    <circle cx="234" cy="407" r="7" stroke-width="0.5"/>
+  </g>
+  <g class="dot c-teal" onclick="sendPrompt('Web scraping and price data: how do quant funds systematically scrape e-commerce prices, job postings, and product availability to nowcast inflation, corporate margins, and hiring trends?')">
+    <circle cx="190" cy="300" r="7" stroke-width="0.5"/>
+  </g>
+  <g class="dot c-teal" onclick="sendPrompt('Patent filings and academic citations as leading innovation signal: how do you mine USPTO filings, academic pre-prints, and FDA clinical trial registrations for early indicators of breakthrough products before markets price them?')">
+    <circle cx="234" cy="193" r="7" stroke-width="0.5"/>
+  </g>
+</g>
+
+<!-- RING 2 labels -->
+<text class="ts" x="340" y="128" text-anchor="middle" fill="#0F6E56">satellite imagery</text>
+<text class="ts" x="456" y="185" text-anchor="start" fill="#0F6E56">AIS shipping</text>
+<text class="ts" x="502" y="304" text-anchor="start" fill="#0F6E56">weather</text>
+<text class="ts" x="456" y="420" text-anchor="start" fill="#0F6E56">cellphone mobility</text>
+<text class="ts" x="340" y="472" text-anchor="middle" fill="#0F6E56">night lights</text>
+<text class="ts" x="224" y="420" text-anchor="end" fill="#0F6E56">energy grid</text>
+<text class="ts" x="178" y="304" text-anchor="end" fill="#0F6E56">web scraping</text>
+<text class="ts" x="224" y="185" text-anchor="end" fill="#0F6E56">patent filings</text>
+
+<!-- RING 3 (r=230): deep non-obvious -->
+<g class="ring-spin-3">
+  <g class="dot c-coral" onclick="sendPrompt('Social media sentiment NLP as trading signal: how do you build a production NLP pipeline that processes Twitter/X, Reddit, earnings call transcripts, and news in real time? What are the alpha half-life characteristics of sentiment signals and how quickly do they decay as more funds use them?')">
+    <circle cx="340" cy="70" r="7" stroke-width="0.5"/>
+  </g>
+  <g class="dot c-coral" onclick="sendPrompt('Radio frequency spectrum analysis as trading signal: how does monitoring radio transmissions from factories, military bases, and communications infrastructure reveal economic and geopolitical activity before public disclosure? This is the literal radio telescope analogy.')">
+    <circle cx="488" cy="121" r="7" stroke-width="0.5"/>
+  </g>
+  <g class="dot c-coral" onclick="sendPrompt('Geospatial and supply chain network analysis: how do you model the full supplier graph of a company — tier 1, tier 2, tier 3 suppliers — and use disruptions anywhere in that network as a trading signal before the company discloses it?')">
+    <circle cx="557" cy="245" r="7" stroke-width="0.5"/>
+  </g>
+  <g class="dot c-coral" onclick="sendPrompt('Human behavioural cycles as trading signal: how do you identify and exploit repeating human psychological patterns — day-of-week effects, month-end rebalancing, tax-loss harvesting seasonality, earnings announcement drift, January effect — systematically at scale?')">
+    <circle cx="557" cy="355" r="7" stroke-width="0.5"/>
+  </g>
+  <g class="dot c-coral" onclick="sendPrompt('Shipping container and logistics data: how does tracking global container flows, port dwell times, freight rates, and trucking tonnage index predict GDP, trade balances, and sector performance weeks ahead of official data?')">
+    <circle cx="488" cy="479" r="7" stroke-width="0.5"/>
+  </g>
+  <g class="dot c-coral" onclick="sendPrompt('Academic and scientific publication mining: how did RenTech-style firms use natural language processing on scientific literature, conference proceedings, and preprint servers to identify companies with breakthrough R&D trajectories before Wall Street analysts noticed?')">
+    <circle cx="340" cy="530" r="7" stroke-width="0.5"/>
+  </g>
+  <g class="dot c-coral" onclick="sendPrompt('Dark web and leaked data signals: what is the legal and ethical boundary around using data that surfaces from corporate breaches, dark web forums, or grey-market data brokers? How do you build compliance guardrails while still accessing information-rich edge datasets?')">
+    <circle cx="192" cy="479" r="7" stroke-width="0.5"/>
+  </g>
+  <g class="dot c-coral" onclick="sendPrompt('Seismic and geophysical data as signal: how does monitoring seismic activity, ocean temperature anomalies, and atmospheric pressure patterns predict commodity supply disruptions, agricultural output, and energy demand with lead times measured in weeks?')">
+    <circle cx="123" cy="355" r="7" stroke-width="0.5"/>
+  </g>
+  <g class="dot c-coral" onclick="sendPrompt('Executive and insider behaviour signals beyond legal disclosures: how do you mine flight records, real estate transactions, LinkedIn activity, conference attendance patterns, and corporate jet movements as soft indicators of undisclosed corporate events?')">
+    <circle cx="123" cy="245" r="7" stroke-width="0.5"/>
+  </g>
+  <g class="dot c-coral" onclick="sendPrompt('Linguistic and communications pattern analysis: how do changes in language complexity, sentiment hedging, and specific word frequency in earnings calls, SEC filings, and executive interviews predict future earnings surprises and corporate stress?')">
+    <circle cx="192" cy="121" r="7" stroke-width="0.5"/>
+  </g>
+</g>
+
+<!-- RING 3 labels -->
+<text class="ts" x="340" y="50" text-anchor="middle" fill="#993C1D">NLP sentiment</text>
+<text class="ts" x="496" y="113" text-anchor="start" fill="#993C1D">RF spectrum</text>
+<text class="ts" x="565" y="249" text-anchor="start" fill="#993C1D">supply chain graph</text>
+<text class="ts" x="565" y="359" text-anchor="start" fill="#993C1D">behavioural cycles</text>
+<text class="ts" x="496" y="492" text-anchor="start" fill="#993C1D">container flows</text>
+<text class="ts" x="340" y="550" text-anchor="middle" fill="#993C1D">science mining</text>
+<text class="ts" x="184" y="492" text-anchor="end" fill="#993C1D">dark data</text>
+<text class="ts" x="115" y="359" text-anchor="end" fill="#993C1D">geophysical</text>
+<text class="ts" x="115" y="249" text-anchor="end" fill="#993C1D">exec behaviour</text>
+<text class="ts" x="184" y="113" text-anchor="end" fill="#993C1D">language patterns</text>
+
+<!-- legend -->
+<g class="c-blue"><rect x="30" y="580" width="10" height="10" rx="2" stroke-width="0"/></g>
+<text class="ts" x="44" y="589" dominant-baseline="central" fill="#185FA5">inner: known alt-data</text>
+<g class="c-teal"><rect x="180" y="580" width="10" height="10" rx="2" stroke-width="0"/></g>
+<text class="ts" x="194" y="589" dominant-baseline="central" fill="#0F6E56">mid: physical world</text>
+<g class="c-coral"><rect x="330" y="580" width="10" height="10" rx="2" stroke-width="0"/></g>
+<text class="ts" x="344" y="589" dominant-baseline="central" fill="#993C1D">outer: deep non-obvious</text>
+<text class="ts" x="340" y="608" text-anchor="middle" fill="var(--color-text-tertiary)">tap any dot to spec that data source</text>
+</svg>

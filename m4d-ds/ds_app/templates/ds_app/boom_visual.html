@@ -1,0 +1,318 @@
+{% load m4d_tags %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>M4D · VISUAL BACKTEST{% if ok %} · {{ symbol }}{% endif %}</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #050911;
+      --surface: #0b1120;
+      --border: #0d1f35;
+      --cyan: #22d3ee;
+      --green: #4ade80;
+      --amber: #f59e0b;
+      --red: #ef4444;
+      --purple: #818cf8;
+      --text: #e2e8f0;
+      --muted: #475569;
+      --font-mono: 'Share Tech Mono', 'Courier New', monospace;
+      --font-head: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-head); min-height: 100vh; }
+
+    /* ── nav bar ── */
+    .nav {
+      display: flex; align-items: center; gap: 1rem;
+      padding: 0.6rem 1.4rem; border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .nav-logo { font-size: 1.25rem; font-weight: 700; letter-spacing: 0.2em; color: var(--cyan); text-decoration: none; }
+    .nav a { font-size: 0.7rem; font-family: var(--font-mono); color: var(--muted); text-decoration: none; letter-spacing: 0.1em; }
+    .nav a:hover { color: var(--cyan); }
+
+    /* ── stat bar ── */
+    .stat-bar {
+      display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem 1.5rem;
+      padding: 0.55rem 1.4rem; border-bottom: 1px solid var(--border);
+      font-family: var(--font-mono); font-size: 0.72rem;
+    }
+    .stat { display: flex; gap: 0.4rem; align-items: baseline; }
+    .stat-label { color: var(--muted); }
+    .stat-val { font-weight: 700; }
+    .stat-val--pos { color: var(--green); }
+    .stat-val--neg { color: var(--red); }
+    .stat-val--neutral { color: var(--cyan); }
+    .badge {
+      padding: 0.15rem 0.5rem; border-radius: 3px; font-size: 0.65rem;
+      font-family: var(--font-mono); letter-spacing: 0.1em; font-weight: 700;
+    }
+    .badge--signal { background: #22d3ee22; border: 1px solid #22d3ee44; color: var(--cyan); }
+    .badge--ok { background: #4ade8022; border: 1px solid #4ade8044; color: var(--green); }
+    .badge--err { background: #ef444422; border: 1px solid #ef444444; color: var(--red); }
+
+    /* ── form panel ── */
+    .form-panel {
+      display: flex; flex-wrap: wrap; gap: 0.75rem 1rem; align-items: flex-end;
+      padding: 0.9rem 1.4rem; border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .field { display: flex; flex-direction: column; gap: 0.2rem; min-width: 90px; }
+    .field label { font-size: 0.62rem; font-family: var(--font-mono); color: var(--muted); letter-spacing: 0.08em; }
+    .field input, .field select {
+      background: var(--bg); border: 1px solid var(--border); color: var(--text);
+      padding: 0.3rem 0.45rem; border-radius: 4px; font-size: 0.8rem;
+      font-family: var(--font-mono); width: 100%;
+    }
+    .field input:focus, .field select:focus { outline: 1px solid var(--cyan); border-color: var(--cyan); }
+    .checkbox-row { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; padding-bottom: 0.1rem; }
+    .checkbox-row label { font-size: 0.7rem; font-family: var(--font-mono); color: var(--muted); display: flex; align-items: center; gap: 0.3rem; cursor: pointer; }
+    .btn-run {
+      padding: 0.45rem 1.5rem; background: var(--cyan); color: #050911;
+      font-family: var(--font-head); font-size: 0.95rem; font-weight: 700;
+      letter-spacing: 0.12em; border: none; border-radius: 4px; cursor: pointer;
+      transition: filter 0.15s; white-space: nowrap; align-self: flex-end;
+    }
+    .btn-run:hover { filter: brightness(1.1); }
+
+    /* ── chart area ── */
+    .chart-zone {
+      padding: 1rem 1.4rem;
+    }
+    .chart-wrap {
+      border: 1px solid var(--border); border-radius: 6px; overflow: hidden;
+      background: #0f141c;
+    }
+    .chart-wrap img { display: block; width: 100%; height: auto; }
+    .chart-legend {
+      display: flex; gap: 1.5rem; padding: 0.5rem 0.75rem;
+      border-top: 1px solid var(--border); font-size: 0.65rem;
+      font-family: var(--font-mono); color: var(--muted);
+    }
+    .legend-item { display: flex; align-items: center; gap: 0.35rem; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+    /* ── error ── */
+    .error-box {
+      margin: 1rem 1.4rem; padding: 0.9rem 1rem;
+      background: #1a0a0a; border: 1px solid var(--red); border-radius: 6px;
+      font-family: var(--font-mono); font-size: 0.82rem; color: var(--red);
+    }
+    .error-box .hint { color: var(--muted); margin-top: 0.4rem; font-size: 0.75rem; }
+
+    /* ── trade table ── */
+    .trade-section { padding: 0 1.4rem 1.4rem; }
+    .section-head {
+      font-size: 0.7rem; font-family: var(--font-mono); color: var(--muted);
+      letter-spacing: 0.15em; padding: 0.5rem 0 0.4rem;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.78rem; font-family: var(--font-mono); }
+    th { color: var(--muted); font-weight: 400; text-align: left; padding: 0.3rem 0.5rem; border-bottom: 1px solid var(--border); font-size: 0.65rem; letter-spacing: 0.1em; }
+    td { padding: 0.28rem 0.5rem; border-bottom: 1px solid #0d1f2e; }
+    tr:last-child td { border-bottom: none; }
+    .td-pos { color: var(--green); }
+    .td-neg { color: var(--red); }
+
+    /* ── quick links ── */
+    .quick-links {
+      padding: 0 1.4rem 0.5rem;
+      display: flex; flex-wrap: wrap; gap: 0.5rem;
+    }
+    .ql { font-size: 0.65rem; font-family: var(--font-mono); color: var(--muted); text-decoration: none; padding: 0.2rem 0.55rem; border: 1px solid var(--border); border-radius: 3px; }
+    .ql:hover { color: var(--cyan); border-color: var(--cyan); }
+
+    .signal-desc { font-size:0.68rem; font-family:var(--font-mono); color:var(--muted); padding: 0.3rem 1.4rem 0; letter-spacing:0.04em; }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <nav class="nav">
+    <a class="nav-logo" href="/">M4D</a>
+    <a href="/">← HOME</a>
+    <a href="/boom-backtest/?scan=1&signal=darvas">BOOM SWEEP</a>
+    <a href="/vectorbt-expansion/?scan=1&format=json">SABRE JSON</a>
+    {% if ok %}<a href="/boom-tearsheet/?symbol={{ symbol }}&tf={{ timeframe }}&period={{ period }}&signal={{ signal_source }}&scan={% if scan %}1{% else %}0{% endif %}&eod={% if flat_eod %}1{% else %}0{% endif %}" style="color:var(--green)">TEARSHEET ↗</a>{% endif %}
+    {% if ok %}<a href="/algo-optimize/?signal={{ signal_source }}&symbol={{ symbol }}&tf={{ timeframe }}&period={{ period }}&n_trials=80&format=json" style="color:var(--purple)">OPTIMIZE ↗</a>{% endif %}
+    <a href="/mission/">CONTROL ROOM</a>
+  </nav>
+
+  {% if ok %}
+  <div class="stat-bar">
+    <span class="badge badge--signal">{{ signal_source|upper }}</span>
+    <span class="badge {% if stats_summary.return_pct >= 0 %}badge--ok{% else %}badge--err{% endif %}">
+      {% if stats_summary.return_pct >= 0 %}+{% endif %}{{ stats_summary.return_pct|floatformat:2 }}% RTN
+    </span>
+    <div class="stat"><span class="stat-label">TRADES</span><span class="stat-val stat-val--neutral">{{ stats_summary.trades }}</span></div>
+    <div class="stat"><span class="stat-label">WIN</span><span class="stat-val {% if stats_summary.win_rate >= 50 %}stat-val--pos{% else %}stat-val--neg{% endif %}">{{ stats_summary.win_rate|floatformat:1 }}%</span></div>
+    <div class="stat"><span class="stat-label">MAX DD</span><span class="stat-val stat-val--neg">{{ stats_summary.max_dd|floatformat:2 }}%</span></div>
+    <div class="stat"><span class="stat-label">BARS</span><span class="stat-val stat-val--neutral">{{ bars }}</span></div>
+    <div class="stat"><span class="stat-label">SYM</span><span class="stat-val stat-val--neutral">{{ symbol }}</span></div>
+    <div class="stat"><span class="stat-label">TF</span><span class="stat-val stat-val--neutral">{{ timeframe }}</span></div>
+    <div class="stat"><span class="stat-label">DATA</span><span class="stat-val stat-val--neutral" style="color:var(--muted)">{{ data_source }}</span></div>
+  </div>
+  {% endif %}
+
+  <form method="get" action="/boom-visual/">
+    <div class="form-panel">
+      <div class="field" style="min-width:80px">
+        <label for="symbol">SYMBOL</label>
+        <input id="symbol" name="symbol" value="{{ symbol }}" />
+      </div>
+      <div class="field" style="min-width:140px">
+        <label for="signal">SIGNAL</label>
+        <select id="signal" name="signal">
+          <optgroup label="BOOM">
+            <option value="darvas" {% if signal_source == "darvas" %}selected{% endif %}>darvas — Squeeze + Darvas + RVOL</option>
+            <option value="arrows" {% if signal_source == "arrows" %}selected{% endif %}>arrows — Slingshot EMA38/62</option>
+          </optgroup>
+          <optgroup label="ALGO SIGNALS">
+            {% for s in all_signals %}{% if s != "darvas" and s != "arrows" %}
+            <option value="{{ s }}" {% if signal_source == s %}selected{% endif %}>{{ s }}</option>
+            {% endif %}{% endfor %}
+          </optgroup>
+        </select>
+      </div>
+      <div class="field" style="min-width:60px">
+        <label for="tf">TF</label>
+        <input id="tf" name="tf" value="{{ timeframe }}" placeholder="5m/15m/1d" />
+      </div>
+      <div class="field" style="min-width:70px">
+        <label for="period">PERIOD</label>
+        <input id="period" name="period" value="{{ period }}" />
+      </div>
+      <div class="field" style="min-width:70px">
+        <label for="max_bars">BARS</label>
+        <input id="max_bars" name="max_bars" type="number" min="50" value="{{ max_bars }}" />
+      </div>
+      {% if not is_algo_signal %}
+      <div class="field" style="min-width:60px">
+        <label for="sq">SQ LEN</label>
+        <input id="sq" name="sq" type="number" value="{{ squeeze_len }}" />
+      </div>
+      <div class="field" style="min-width:60px">
+        <label for="dv">DARVAS LB</label>
+        <input id="dv" name="dv" type="number" value="{{ darvas_lb }}" />
+      </div>
+      <div class="field" style="min-width:60px">
+        <label for="rvol">RVOL</label>
+        <input id="rvol" name="rvol" step="any" value="{{ rvol_mult }}" />
+      </div>
+      <div class="field" style="min-width:55px">
+        <label for="hold">HOLD</label>
+        <input id="hold" name="hold" type="number" value="{{ hold_bars }}" />
+      </div>
+      <div class="field" style="min-width:55px">
+        <label for="atr_mult">ATR GATE</label>
+        <input id="atr_mult" name="atr_mult" step="any" value="{{ atr_mult }}" />
+      </div>
+      <div class="field" style="min-width:55px">
+        <label for="exit">EXIT</label>
+        <select id="exit" name="exit">
+          <option value="ema13" {% if exit_mode == "ema13" %}selected{% endif %}>ema13</option>
+          <option value="holdbars" {% if exit_mode == "holdbars" %}selected{% endif %}>holdbars</option>
+        </select>
+      </div>
+      {% endif %}
+      <div class="checkbox-row">
+        <input type="hidden" name="scan" value="0" />
+        <label><input type="checkbox" name="scan" value="1" {% if scan %}checked{% endif %} /> INTRADAY MODE</label>
+        <input type="hidden" name="eod" value="0" />
+        <label><input type="checkbox" name="eod" value="1" {% if flat_eod %}checked{% endif %} /> FLAT EOD</label>
+        <input type="hidden" name="first_half" value="0" />
+        <label><input type="checkbox" name="first_half" value="1" {% if first_half_only %}checked{% endif %} /> FIRST HALF</label>
+      </div>
+      <button class="btn-run" type="submit">RUN ▶</button>
+    </div>
+  </form>
+
+  {% if is_algo_signal and signal_descriptions %}
+  <div class="signal-desc">
+    ⚡ {{ signal_source|upper }}: {{ signal_descriptions|get_item:signal_source }}
+  </div>
+  {% endif %}
+
+  {% if error %}
+  <div class="error-box">
+    {{ error }}
+    <div class="hint">Check: symbol valid · Django running · pip install pillow</div>
+  </div>
+  {% endif %}
+
+  {% if ok %}
+  <div class="chart-zone">
+    {% if chart_b64 %}
+    <div class="chart-wrap">
+      <img src="data:image/png;base64,{{ chart_b64 }}" alt="backtest chart — {{ symbol }}" />
+      <div class="chart-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#2563eb"></div> PRICE</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#f97316"></div> EMA 13</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#22c55e"></div> ▲ ENTRY</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div> ▼ EXIT</div>
+        <div class="legend-item" style="margin-left:auto; color: var(--muted)">
+          Sword of Record · backtesting.py · {{ symbol }} {{ timeframe }} {{ period }}
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="error-box">
+      Chart unavailable{% if chart_error %}: {{ chart_error }}{% endif %}
+      <div class="hint">Run: <code>cd m4d-ds && pip install pillow</code> then restart.</div>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if trade_rows %}
+  <div class="trade-section">
+    <div class="section-head">TRADE LOG — FIRST {{ trade_rows|length }} TRADES · {{ signal_source|upper }}</div>
+    <table>
+      <thead>
+        <tr>
+          <th>ENTRY BAR</th><th>EXIT BAR</th>
+          <th>ENTRY PX</th><th>EXIT PX</th>
+          <th>PNL $</th><th>RET %</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in trade_rows %}
+        <tr>
+          <td>{{ r.entry_bar }}</td>
+          <td>{{ r.exit_bar }}</td>
+          <td>{{ r.entry_px }}</td>
+          <td>{{ r.exit_px }}</td>
+          <td class="{% if r.pnl >= 0 %}td-pos{% else %}td-neg{% endif %}">
+            {% if r.pnl >= 0 %}+{% endif %}{{ r.pnl }}
+          </td>
+          <td class="{% if r.ret_pct >= 0 %}td-pos{% else %}td-neg{% endif %}">
+            {% if r.ret_pct >= 0 %}+{% endif %}{{ r.ret_pct|floatformat:4 }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% elif ok %}
+  <div class="trade-section">
+    <div class="section-head">NO TRADES — try wider params or longer period</div>
+  </div>
+  {% endif %}
+  {% endif %}
+
+  <div class="quick-links">
+    <a class="ql" href="/boom-visual/?symbol=NVDA&tf=5m&period=60d&signal=darvas&scan=1&eod=1&first_half=1">NVDA 5m DARVAS</a>
+    <a class="ql" href="/boom-visual/?symbol=TSLA&tf=5m&period=60d&signal=darvas&scan=1&eod=1">TSLA 5m DARVAS</a>
+    <a class="ql" href="/boom-visual/?symbol=SPY&tf=1d&period=6mo&signal=darvas&scan=0&eod=0">SPY 1D DARVAS</a>
+    <a class="ql" href="/boom-visual/?symbol=NVDA&tf=15m&period=60d&signal=ob_fvg&scan=0&eod=1">NVDA 15m OB/FVG</a>
+    <a class="ql" href="/boom-visual/?symbol=SPY&tf=1d&period=6mo&signal=stage2&scan=0">SPY 1D STAGE2</a>
+    <a class="ql" href="/boom-visual/?symbol=AAPL&tf=5m&period=60d&signal=ema_ribbon&scan=1&eod=1">AAPL EMA RIBBON</a>
+    <a class="ql" href="/boom-visual/?symbol=QQQ&tf=5m&period=60d&signal=mfi_cross&scan=1&eod=1">QQQ MFI CROSS</a>
+    <a class="ql" href="/boom-visual/?symbol=AMD&tf=5m&period=60d&signal=kc_breakout&scan=1&eod=1">AMD KC BREAKOUT</a>
+    <a class="ql" href="/boom-visual/?symbol=MSFT&tf=5m&period=60d&signal=choc_bos&scan=1&eod=1">MSFT CHOC/BOS</a>
+    <a class="ql" href="/boom-visual/?symbol=META&tf=5m&period=60d&signal=accel_range&scan=1&eod=1">META ACCEL RANGE</a>
+  </div>
+
+</body>
+</html>

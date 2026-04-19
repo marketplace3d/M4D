@@ -1,0 +1,629 @@
+[
+  {
+    "algo_id": "DON_BO",
+    "horizon": "4h",
+    "gate1_oos_sharpe": 2.257,
+    "gate2_pass": null,
+    "gate3_n_instruments": 6,
+    "gate4_regime_sharpes": {
+      "TRENDING": -1.633,
+      "RANGING": 1.919,
+      "BREAKOUT": 2.462,
+      "RISK-OFF": 4.067
+    },
+    "passes_all": false,
+    "n_trades_oos": 57164,
+    "hit_rate_oos": 0.529,
+    "avg_return_oos": 0.1002,
+    "symbols_pass": [
+      "CL",
+      "ES",
+      "GC",
+      "NQ",
+      "RTY",
+      "SI"
+    ]
+  },
+  {
+    "algo_id": "BB_BREAK",
+    "horizon": "4h",
+    "gate1_oos_sharpe": 1.79,
+    "gate2_pass": null,
+    "gate3_n_instruments": 5,
+    "gate4_regime_sharpes": {
+      "TRENDING": -0.386,
+      "RANGING": 1.638,
+      "BREAKOUT": 1.482,
+      "RISK-OFF": 3.344
+    },
+    "passes_all": false,
+    "n_trades_oos": 28563,
+    "hit_rate_oos": 0.523,
+    "avg_return_oos": 0.0631,
+    "symbols_pass": [
+      "CL",
+      "GC",
+      "NQ",
+      "RTY",
+      "SI"
+    ]
+  },
+  {
+    "algo_id": "KC_BREAK",
+    "horizon": "4h",
+    "gate1_oos_sharpe": 1.704,
+    "gate2_pass": null,
+    "gate3_n_instruments": 6,
+    "gate4_regime_sharpes": {
+      "TRENDING": -1.658,
+      "RANGING": 1.787,
+      "BREAKOUT": 1.623,
+      "RISK-OFF": 2.717
+    },
+    "passes_all": false,
+    "n_trades_oos": 26982,
+    "hit_rate_oos": 0.529,
+    "avg_return_oos": 0.0684,
+    "symbols_pass": [
+      "CL",
+      "ES",
+      "GC",
+      "NQ",
+      "RTY",
+      "SI"
+    ]
+  },
+  {
+    "algo_id": "SQZPOP",
+    "horizon": "4h",
+    "gate1_oos_sharpe": 0.628,
+    "gate2_pass": null,
+    "gate3_n_instruments": 4,
+    "gate4_regime_sharpes": {
+      "TRENDING": null,
+      "RANGING": 0.89,
+      "BREAKOUT": -0.371,
+      "RISK-OFF": 1.015
+    },
+    "passes_all": false,
+    "n_trades_oos": 13147,
+    "hit_rate_oos": 0.526,
+    "avg_return_oos": 0.014,
+    "symbols_pass": [
+      "CL",
+      "ES",
+      "NQ",
+      "RTY"
+    ]
+  },
+  {
+    "algo_id": "ATR_EXP",
+    "horizon": "4h",
+    "gate1_oos_sharpe": 1.34,
+    "gate2_pass": null,
+    "gate3_n_instruments": 4,
+    "gate4_regime_sharpes": {
+      "TRENDING": -1.947,
+      "RANGING": 0.979,
+      "BREAKOUT": 0.867,
+      "RISK-OFF": 3.488
+    },
+    "passes_all": false,
+    "n_trades_oos": 29192,
+    "hit_rate_oos": 0.523,
+    "avg_return_oos": 0.0291,
+    "symbols_pass": [
+      "CL",
+      "ES",
+      "NQ",
+      "RTY"
+    ]
+  },
+  {
+    "algo_id": "VOL_BO",
+    "horizon": "4h",
+    "gate1_oos_sharpe": 1.766,
+    "gate2_pass": null,
+    "gate3_n_instruments": 5,
+    "gate4_regime_sharpes": {
+      "TRENDING": 0.271,
+      "RANGING": 1.601,
+      "BREAKOUT": 1.817,
+      "RISK-OFF": 3.044
+    },
+    "passes_all": false,
+    "n_trades_oos": 18475,
+    "hit_rate_oos": 0.524,
+    "avg_return_oos": 0.0638,
+    "symbols_pass": [
+      "CL",
+      "ES",
+      "GC",
+      "NQ",
+      "SI"
+    ]
+  },
+  {
+    "algo_id": "CONSOL_BO",
+    "horizon": "4h",
+    "gate1_oos_sharpe": 1.056,
+    "gate2_pass": null,
+    "gate3_n_instruments": 5,
+    "gate4_regime_sharpes": {
+      "TRENDING": -2.525,
+      "RANGING": 0.739,
+      "BREAKOUT": 0.819,
+      "RISK-OFF": 2.834
+    },
+    "passes_all": false,
+    "n_trades_oos": 40689,
+    "hit_rate_oos": 0.521,
+    "avg_return_oos": 0.0224,
+    "symbols_pass": [
+      "CL",
+      "ES",
+      "GC",
+      "NQ",
+      "RTY"
+    ]
+  },
+  {
+    "algo_id": "NEW_HIGH",
+    "horizon": "4h",
+    "gate1_oos_sharpe": 1.829,
+    "gate2_pass": null,
+    "gate3_n_instruments": 5,
+    "gate4_regime_sharpes": {
+      "TRENDING": -3.408,
+      "RANGING": 1.466,
+      "BREAKOUT": 2.031,
+      "RISK-OFF": 3.47
+    },
+    "passes_all": false,
+    "n_trades_oos": 105037,
+    "hit_rate_oos": 0.525,
+    "avg_return_oos": 0.0677,
+    "symbols_pass": [
+      "CL",
+      "GC",
+      "NQ",
+      "RTY",
+      "SI"
+    ]
+  },
+  {
+    "algo_id": "RANGE_BO",
+    "horizon": "4h",
+    "gate1_oos_sharpe": 1.873,
+    "gate2_pass": null,
+    "gate3_n_instruments": 6,
+    "gate4_regime_sharpes": {
+      "TRENDING": -1.744,
+      "RANGING": 1.597,
+      "BREAKOUT": 2.024,
+      "RISK-OFF": 3.458
+    },
+    "passes_all": false,
+    "n_trades_oos": 82037,
+    "hit_rate_oos": 0.527,
+    "avg_return_oos": 0.0797,
+    "symbols_pass": [
+      "CL",
+      "ES",
+      "GC",
+      "NQ",
+      "RTY",
+      "SI"
+    ]
+  },
+  {
+    "algo_id": "EMA_CROSS",
+    "horizon": "4h",
+    "gate1_oos_sharpe": 1.089,
+    "gate2_pass": null,
+    "gate3_n_instruments": 3,
+    "gate4_regime_sharpes": {
+      "TRENDING": -2.248,
+      "RANGING": 0.585,
+      "BREAKOUT": 0.704,
+      "RISK-OFF": 3.317
+    },
+    "passes_all": false,
+    "n_trades_oos": 22549,
+    "hit_rate_oos": 0.514,
+    "avg_return_oos": 0.034,
+    "symbols_pass": [
+      "CL",
+      "GC",
+      "SI"
+    ]
+  },
+  {
+    "algo_id": "EMA_STACK",
+    "horizon": "4h",
+    "gate1_oos_sharpe": 1.437,
+    "gate2_pass": null,
+    "gate3_n_instruments": 5,
+    "gate4_regime_sharpes": {
+      "TRENDING": -9.892,
+      "RANGING": 0.889,
+      "BREAKOUT": 1.788,
+      "RISK-OFF": 3.543
+    },
+    "passes_all": false,
+    "n_trades_oos": 50731,
+    "hit_rate_oos": 0.523,
+    "avg_return_oos": 0.0467,
+    "symbols_pass": [
+      "6E",
+      "CL",
+      "GC",
+      "NQ",
+      "SI"
+    ]
+  },
+  {
+    "algo_id": "MACD_CROSS",
+    "horizon": "4h",
+    "gate1_oos_sharpe": 1.283,
+    "gate2_pass": null,
+    "gate3_n_instruments": 4,
+    "gate4_regime_sharpes": {
+      "TRENDING": -2.098,
+      "RANGING": 0.804,
+      "BREAKOUT": 1.383,
+      "RISK-OFF": 3.197
+    },
+    "passes_all": false,
+    "n_trades_oos": 39403,
+    "hit_rate_oos": 0.52,
+    "avg_return_oos": 0.0409,
+    "symbols_pass": [
+      "6E",
+      "CL",
+      "GC",
+      "SI"
+    ]
+  },
+  {
+    "algo_id": "SUPERTREND",
+    "horizon": "4h",
+    "gate1_oos_sharpe": 1.962,
+    "gate2_pass": null,
+    "gate3_n_instruments": 4,
+    "gate4_regime_sharpes": {
+      "TRENDING": -0.49,
+      "RANGING": 1.175,
+      "BREAKOUT": 1.578,
+      "RISK-OFF": 5.021
+    },
+    "passes_all": false,
+    "n_trades_oos": 16518,
+    "hit_rate_oos": 0.516,
+    "avg_return_oos": 0.0826,
+    "symbols_pass": [
+      "CL",
+      "GC",
+      "NQ",
+      "SI"
+    ]
+  },
+  {
+    "algo_id": "ADX_TREND",
+    "horizon": "4h",
+    "gate1_oos_sharpe": 1.243,
+    "gate2_pass": null,
+    "gate3_n_instruments": 4,
+    "gate4_regime_sharpes": {
+      "TRENDING": -0.49,
+      "RANGING": 0.722,
+      "BREAKOUT": 1.101,
+      "RISK-OFF": 3.315
+    },
+    "passes_all": false,
+    "n_trades_oos": 42323,
+    "hit_rate_oos": 0.517,
+    "avg_return_oos": 0.0416,
+    "symbols_pass": [
+      "CL",
+      "GC",
+      "RTY",
+      "SI"
+    ]
+  },
+  {
+    "algo_id": "GOLDEN",
+    "horizon": "4h",
+    "gate1_oos_sharpe": 1.761,
+    "gate2_pass": null,
+    "gate3_n_instruments": 4,
+    "gate4_regime_sharpes": {
+      "TRENDING": null,
+      "RANGING": 1.252,
+      "BREAKOUT": 3.548,
+      "RISK-OFF": 3.069
+    },
+    "passes_all": false,
+    "n_trades_oos": 3047,
+    "hit_rate_oos": 0.527,
+    "avg_return_oos": 0.0505,
+    "symbols_pass": [
+      "6E",
+      "CL",
+      "NQ",
+      "RTY"
+    ]
+  },
+  {
+    "algo_id": "PSAR",
+    "horizon": "4h",
+    "gate1_oos_sharpe": 1.316,
+    "gate2_pass": null,
+    "gate3_n_instruments": 4,
+    "gate4_regime_sharpes": {
+      "TRENDING": -2.034,
+      "RANGING": 1.012,
+      "BREAKOUT": 0.684,
+      "RISK-OFF": 3.024
+    },
+    "passes_all": false,
+    "n_trades_oos": 39264,
+    "hit_rate_oos": 0.521,
+    "avg_return_oos": 0.0408,
+    "symbols_pass": [
+      "CL",
+      "ES",
+      "GC",
+      "SI"
+    ]
+  },
+  {
+    "algo_id": "PULLBACK",
+    "horizon": "4h",
+    "gate1_oos_sharpe": 1.266,
+    "gate2_pass": null,
+    "gate3_n_instruments": 5,
+    "gate4_regime_sharpes": {
+      "TRENDING": -0.819,
+      "RANGING": 0.936,
+      "BREAKOUT": 1.308,
+      "RISK-OFF": 2.762
+    },
+    "passes_all": false,
+    "n_trades_oos": 249187,
+    "hit_rate_oos": 0.524,
+    "avg_return_oos": 0.0315,
+    "symbols_pass": [
+      "CL",
+      "GC",
+      "NQ",
+      "RTY",
+      "SI"
+    ]
+  },
+  {
+    "algo_id": "TREND_SMA",
+    "horizon": "4h",
+    "gate1_oos_sharpe": 1.355,
+    "gate2_pass": null,
+    "gate3_n_instruments": 4,
+    "gate4_regime_sharpes": {
+      "TRENDING": -0.482,
+      "RANGING": 0.347,
+      "BREAKOUT": 2.686,
+      "RISK-OFF": 4.192
+    },
+    "passes_all": false,
+    "n_trades_oos": 16115,
+    "hit_rate_oos": 0.517,
+    "avg_return_oos": 0.0391,
+    "symbols_pass": [
+      "6E",
+      "CL",
+      "GC",
+      "SI"
+    ]
+  },
+  {
+    "algo_id": "RSI_CROSS",
+    "horizon": "4h",
+    "gate1_oos_sharpe": 0.92,
+    "gate2_pass": null,
+    "gate3_n_instruments": 3,
+    "gate4_regime_sharpes": {
+      "TRENDING": -1.033,
+      "RANGING": 0.274,
+      "BREAKOUT": 1.003,
+      "RISK-OFF": 3.099
+    },
+    "passes_all": false,
+    "n_trades_oos": 59049,
+    "hit_rate_oos": 0.515,
+    "avg_return_oos": 0.0272,
+    "symbols_pass": [
+      "CL",
+      "GC",
+      "SI"
+    ]
+  },
+  {
+    "algo_id": "RSI_STRONG",
+    "horizon": "4h",
+    "gate1_oos_sharpe": 1.519,
+    "gate2_pass": null,
+    "gate3_n_instruments": 6,
+    "gate4_regime_sharpes": {
+      "TRENDING": -1.824,
+      "RANGING": 1.462,
+      "BREAKOUT": 0.745,
+      "RISK-OFF": 2.967
+    },
+    "passes_all": false,
+    "n_trades_oos": 41304,
+    "hit_rate_oos": 0.524,
+    "avg_return_oos": 0.0512,
+    "symbols_pass": [
+      "CL",
+      "ES",
+      "GC",
+      "NQ",
+      "RTY",
+      "SI"
+    ]
+  },
+  {
+    "algo_id": "ROC_MOM",
+    "horizon": "4h",
+    "gate1_oos_sharpe": -1.267,
+    "gate2_pass": null,
+    "gate3_n_instruments": 0,
+    "gate4_regime_sharpes": {
+      "TRENDING": null,
+      "RANGING": -1.82,
+      "BREAKOUT": null,
+      "RISK-OFF": -1.405
+    },
+    "passes_all": false,
+    "n_trades_oos": 141,
+    "hit_rate_oos": 0.518,
+    "avg_return_oos": -0.3654,
+    "symbols_pass": []
+  },
+  {
+    "algo_id": "VOL_SURGE",
+    "horizon": "4h",
+    "gate1_oos_sharpe": 1.48,
+    "gate2_pass": null,
+    "gate3_n_instruments": 5,
+    "gate4_regime_sharpes": {
+      "TRENDING": 0.354,
+      "RANGING": 1.167,
+      "BREAKOUT": 0.996,
+      "RISK-OFF": 3.159
+    },
+    "passes_all": false,
+    "n_trades_oos": 26214,
+    "hit_rate_oos": 0.522,
+    "avg_return_oos": 0.0479,
+    "symbols_pass": [
+      "CL",
+      "ES",
+      "GC",
+      "NQ",
+      "SI"
+    ]
+  },
+  {
+    "algo_id": "CONSEC_BULL",
+    "horizon": "4h",
+    "gate1_oos_sharpe": 0.8,
+    "gate2_pass": null,
+    "gate3_n_instruments": 4,
+    "gate4_regime_sharpes": {
+      "TRENDING": -3.351,
+      "RANGING": 0.476,
+      "BREAKOUT": 0.118,
+      "RISK-OFF": 2.577
+    },
+    "passes_all": false,
+    "n_trades_oos": 31499,
+    "hit_rate_oos": 0.521,
+    "avg_return_oos": 0.0195,
+    "symbols_pass": [
+      "CL",
+      "NQ",
+      "RTY",
+      "SI"
+    ]
+  },
+  {
+    "algo_id": "OBV_TREND",
+    "horizon": "4h",
+    "gate1_oos_sharpe": 1.904,
+    "gate2_pass": null,
+    "gate3_n_instruments": 4,
+    "gate4_regime_sharpes": {
+      "TRENDING": -4.486,
+      "RANGING": 1.441,
+      "BREAKOUT": 1.914,
+      "RISK-OFF": 4.06
+    },
+    "passes_all": false,
+    "n_trades_oos": 50967,
+    "hit_rate_oos": 0.524,
+    "avg_return_oos": 0.0653,
+    "symbols_pass": [
+      "CL",
+      "GC",
+      "RTY",
+      "SI"
+    ]
+  },
+  {
+    "algo_id": "STOCH_CROSS",
+    "horizon": "4h",
+    "gate1_oos_sharpe": 1.066,
+    "gate2_pass": null,
+    "gate3_n_instruments": 3,
+    "gate4_regime_sharpes": {
+      "TRENDING": NaN,
+      "RANGING": 0.496,
+      "BREAKOUT": 1.202,
+      "RISK-OFF": 2.956
+    },
+    "passes_all": false,
+    "n_trades_oos": 87551,
+    "hit_rate_oos": 0.517,
+    "avg_return_oos": 0.0345,
+    "symbols_pass": [
+      "CL",
+      "GC",
+      "SI"
+    ]
+  },
+  {
+    "algo_id": "MFI_CROSS",
+    "horizon": "4h",
+    "gate1_oos_sharpe": 1.367,
+    "gate2_pass": null,
+    "gate3_n_instruments": 5,
+    "gate4_regime_sharpes": {
+      "TRENDING": -3.565,
+      "RANGING": 0.838,
+      "BREAKOUT": 1.922,
+      "RISK-OFF": 3.224
+    },
+    "passes_all": false,
+    "n_trades_oos": 49468,
+    "hit_rate_oos": 0.518,
+    "avg_return_oos": 0.0462,
+    "symbols_pass": [
+      "6E",
+      "CL",
+      "GC",
+      "RTY",
+      "SI"
+    ]
+  },
+  {
+    "algo_id": "CMF_POS",
+    "horizon": "4h",
+    "gate1_oos_sharpe": 0.662,
+    "gate2_pass": null,
+    "gate3_n_instruments": 2,
+    "gate4_regime_sharpes": {
+      "TRENDING": -2.639,
+      "RANGING": 0.309,
+      "BREAKOUT": 1.156,
+      "RISK-OFF": 1.838
+    },
+    "passes_all": false,
+    "n_trades_oos": 36594,
+    "hit_rate_oos": 0.518,
+    "avg_return_oos": 0.0153,
+    "symbols_pass": [
+      "CL",
+      "RTY"
+    ]
+  }
+]

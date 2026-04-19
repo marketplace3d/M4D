@@ -1,0 +1,458 @@
+// MAX-01 — MAX COGVIZ · All ICT Layers · One Chart
+// OBs · FVGs · VWAP/POC (on price) · PDH/PDL/EQH/EQL/BSL/SSL · Regime tint
+// Kill zones · Cumulative delta · Score table (top-right)
+// ONE indicator — load instead of the 8 separate overlays
+// Designed for maximum human cognitive density with minimum visual noise
+
+//@version=5
+indicator("MAX-01 · COGVIZ", overlay=true, max_boxes_count=100, max_lines_count=150, max_labels_count=60)
+
+// ─── Inputs ──────────────────────────────────────────────────────────────────
+grp_l   = "── Layers ──"
+grp_ob  = "Order Blocks"
+grp_fvg = "FVG"
+grp_vol = "Volume / Delta"
+grp_p   = "Params"
+
+show_ob     = input.bool(true,  "Order Blocks",          group=grp_l)
+show_fvg    = input.bool(true,  "Fair Value Gaps",       group=grp_l)
+show_vwap   = input.bool(true,  "VWAP + SD bands",       group=grp_l)
+show_poc    = input.bool(true,  "POC line (on chart)",   group=grp_l)
+show_swing  = input.bool(true,  "Swing levels",          group=grp_l)
+show_kz     = input.bool(true,  "Kill zone tint",        group=grp_l)
+show_regime = input.bool(true,  "Regime tint",           group=grp_l)
+show_table  = input.bool(true,  "Score table",           group=grp_l)
+
+ob_inst_only = input.bool(false, "INST OBs only (score ≥70)", group=grp_ob)
+ob_disp      = input.float(2.0,  "Displacement mult",         group=grp_ob, minval=1.0, maxval=4.0, step=0.1)
+ob_min_atr   = input.float(0.4,  "Min OB height (ATR×)",      group=grp_ob, minval=0.1, maxval=2.0, step=0.1)
+col_ob_bull  = input.color(color.green,  "Bull OB",           group=grp_ob)
+col_ob_bear  = input.color(color.red,    "Bear OB",           group=grp_ob)
+
+fvg_min_atr  = input.float(0.1,  "Min FVG height (ATR×)", group=grp_fvg, minval=0.02, maxval=1.0, step=0.02)
+col_fvg_bull = input.color(color.teal,   "Bull FVG",       group=grp_fvg)
+col_fvg_bear = input.color(color.orange, "Bear FVG",       group=grp_fvg)
+
+poc_len      = input.int(50,    "POC lookback (bars)",   group=grp_vol, minval=20, maxval=300)
+delta_len    = input.int(20,    "Delta lookback (bars)", group=grp_vol, minval=5,  maxval=100)
+
+bias_tf      = input.timeframe("D", "HTF bias TF",       group=grp_p)
+atr_p        = input.int(14,    "ATR period",            group=grp_p)
+max_age      = input.int(80,    "Max zone age (bars)",   group=grp_p, minval=10, maxval=500)
+
+// ─── Baseline ────────────────────────────────────────────────────────────────
+atr     = ta.atr(atr_p)
+vol_avg = ta.sma(volume, 20)
+vol_exp = volume > vol_avg * 1.3
+
+// ─── VWAP + SD bands ─────────────────────────────────────────────────────────
+vwap_v   = ta.vwap(hlc3)
+vwap_dev = ta.stdev(hlc3, 20)
+vwap_hi  = vwap_v + vwap_dev
+vwap_lo  = vwap_v - vwap_dev
+
+plot(show_vwap ? vwap_v  : na, "VWAP",    color=color.new(color.white,  35), linewidth=1)
+plot(show_vwap ? vwap_hi : na, "VWAP+SD", color=color.new(color.silver, 60), linewidth=1, style=plot.style_linebr)
+plot(show_vwap ? vwap_lo : na, "VWAP-SD", color=color.new(color.silver, 60), linewidth=1, style=plot.style_linebr)
+
+// ─── POC — volume-weighted centroid on price chart ────────────────────────────
+// This is the key missing layer: institutional cost basis drawn ON the candle chart
+// Color: lime when price above (bullish), fuchsia when below (bearish pull)
+poc     = ta.highest(volume * close, poc_len) / ta.highest(volume, poc_len)
+poc_up  = close > poc
+poc_xu  = ta.crossover(close,  poc)
+poc_xd  = ta.crossunder(close, poc)
+
+plot(show_poc ? poc : na, "POC",
+     color=color.new(poc_up ? color.lime : color.fuchsia, 20),
+     linewidth=2, style=plot.style_linebr)
+
+plotshape(show_poc and poc_xu, "POC X↑", style=shape.diamond, location=location.belowbar,
+          color=color.new(color.lime,    20), size=size.tiny)
+plotshape(show_poc and poc_xd, "POC X↓", style=shape.diamond, location=location.abovebar,
+          color=color.new(color.fuchsia, 20), size=size.tiny)
+
+// ─── Cumulative delta + divergence ───────────────────────────────────────────
+bar_rng    = math.max(high - low, syminfo.mintick)
+bar_delta  = ((close - low) / bar_rng * 2.0 - 1.0) * volume
+roll_d     = math.sum(bar_delta, delta_len)
+dslope     = roll_d - roll_d[delta_len]
+rvol       = volume / vol_avg
+rvol_ok    = rvol >= 1.2
+
+bull_delta = dslope > 0 and rvol_ok
+bear_delta = dslope < 0 and rvol_ok
+
+// Divergence: price new extreme but delta failing to confirm
+ph_hh  = high  > ta.highest(high,  10)[1]
+d_lh   = roll_d < ta.highest(roll_d, 10)[1]
+bear_div = ph_hh and d_lh and not bull_delta
+
+pl_ll  = low < ta.lowest(low,  10)[1]
+d_hl   = roll_d > ta.lowest(roll_d, 10)[1]
+bull_div = pl_ll and d_hl and not bear_delta
+
+// ─── Regime (ADX + choppiness) ───────────────────────────────────────────────
+[dip, dim, adx] = ta.dmi(14, 14)
+chop_range = math.max(ta.highest(high, 14) - ta.lowest(low, 14), syminfo.mintick)
+chop       = 100.0 * math.log10(math.sum(ta.tr(true), 14) / chop_range) / math.log10(14)
+
+r_bull = adx > 25 and dip > dim and chop < 61.8
+r_bear = adx > 25 and dim > dip and chop < 61.8
+r_rng  = chop >= 61.8 or adx <= 20
+r_str  = r_bull ? "TREND ▲" : r_bear ? "TREND ▼" : r_rng ? "RANGE" : "VOLATILE"
+r_col  = r_bull ? color.teal  : r_bear ? color.red  : color.gray
+
+// ─── Kill zones (ET) ─────────────────────────────────────────────────────────
+kz_london = hour == 3  or hour == 4
+kz_ny     = (hour == 9 and minute >= 30) or hour == 10
+kz_asia   = hour >= 20 and hour <= 23
+no_kz     = not kz_london and not kz_ny and not kz_asia
+
+bgcolor(show_kz and kz_london ? color.new(color.blue,   94) : na, title="London KZ")
+bgcolor(show_kz and kz_ny     ? color.new(color.green,  94) : na, title="NY KZ")
+bgcolor(show_kz and kz_asia   ? color.new(color.purple, 96) : na, title="Asia KZ")
+
+// Regime tint only outside kill zones (avoids colour clash)
+bgcolor(show_regime and no_kz and r_bull ? color.new(color.teal, 97) : na, title="Regime ▲")
+bgcolor(show_regime and no_kz and r_bear ? color.new(color.red,  97) : na, title="Regime ▼")
+
+// ─── PDH / PDL / PWH / PWL (day/week reset) ──────────────────────────────────
+var float pdh = na; var float pdl = na; var float dh = na; var float dl = na
+var float pwh = na; var float pwl = na; var float wh = na; var float wl = na
+
+if dayofweek != dayofweek[1]
+    if not na(dh)
+        pdh := dh; pdl := dl
+    dh := high; dl := low
+else
+    dh := math.max(dh, high); dl := math.min(dl, low)
+
+if weekofyear != weekofyear[1]
+    if not na(wh)
+        pwh := wh; pwl := wl
+    wh := high; wl := low
+else
+    wh := math.max(wh, high); wl := math.min(wl, low)
+
+// ─── Equal Highs / Lows + BSL / SSL ─────────────────────────────────────────
+ph5 = ta.pivothigh(high, 5, 5)
+pl5 = ta.pivotlow(low,   5, 5)
+var float ph1 = na; var float ph2 = na
+var float pl1 = na; var float pl2 = na
+if not na(ph5) then ph2 := ph1, ph1 := ph5
+if not na(pl5) then pl2 := pl1, pl1 := pl5
+
+eq_tol = atr * 0.2
+eq_h   = not na(ph1) and not na(ph2) and math.abs(ph1 - ph2) <= eq_tol ? (ph1 + ph2) / 2.0 : na
+eq_l   = not na(pl1) and not na(pl2) and math.abs(pl1 - pl2) <= eq_tol ? (pl1 + pl2) / 2.0 : na
+
+bsl = ta.highest(high, 50)   // liquidity resting above
+ssl = ta.lowest(low,   50)   // liquidity resting below
+
+// HTF bias
+htf_c    = request.security(syminfo.tickerid, bias_tf, close, lookahead=barmerge.lookahead_off)
+htf_o    = request.security(syminfo.tickerid, bias_tf, open,  lookahead=barmerge.lookahead_off)
+htf_bull = htf_c > htf_o
+htf_bear = htf_c < htf_o
+
+// Swing level plots — these ARE the target heat rays (proximity = relevance)
+plot(show_swing ? pdh  : na, "PDH", color=color.new(color.silver, 45), linewidth=1, style=plot.style_linebr)
+plot(show_swing ? pdl  : na, "PDL", color=color.new(color.silver, 45), linewidth=1, style=plot.style_linebr)
+plot(show_swing ? pwh  : na, "PWH", color=color.new(color.silver, 60), linewidth=1, style=plot.style_linebr)
+plot(show_swing ? pwl  : na, "PWL", color=color.new(color.silver, 60), linewidth=1, style=plot.style_linebr)
+plot(show_swing ? eq_h : na, "EQH", color=color.new(color.yellow, 25), linewidth=1, style=plot.style_linebr)
+plot(show_swing ? eq_l : na, "EQL", color=color.new(color.yellow, 25), linewidth=1, style=plot.style_linebr)
+plot(show_swing ? bsl  : na, "BSL", color=color.new(color.aqua,   45), linewidth=1, style=plot.style_linebr)
+plot(show_swing ? ssl  : na, "SSL", color=color.new(color.fuchsia,45), linewidth=1, style=plot.style_linebr)
+
+// T1 approach marker — price within 0.3 ATR of nearest target in bias direction
+t1_above = not na(pdh) and pdh > close ? pdh : bsl
+t1_below = not na(pdl) and pdl < close ? pdl : ssl
+t1_bull_approach = htf_bull and (t1_above - close) < atr * 0.3
+t1_bear_approach = htf_bear and (close - t1_below) < atr * 0.3
+
+plotshape(show_swing and t1_bull_approach, "T1 ▲ approach",
+          style=shape.circle, location=location.abovebar, color=color.new(color.yellow, 0), size=size.tiny)
+plotshape(show_swing and t1_bear_approach, "T1 ▼ approach",
+          style=shape.circle, location=location.belowbar, color=color.new(color.yellow, 0), size=size.tiny)
+
+// ─── Order Block helpers ──────────────────────────────────────────────────────
+ob_fill_c(b, r, inst) => color.new(b, inst ? 88 : math.min(97, math.round(90.0 + r * 7.0)))
+ob_bdr_c(b, r, inst)  => color.new(b, inst ? 55 : math.min(97, math.round(65.0 + r * 32.0)))
+
+ob_score_fn(vexp, fvg_f, kz) =>
+    // 30 = base (HTF structural context assumed)
+    // +25 = delta absorption (assumed present when displacement confirmed)
+    // +20 = volume expansion, +15 = FVG created, +10 = kill zone timing
+    math.min(100, 30 + (vexp ? 20 : 0) + 25 + (fvg_f ? 15 : 0) + (kz ? 10 : 0))
+
+// Detection
+disp_sz    = atr * ob_disp
+ob_ms      = atr * ob_min_atr
+bull_disp  = close > close[1] + disp_sz
+bear_disp  = close < close[1] - disp_sz
+
+is_bull_ob = bull_disp and close[1] < open[1] and math.abs(open[1] - close[1]) >= ob_ms
+is_bear_ob = bear_disp and close[1] > open[1] and math.abs(open[1] - close[1]) >= ob_ms
+
+bull_fvg_on_ob = high[2] < low   // gap created above on displacement candle
+bear_fvg_on_ob = low[2]  > high  // gap created below
+
+// State
+var float bob_top = na; var float bob_bot = na; var int bob_bar = na
+var bool  bob_inst = false; var bool bob_ghost = false; var box bob_box = na
+var int   last_bob = -999
+
+var float beb_top = na; var float beb_bot = na; var int beb_bar = na
+var bool  beb_inst = false; var bool beb_ghost = false; var box beb_box = na
+var int   last_beb = -999
+
+// Create Bull OB
+if show_ob and is_bull_ob and (bar_index - last_bob) > 5
+    sc   = ob_score_fn(vol_exp, bull_fvg_on_ob, kz_london or kz_ny)
+    inst = sc >= 70
+    if not ob_inst_only or inst
+        if not na(bob_box) then box.delete(bob_box)
+        bob_top   := math.max(open[1], close[1])
+        bob_bot   := math.min(open[1], close[1])
+        bob_bar   := bar_index; bob_inst := inst; bob_ghost := false; last_bob := bar_index
+        bob_box   := box.new(bar_index - 1, bob_top, bar_index + max_age, bob_bot,
+                              border_color=ob_bdr_c(col_ob_bull, 0.0, inst),
+                              bgcolor      =ob_fill_c(col_ob_bull, 0.0, inst), border_width=1)
+        if inst
+            label.new(bar_index - 1, bob_top, "INST",
+                       color=color.new(color.black, 60), textcolor=color.new(col_ob_bull, 10),
+                       style=label.style_label_down, size=size.tiny)
+
+// Create Bear OB
+if show_ob and is_bear_ob and (bar_index - last_beb) > 5
+    sc   = ob_score_fn(vol_exp, bear_fvg_on_ob, kz_london or kz_ny)
+    inst = sc >= 70
+    if not ob_inst_only or inst
+        if not na(beb_box) then box.delete(beb_box)
+        beb_top   := math.max(open[1], close[1])
+        beb_bot   := math.min(open[1], close[1])
+        beb_bar   := bar_index; beb_inst := inst; beb_ghost := false; last_beb := bar_index
+        beb_box   := box.new(bar_index - 1, beb_top, bar_index + max_age, beb_bot,
+                              border_color=ob_bdr_c(col_ob_bear, 0.0, inst),
+                              bgcolor      =ob_fill_c(col_ob_bear, 0.0, inst), border_width=1)
+        if inst
+            label.new(bar_index - 1, beb_bot, "INST",
+                       color=color.new(color.black, 60), textcolor=color.new(col_ob_bear, 10),
+                       style=label.style_label_up, size=size.tiny)
+
+// Update Bull OB
+if show_ob and not na(bob_box) and not na(bob_bar)
+    age = bar_index - bob_bar; ratio = math.min(1.0, age / float(max_age))
+    if not bob_ghost
+        if close < bob_bot
+            bob_ghost := true
+            box.set_bgcolor(bob_box,      color.new(col_ob_bull, 97))
+            box.set_border_color(bob_box, color.new(col_ob_bull, 97))
+        else
+            box.set_bgcolor(bob_box,      ob_fill_c(col_ob_bull, ratio, bob_inst))
+            box.set_border_color(bob_box, ob_bdr_c(col_ob_bull,  ratio, bob_inst))
+            if age >= max_age
+                bob_ghost := true
+                box.set_bgcolor(bob_box,      color.new(col_ob_bull, 97))
+                box.set_border_color(bob_box, color.new(col_ob_bull, 97))
+
+// Update Bear OB
+if show_ob and not na(beb_box) and not na(beb_bar)
+    age = bar_index - beb_bar; ratio = math.min(1.0, age / float(max_age))
+    if not beb_ghost
+        if close > beb_top
+            beb_ghost := true
+            box.set_bgcolor(beb_box,      color.new(col_ob_bear, 97))
+            box.set_border_color(beb_box, color.new(col_ob_bear, 97))
+        else
+            box.set_bgcolor(beb_box,      ob_fill_c(col_ob_bear, ratio, beb_inst))
+            box.set_border_color(beb_box, ob_bdr_c(col_ob_bear,  ratio, beb_inst))
+            if age >= max_age
+                beb_ghost := true
+                box.set_bgcolor(beb_box,      color.new(col_ob_bear, 97))
+                box.set_border_color(beb_box, color.new(col_ob_bear, 97))
+
+// ─── FVG helpers ─────────────────────────────────────────────────────────────
+fvg_fill_c(b, r, t) => color.new(b, t ? 82 : math.min(97, math.round(92.0 + r * 5.0)))
+fvg_bdr_c(b, r, t)  => color.new(b, t ? 40 : math.min(97, math.round(60.0 + r * 37.0)))
+
+fvg_ms      = atr * fvg_min_atr
+bf_raw_top  = low;    bf_raw_bot  = high[2]   // Bull FVG: gap above (price returns from below)
+brf_raw_top = low[2]; brf_raw_bot = high       // Bear FVG: gap below
+
+is_bull_fvg = show_fvg and bf_raw_top  > bf_raw_bot  and (bf_raw_top  - bf_raw_bot)  >= fvg_ms
+is_bear_fvg = show_fvg and brf_raw_top > brf_raw_bot and (brf_raw_top - brf_raw_bot) >= fvg_ms
+
+// Bull FVG state
+var float bf_top = na; var float bf_bot = na; var float bf_ctr = na; var float bf_wm = na
+var float bf_ct  = na; var float bf_cb  = na; var int   bf_bar = na
+var bool  bf_tch = false; var bool bf_ghost = false; var box bf_box = na
+
+// Bear FVG state
+var float brf_top = na; var float brf_bot = na; var float brf_ctr = na; var float brf_wm = na
+var float brf_ct  = na; var float brf_cb  = na; var int   brf_bar = na
+var bool  brf_tch = false; var bool brf_ghost = false; var box brf_box = na
+
+if is_bull_fvg
+    if not na(bf_box) then box.delete(bf_box)
+    bf_top := bf_raw_top; bf_bot := bf_raw_bot
+    bf_ctr := (bf_top + bf_bot) / 2.0; bf_wm := bf_bot
+    bf_ct  := bf_top; bf_cb := bf_bot; bf_bar := bar_index
+    bf_tch := false; bf_ghost := false
+    bf_box := box.new(bar_index - 2, bf_top, bar_index + max_age, bf_bot,
+                       border_color=fvg_bdr_c(col_fvg_bull, 0.0, false),
+                       bgcolor      =fvg_fill_c(col_fvg_bull, 0.0, false), border_width=1)
+
+if is_bear_fvg
+    if not na(brf_box) then box.delete(brf_box)
+    brf_top := brf_raw_top; brf_bot := brf_raw_bot
+    brf_ctr := (brf_top + brf_bot) / 2.0; brf_wm := brf_top
+    brf_ct  := brf_top; brf_cb := brf_bot; brf_bar := bar_index
+    brf_tch := false; brf_ghost := false
+    brf_box := box.new(bar_index - 2, brf_top, bar_index + max_age, brf_bot,
+                        border_color=fvg_bdr_c(col_fvg_bear, 0.0, false),
+                        bgcolor      =fvg_fill_c(col_fvg_bear, 0.0, false), border_width=1)
+
+// Update Bull FVG
+if show_fvg and not na(bf_box) and not na(bf_bar)
+    age = bar_index - bf_bar; ratio = math.min(1.0, age / float(max_age))
+    if high >= bf_cb and low <= bf_ct then bf_tch := true
+    if close > bf_bot and close < bf_top then bf_wm := math.max(bf_wm, close)
+    cen_cl = close >= bf_ctr and close < bf_top
+    ful_cl = close >= bf_top
+    if ful_cl and not bf_ghost
+        bf_ghost := true
+        box.set_bgcolor(bf_box,      color.new(col_fvg_bull, 97))
+        box.set_border_color(bf_box, color.new(col_fvg_bull, 97))
+    else if cen_cl and not bf_ghost
+        bf_ct := bf_wm; box.set_top(bf_box, bf_ct)
+        box.set_border_color(bf_box, color.new(col_fvg_bull, 10))
+        box.set_bgcolor(bf_box,      fvg_fill_c(col_fvg_bull, ratio * 0.5, true))
+    else if not bf_ghost
+        box.set_bgcolor(bf_box,      fvg_fill_c(col_fvg_bull, ratio, bf_tch))
+        box.set_border_color(bf_box, fvg_bdr_c(col_fvg_bull,  ratio, bf_tch))
+        if age >= max_age
+            bf_ghost := true
+            box.set_bgcolor(bf_box,      color.new(col_fvg_bull, 97))
+            box.set_border_color(bf_box, color.new(col_fvg_bull, 97))
+
+// Update Bear FVG
+if show_fvg and not na(brf_box) and not na(brf_bar)
+    age = bar_index - brf_bar; ratio = math.min(1.0, age / float(max_age))
+    if high >= brf_cb and low <= brf_ct then brf_tch := true
+    if close < brf_top and close > brf_bot then brf_wm := math.min(brf_wm, close)
+    cen_cl = close <= brf_ctr and close > brf_bot
+    ful_cl = close <= brf_bot
+    if ful_cl and not brf_ghost
+        brf_ghost := true
+        box.set_bgcolor(brf_box,      color.new(col_fvg_bear, 97))
+        box.set_border_color(brf_box, color.new(col_fvg_bear, 97))
+    else if cen_cl and not brf_ghost
+        brf_cb := brf_wm; box.set_bottom(brf_box, brf_cb)
+        box.set_border_color(brf_box, color.new(col_fvg_bear, 10))
+        box.set_bgcolor(brf_box,      fvg_fill_c(col_fvg_bear, ratio * 0.5, true))
+    else if not brf_ghost
+        box.set_bgcolor(brf_box,      fvg_fill_c(col_fvg_bear, ratio, brf_tch))
+        box.set_border_color(brf_box, fvg_bdr_c(col_fvg_bear,  ratio, brf_tch))
+        if age >= max_age
+            brf_ghost := true
+            box.set_bgcolor(brf_box,      color.new(col_fvg_bear, 97))
+            box.set_border_color(brf_box, color.new(col_fvg_bear, 97))
+
+// ─── Confluence score (inline CONF-01) ───────────────────────────────────────
+// Each layer contributes its weight — total = 100
+ob_bull_near  = not na(bob_box) and not bob_ghost and close > bob_bot and close < bob_top + atr * 0.5
+ob_bear_near  = not na(beb_box) and not beb_ghost and close < beb_top and close > beb_bot - atr * 0.5
+fvg_bull_near = not na(bf_box)  and not bf_ghost  and close < bf_ctr  and math.abs(close - bf_ctr)  < atr * 1.5
+fvg_bear_near = not na(brf_box) and not brf_ghost and close > brf_ctr and math.abs(close - brf_ctr) < atr * 1.5
+eq_l_near     = not na(eq_l) and math.abs(close - eq_l) < atr
+eq_h_near     = not na(eq_h) and math.abs(close - eq_h) < atr
+
+// Long score: OB 18 + FVG 12 + Delta 24 + Regime 10 + HTF 15 + VWAP 8 + EQ 8 + No-div 5
+long_sc  = (ob_bull_near   ? 18 : 0) + (fvg_bull_near  ? 12 : 0) +
+           (bull_delta      ? 24 : 0) + (r_bull          ? 10 : 0) +
+           (htf_bull        ? 15 : 0) + (close > vwap_v  ?  8 : 0) +
+           (eq_l_near       ?  8 : 0) + (not bear_div    ?  5 : 0)
+
+short_sc = (ob_bear_near   ? 18 : 0) + (fvg_bear_near  ? 12 : 0) +
+           (bear_delta      ? 24 : 0) + (r_bear          ? 10 : 0) +
+           (htf_bear        ? 15 : 0) + (close < vwap_v  ?  8 : 0) +
+           (eq_h_near       ?  8 : 0) + (not bull_div    ?  5 : 0)
+
+best_sc  = math.max(long_sc, short_sc)
+sig_str  = long_sc > short_sc ? "LONG" : short_sc > long_sc ? "SHORT" : "WAIT"
+sig_col  = long_sc > short_sc ? color.lime : short_sc > long_sc ? color.red : color.gray
+
+// ─── Entry signals ────────────────────────────────────────────────────────────
+long_entry  = long_sc  >= 60 and (ob_bull_near or fvg_bull_near) and vol_exp
+short_entry = short_sc >= 60 and (ob_bear_near or fvg_bear_near) and vol_exp
+
+plotshape(long_entry,  "LONG ▲",  style=shape.triangleup,   location=location.belowbar,
+          color=color.lime,  size=size.small)
+plotshape(short_entry, "SHORT ▼", style=shape.triangledown, location=location.abovebar,
+          color=color.red,   size=size.small)
+plotshape(bull_div, "Δ div ▲",   style=shape.xcross, location=location.belowbar,
+          color=color.new(color.aqua,    15), size=size.tiny)
+plotshape(bear_div, "Δ div ▼",   style=shape.xcross, location=location.abovebar,
+          color=color.new(color.fuchsia, 15), size=size.tiny)
+
+// ─── Score table (top-right) ─────────────────────────────────────────────────
+// Declared at script scope so it persists between bars
+var table tbl = table.new(position.top_right, 2, 11,
+                            bgcolor     =color.new(color.black, 72),
+                            border_color=color.new(color.gray,  60), border_width=1,
+                            frame_color =color.new(color.gray,  50), frame_width=1)
+
+if show_table and barstate.islast
+    table.cell(tbl, 0, 0,  "COGVIZ",   text_color=color.new(color.silver, 20), text_size=size.tiny, bgcolor=color.new(color.black, 55))
+    table.cell(tbl, 1, 0,  r_str,      text_color=r_col,                        text_size=size.tiny, bgcolor=color.new(color.black, 55))
+    table.cell(tbl, 0, 1,  "SIGNAL",   text_color=color.new(color.silver, 40), text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 1, 1,  sig_str,    text_color=sig_col,                      text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 0, 2,  "SCORE",    text_color=color.new(color.silver, 40), text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 1, 2,  str.tostring(best_sc) + "/100",
+               text_color=best_sc >= 60 ? color.lime : best_sc >= 40 ? color.yellow : color.gray,
+               text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 0, 3,  "OB",       text_color=color.new(color.silver, 40), text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 1, 3,  (ob_bull_near or ob_bear_near) ? "✓" : "–",
+               text_color=(ob_bull_near or ob_bear_near) ? color.lime : color.gray,
+               text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 0, 4,  "FVG",      text_color=color.new(color.silver, 40), text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 1, 4,  (fvg_bull_near or fvg_bear_near) ? "✓" : "–",
+               text_color=(fvg_bull_near or fvg_bear_near) ? color.lime : color.gray,
+               text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 0, 5,  "DELTA",    text_color=color.new(color.silver, 40), text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 1, 5,  bull_delta ? "▲" : bear_delta ? "▼" : "–",
+               text_color=bull_delta ? color.lime : bear_delta ? color.red : color.gray,
+               text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 0, 6,  "RVOL",     text_color=color.new(color.silver, 40), text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 1, 6,  str.tostring(math.round(rvol * 10.0) / 10.0) + "×",
+               text_color=rvol_ok ? color.lime : color.gray,
+               text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 0, 7,  "HTF",      text_color=color.new(color.silver, 40), text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 1, 7,  htf_bull ? "▲" : htf_bear ? "▼" : "–",
+               text_color=htf_bull ? color.lime : htf_bear ? color.red : color.gray,
+               text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 0, 8,  "POC",      text_color=color.new(color.silver, 40), text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 1, 8,  poc_up ? "ABOVE" : "BELOW",
+               text_color=poc_up ? color.lime : color.fuchsia,
+               text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 0, 9,  "DIV",      text_color=color.new(color.silver, 40), text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 1, 9,  bull_div ? "BULL⚡" : bear_div ? "BEAR⚡" : "–",
+               text_color=bull_div ? color.aqua : bear_div ? color.fuchsia : color.gray,
+               text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 0, 10, "EQ",       text_color=color.new(color.silver, 40), text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 1, 10, (eq_l_near or eq_h_near) ? "NEAR" : "–",
+               text_color=(eq_l_near or eq_h_near) ? color.yellow : color.gray,
+               text_size=size.tiny, bgcolor=color.new(color.black, 78))
+
+// ─── Alerts ───────────────────────────────────────────────────────────────────
+alertcondition(long_entry,  "MAX-01 LONG",  "COGVIZ LONG  score=" + str.tostring(long_sc)  + " · {{ticker}} · {{close}}")
+alertcondition(short_entry, "MAX-01 SHORT", "COGVIZ SHORT score=" + str.tostring(short_sc) + " · {{ticker}} · {{close}}")
+alertcondition(bull_div,    "MAX-01 BULL DIV",  "COGVIZ: Bull delta div · {{ticker}}")
+alertcondition(bear_div,    "MAX-01 BEAR DIV",  "COGVIZ: Bear delta div · {{ticker}}")
+alertcondition(poc_xu,      "MAX-01 POC X↑",    "COGVIZ: Price crossed above POC · {{ticker}}")
+alertcondition(poc_xd,      "MAX-01 POC X↓",    "COGVIZ: Price crossed below POC · {{ticker}}")
+alertcondition(t1_bull_approach, "MAX-01 T1 ▲", "COGVIZ: T1 approach bull · {{ticker}} · {{close}}")
+alertcondition(t1_bear_approach, "MAX-01 T1 ▼", "COGVIZ: T1 approach bear · {{ticker}} · {{close}}")

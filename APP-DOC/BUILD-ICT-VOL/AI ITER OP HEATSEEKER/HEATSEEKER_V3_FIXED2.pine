@@ -1,0 +1,661 @@
+// ============================================================
+// HEATSEEKER V3.0 — AI MASTER TRADER
+// Full Institutional Stack: Regime · HTF Confluence · FVG · OB
+// Volume Profile · Priority Targets · Rotating Arrows · Alerts
+// ============================================================
+//@version=6
+indicator("HEATSEEKER V3.0 — AI Master Trader", overlay=true, max_boxes_count=500, max_lines_count=500, max_labels_count=300)
+
+// ─────────────────────────────────────────────────────────────
+// 1. INPUTS
+// ─────────────────────────────────────────────────────────────
+grp_htf    = "── HTF MTF Confluence ──"
+useWeekly  = input.bool(true,   "Include Weekly TF",          group=grp_htf)
+minAligned = input.int(3,       "Min TFs Aligned for Boost",  group=grp_htf, minval=2, maxval=6)
+boostCap   = input.float(1.8,   "Max confluenceMult",         group=grp_htf, minval=1.0, maxval=2.5)
+pivLen     = input.int(2,       "Pivot Lookback Length",      group=grp_htf, minval=1,   maxval=5)
+
+grp_fvg    = "── FVG Detection ──"
+fvgMinATR  = input.float(0.45,  "Min FVG Width (ATR x)",      group=grp_fvg, minval=0.2, maxval=1.0, step=0.05)
+midMult    = input.float(1.3,   "Middle Candle Impulse Mult", group=grp_fvg, minval=1.0, maxval=2.5, step=0.1)
+showFVG    = input.bool(true,   "Show FVG Boxes",             group=grp_fvg)
+
+grp_ob     = "── Order Blocks ──"
+obLookback = input.int(20,      "OB Detection Lookback",      group=grp_ob, minval=5, maxval=50)
+showOB     = input.bool(true,   "Show Order Block Boxes",     group=grp_ob)
+
+grp_vp     = "── Volume / VWAP ──"
+showVWAP   = input.bool(true,   "Show Session VWAP + Bands",  group=grp_vp)
+vpDevMult  = input.float(1.5,   "VWAP Deviation Band Mult",   group=grp_vp, minval=0.5, maxval=3.0, step=0.1)
+
+grp_lvl    = "── Key Levels ──"
+showPDHL   = input.bool(true,   "Show PDH / PDL",             group=grp_lvl)
+showOR     = input.bool(true,   "Show Opening Range",         group=grp_lvl)
+orMins     = input.int(30,      "OR Duration (minutes)",      group=grp_lvl, minval=5, maxval=60)
+
+grp_reg    = "── Regime Engine ──"
+adxLen     = input.int(14,      "ADX Length",                 group=grp_reg)
+adxTrend   = input.int(25,      "ADX Trending Threshold",     group=grp_reg)
+rvolLen    = input.int(20,      "RVOL Lookback Bars",         group=grp_reg)
+
+grp_scr    = "── Alpha Score Weights ──"
+wVol       = input.float(0.38,  "Volume + VP Weight",         group=grp_scr, minval=0.25, maxval=0.50, step=0.01)
+wFvg       = input.float(0.25,  "FVG (Single+MTF) Weight",    group=grp_scr, minval=0.15, maxval=0.35, step=0.01)
+wOb        = input.float(0.14,  "Order Block Weight",         group=grp_scr, minval=0.05, maxval=0.25, step=0.01)
+wConf      = input.float(0.23,  "HTF Confluence Weight",      group=grp_scr, minval=0.15, maxval=0.35, step=0.01)
+
+grp_disp   = "── Display ──"
+showDash   = input.bool(true,   "Show Dashboard Table",       group=grp_disp)
+showArrows = input.bool(true,   "Show Rotating Arrow Panel",  group=grp_disp)
+showTiers  = input.bool(true,   "Show Target Tier Labels",    group=grp_disp)
+
+// ─────────────────────────────────────────────────────────────
+// 2. BASE CALCULATIONS
+// ─────────────────────────────────────────────────────────────
+atr14   = ta.atr(14)
+avgBody = ta.sma(math.abs(close - open), 20)
+rvol    = volume / math.max(ta.sma(volume, rvolLen), 1)
+
+// ─────────────────────────────────────────────────────────────
+// 3. HTF MTF STRUCTURE CONFLUENCE
+// ─────────────────────────────────────────────────────────────
+getDir(string tf) =>
+    ph = request.security(syminfo.tickerid, tf, ta.pivothigh(high, pivLen, pivLen), lookahead=barmerge.lookahead_off)
+    pl = request.security(syminfo.tickerid, tf, ta.pivotlow(low,   pivLen, pivLen), lookahead=barmerge.lookahead_off)
+    c  = request.security(syminfo.tickerid, tf, close,                              lookahead=barmerge.lookahead_off)
+    bosBull   = not na(ph) and c > ph
+    bosBear   = not na(pl) and c < pl
+    chochBull = not na(pl) and c > pl
+    chochBear = not na(ph) and c < ph
+    bosBull ? 1 : bosBear ? -1 : chochBull ? 1 : chochBear ? -1 : 0
+
+dir15 = getDir("15")
+dir30 = getDir("30")
+dir1h = getDir("60")
+dir4h = getDir("240")
+dirD  = getDir("D")
+dirW  = useWeekly ? getDir("W") : 0
+
+// Local dirBias from chart-level structure
+localPH = ta.pivothigh(high, pivLen, pivLen)
+localPL = ta.pivotlow(low,  pivLen, pivLen)
+var float lastPH = na
+var float lastPL = na
+if not na(localPH)
+    lastPH := localPH
+if not na(localPL)
+    lastPL := localPL
+dirBias = close > nz(lastPH, close) ? 1 : close < nz(lastPL, close) ? -1 : 0
+
+// Weighted alignment — each weight on its own line
+w15    = 1.0
+w30    = 1.0
+w1h    = 1.5
+w4h    = 2.0
+wD     = 3.0
+wW     = 4.0
+totalW = w15 + w30 + w1h + w4h + wD + (useWeekly ? wW : 0.0)
+
+alignedW = (dir15 == dirBias ? w15 : 0.0) + (dir30 == dirBias ? w30 : 0.0) + (dir1h == dirBias ? w1h : 0.0) + (dir4h == dirBias ? w4h : 0.0) + (dirD == dirBias ? wD : 0.0) + ((dirW == dirBias and useWeekly) ? wW : 0.0)
+
+confScore      = alignedW / totalW
+confluenceMult = confScore >= (minAligned / 6.5) ? math.min(boostCap, 1.0 + confScore * 1.2) : 0.3
+
+// ─────────────────────────────────────────────────────────────
+// 4. REGIME ENGINE
+// ─────────────────────────────────────────────────────────────
+[diPlus, diMinus, adxVal] = ta.dmi(adxLen, adxLen)
+isTrending = adxVal > adxTrend
+
+upperWick  = high - math.max(open, close)
+lowerWick  = math.min(open, close) - low
+wickRatio  = ta.sma(upperWick - lowerWick, 20) / math.max(atr14, 0.0001)
+shapeScore = math.max(-1.0, math.min(1.0, wickRatio))
+
+regimeRaw = (confluenceMult - 1.0) * 0.6 + shapeScore * 0.5 + (isTrending ? (dirBias > 0 ? 0.8 : dirBias < 0 ? -0.8 : 0.0) : 0.0) + (rvol > 1.8 ? 0.4 * dirBias : 0.0)
+
+regimeScore = math.max(-1.0, math.min(1.0, regimeRaw))
+
+regimeLabel = math.abs(regimeScore) < 0.25 ? "RANGING/CHOP" : regimeScore > 0.60 ? "BULL TRENDING" : regimeScore < -0.60 ? "BEAR TRENDING" : regimeScore > 0.30 ? "BULL TRANSIT" : "BEAR TRANSIT"
+
+isHighEnergy = rvol > 2.0 and math.abs(regimeScore) > 0.5
+var string regimeLabelFinal = ""
+regimeLabelFinal := isHighEnergy ? (regimeScore > 0 ? "BULL HIGH ENERGY" : "BEAR HIGH ENERGY") : regimeLabel
+
+regimeMismatch = (regimeScore * dirBias) < -0.3
+
+// ─────────────────────────────────────────────────────────────
+// 5. PDH / PDL / OPENING RANGE
+// ─────────────────────────────────────────────────────────────
+prevDayHigh = request.security(syminfo.tickerid, "D", high[1], lookahead=barmerge.lookahead_on)
+prevDayLow  = request.security(syminfo.tickerid, "D", low[1],  lookahead=barmerge.lookahead_on)
+
+isNewDay = ta.change(time("D")) != 0
+
+var float orHigh = na
+var float orLow  = na
+var int   orBars = 0
+var bool  orSet  = false
+
+if isNewDay
+    orHigh := high
+    orLow  := low
+    orBars := 1
+    orSet  := false
+
+if not orSet and not isNewDay
+    orBars += 1
+    orHigh := math.max(nz(orHigh, high), high)
+    orLow  := math.min(nz(orLow,  low),  low)
+    if orBars >= orMins / timeframe.multiplier
+        orSet := true
+
+// PDH/PDL lines
+var line pdh_line = na
+var line pdl_line = na
+if isNewDay and showPDHL
+    if not na(pdh_line)
+        line.delete(pdh_line)
+    if not na(pdl_line)
+        line.delete(pdl_line)
+    pdh_line := line.new(bar_index, prevDayHigh, bar_index + 500, prevDayHigh,
+                         color=color.new(#FFD700, 20), width=1, style=line.style_dashed, extend=extend.right)
+    pdl_line := line.new(bar_index, prevDayLow,  bar_index + 500, prevDayLow,
+                         color=color.new(#FFD700, 20), width=1, style=line.style_dashed, extend=extend.right)
+
+// OR lines
+var line orh_line = na
+var line orl_line = na
+var bool orDrawn  = false
+
+if orSet and not orDrawn and showOR and barstate.isconfirmed
+    if not na(orh_line)
+        line.delete(orh_line)
+    if not na(orl_line)
+        line.delete(orl_line)
+    orh_line := line.new(bar_index, orHigh, bar_index + 500, orHigh,
+                         color=color.new(#00BFFF, 30), width=1, style=line.style_dotted, extend=extend.right)
+    orl_line := line.new(bar_index, orLow,  bar_index + 500, orLow,
+                         color=color.new(#00BFFF, 30), width=1, style=line.style_dotted, extend=extend.right)
+    orDrawn := true
+
+if isNewDay
+    orDrawn := false
+
+// ─────────────────────────────────────────────────────────────
+// 6. VWAP + DEVIATION BANDS
+// ─────────────────────────────────────────────────────────────
+vwapVal    = ta.vwap(hlc3)
+vwapStdev  = ta.stdev(hlc3, 20)
+vwapUpper  = vwapVal + vpDevMult * vwapStdev
+vwapLower  = vwapVal - vpDevMult * vwapStdev
+
+vwapAcceptance = (close > vwapLower and close < vwapUpper) ? 1.0 : (close > vwapUpper or close < vwapLower) ? 0.4 : 0.7
+
+upVol  = close > open ? volume : 0
+downVol = close < open ? volume : 0
+cvdRaw = ta.cum(upVol - downVol)
+
+volScore = math.min(1.0, vwapAcceptance * 0.6 + math.min(1.0, rvol / 3.0) * 0.4)
+
+plot(showVWAP ? vwapVal : na,   "VWAP",      color=color.new(#00BFFF, 0),  linewidth=1)
+plot(showVWAP ? vwapUpper : na, "VWAP +Dev", color=color.new(#00BFFF, 60), linewidth=1, style=plot.style_linebr)
+plot(showVWAP ? vwapLower : na, "VWAP -Dev", color=color.new(#00BFFF, 60), linewidth=1, style=plot.style_linebr)
+
+// ─────────────────────────────────────────────────────────────
+// 7. FVG DETECTION — Refined V2.4
+// ─────────────────────────────────────────────────────────────
+bullGapRaw  = low > high[2]
+bearGapRaw  = high < low[2]
+bullFVGwide = bullGapRaw and (low - high[2])  >= fvgMinATR * atr14
+bearFVGwide = bearGapRaw and (low[2] - high)  >= fvgMinATR * atr14
+midBullImp  = bullFVGwide and (close[1] - open[1]) > midMult * avgBody and (high[1] - low[1]) > 0.7 * atr14
+midBearImp  = bearFVGwide and (open[1] - close[1]) > midMult * avgBody and (high[1] - low[1]) > 0.7 * atr14
+bullFVG     = midBullImp
+bearFVG     = midBearImp
+
+var box[] bBoxes    = array.new_box()
+var box[] bearBoxes = array.new_box()
+
+if bullFVG and showFVG
+    b = box.new(bar_index[2], low, bar_index + 80, high[2],
+                border_color=color.new(#00FF88, 0), bgcolor=color.new(#00FF88, 82), extend=extend.right)
+    array.push(bBoxes, b)
+
+if bearFVG and showFVG
+    b = box.new(bar_index[2], low[2], bar_index + 80, high,
+                border_color=color.new(#FF0055, 0), bgcolor=color.new(#FF0055, 82), extend=extend.right)
+    array.push(bearBoxes, b)
+
+// Mitigation
+mitigateFVGs(box[] boxes, bool isBull) =>
+    sz = array.size(boxes)
+    if sz > 0
+        i = sz - 1
+        while i >= 0
+            b  = array.get(boxes, i)
+            t  = box.get_top(b)
+            bt = box.get_bottom(b)
+            if isBull ? close < bt : close > t
+                box.delete(b)
+                array.remove(boxes, i)
+            i := i - 1
+
+mitigateFVGs(bBoxes,    true)
+mitigateFVGs(bearBoxes, false)
+
+fvgScore  = 0.0
+fvgActive = false
+if (bullFVG or array.size(bBoxes) > 0) and dirBias > 0 and confluenceMult > 1.2
+    fvgScore  := 1.0 + (bullFVG ? 0.2 : 0.0)
+    fvgActive := true
+if (bearFVG or array.size(bearBoxes) > 0) and dirBias < 0 and confluenceMult > 1.2
+    fvgScore  := 1.0 + (bearFVG ? 0.2 : 0.0)
+    fvgActive := true
+
+// MTF FVG proxy (4H)
+htfClose   = request.security(syminfo.tickerid, "240", close, lookahead=barmerge.lookahead_off)
+htfHigh    = request.security(syminfo.tickerid, "240", high,  lookahead=barmerge.lookahead_off)
+htfLow     = request.security(syminfo.tickerid, "240", low,   lookahead=barmerge.lookahead_off)
+htfBullFVG = htfLow > htfHigh[2] and (htfLow - htfHigh[2]) > fvgMinATR * atr14
+htfBearFVG = htfHigh < htfLow[2] and (htfLow[2] - htfHigh) > fvgMinATR * atr14
+mtfFvgScore = (htfBullFVG and dirBias > 0) ? 1.0 : (htfBearFVG and dirBias < 0) ? 1.0 : 0.0
+
+// ─────────────────────────────────────────────────────────────
+// 8. ORDER BLOCK DETECTION
+// ─────────────────────────────────────────────────────────────
+bosUp   = ta.crossover(close,  ta.highest(high, obLookback)[1])
+bosDown = ta.crossunder(close, ta.lowest(low,   obLookback)[1])
+
+var float obBullTop = na
+var float obBullBot = na
+var float obBearTop = na
+var float obBearBot = na
+var int   obBullBar = na
+var int   obBearBar = na
+
+if bosUp
+    for i = 1 to obLookback
+        if close[i] < open[i]
+            obBullTop := open[i]
+            obBullBot := close[i]
+            obBullBar := bar_index[i]
+            break
+
+if bosDown
+    for i = 1 to obLookback
+        if close[i] > open[i]
+            obBearTop := close[i]
+            obBearBot := open[i]
+            obBearBar := bar_index[i]
+            break
+
+var box obBullBox = na
+var box obBearBox = na
+
+if bosUp and not na(obBullTop) and showOB
+    if not na(obBullBox)
+        box.delete(obBullBox)
+    obBullBox := box.new(obBullBar, obBullTop, bar_index + 100, obBullBot,
+                         border_color=color.new(#00FF88, 40), bgcolor=color.new(#00FF88, 88),
+                         border_width=1, extend=extend.right)
+
+if bosDown and not na(obBearTop) and showOB
+    if not na(obBearBox)
+        box.delete(obBearBox)
+    obBearBox := box.new(obBearBar, obBearTop, bar_index + 100, obBearBot,
+                         border_color=color.new(#FF0055, 40), bgcolor=color.new(#FF0055, 88),
+                         border_width=1, extend=extend.right)
+
+obScore = 0.0
+if not na(obBullBot) and close > obBullBot and close < obBullTop and dirBias > 0
+    obScore := 0.9
+if not na(obBearBot) and close > obBearBot and close < obBearTop and dirBias < 0
+    obScore := 0.9
+
+// ─────────────────────────────────────────────────────────────
+// 9. HEATSEEK_ALPHA_SCORE COMPOSITE
+// ─────────────────────────────────────────────────────────────
+rawAlpha = (volScore * 35.0 * wVol) + ((fvgScore + mtfFvgScore * 1.6) * 25.0 * wFvg) + (obScore * 20.0 * wOb) + (math.min(confluenceMult * 28.0, 28.0) * wConf)
+
+regimeBoost = regimeScore * 15.0 * 0.20
+alphaRaw    = rawAlpha + regimeBoost
+alphaScore  = math.round(math.max(0.0, math.min(100.0, alphaRaw)))
+
+tierStr = alphaScore >= 88 ? "S" : alphaScore >= 72 ? "A" : alphaScore >= 58 ? "B" : "C"
+
+tierColor = alphaScore >= 88 ? color.new(#FF0055, 0) : alphaScore >= 72 ? color.new(#FF8C00, 0) : alphaScore >= 58 ? color.new(#FFD700, 0) : color.new(#888888, 0)
+
+signalFires = alphaScore >= 58 and confluenceMult >= 1.2 and not regimeMismatch
+
+// ─────────────────────────────────────────────────────────────
+// 10. PRIORITIZED TARGET LEVELS
+// ─────────────────────────────────────────────────────────────
+var float nearestTarget  = 0.0
+var float ultimateTarget = 0.0
+var string nearestLabel  = ""
+var string ultimateLabel = ""
+
+// Bull targets: PDH, ORH, VWAP+
+float lvlPDH   = prevDayHigh
+float lvlPDL   = prevDayLow
+float lvlORH   = nz(orHigh, prevDayHigh)
+float lvlORL   = nz(orLow,  prevDayLow)
+float lvlVWAPU = vwapUpper
+float lvlVWAPL = vwapLower
+
+if dirBias > 0
+    // nearest above
+    float best1 = na
+    float best2 = na
+    string lbl1 = ""
+    string lbl2 = ""
+    float distA = close < lvlPDH   ? lvlPDH   - close : na
+    float distB = close < lvlORH   ? lvlORH   - close : na
+    float distC = close < lvlVWAPU ? lvlVWAPU - close : na
+    // nearest
+    if not na(distA) and (na(best1) or distA < (best1 - close))
+        lbl1  := "PDH"
+        best1 := lvlPDH
+    if not na(distB) and (na(best1) or distB < (best1 - close))
+        lbl1  := "ORH"
+        best1 := lvlORH
+    if not na(distC) and (na(best1) or distC < (best1 - close))
+        lbl1  := "VWAP+"
+        best1 := lvlVWAPU
+    // ultimate = highest
+    best2 := math.max(nz(lvlPDH, close), math.max(nz(lvlORH, close), nz(lvlVWAPU, close)))
+    lbl2  := best2 == lvlPDH ? "PDH" : best2 == lvlORH ? "ORH" : "VWAP+"
+    nearestTarget  := nz(best1, close)
+    nearestLabel   := lbl1
+    ultimateTarget := best2
+    ultimateLabel  := lbl2
+
+else if dirBias < 0
+    float best1 = na
+    float best2 = na
+    string lbl1 = ""
+    string lbl2 = ""
+    float distA = close > lvlPDL   ? close - lvlPDL   : na
+    float distB = close > lvlORL   ? close - lvlORL   : na
+    float distC = close > lvlVWAPL ? close - lvlVWAPL : na
+    if not na(distA) and (na(best1) or distA < (close - best1))
+        lbl1  := "PDL"
+        best1 := lvlPDL
+    if not na(distB) and (na(best1) or distB < (close - best1))
+        lbl1  := "ORL"
+        best1 := lvlORL
+    if not na(distC) and (na(best1) or distC < (close - best1))
+        lbl1  := "VWAP-"
+        best1 := lvlVWAPL
+    best2 := math.min(nz(lvlPDL, close), math.min(nz(lvlORL, close), nz(lvlVWAPL, close)))
+    lbl2  := best2 == lvlPDL ? "PDL" : best2 == lvlORL ? "ORL" : "VWAP-"
+    nearestTarget  := nz(best1, close)
+    nearestLabel   := lbl1
+    ultimateTarget := best2
+    ultimateLabel  := lbl2
+
+// ─────────────────────────────────────────────────────────────
+// 11. HEAT COLOR + TARGET LINES
+// ─────────────────────────────────────────────────────────────
+heatColorNow = alphaScore >= 88 ? color.new(#FF0055, 0) : alphaScore >= 72 ? color.new(#FF6600, 0) : alphaScore >= 58 ? color.new(#FFD700, 0) : color.new(#444444, 0)
+
+var line nextLine = na
+var line ultLine  = na
+var label nextLbl = na
+var label ultLbl  = na
+var label lReg    = na
+var label lHeat   = na
+var label lNext   = na
+var label lUlt    = na
+var label lMTF    = na
+var label lSafe   = na
+
+if barstate.islast and showTiers and signalFires
+    if not na(nextLine)
+        line.delete(nextLine)
+    if not na(nextLbl)
+        label.delete(nextLbl)
+    nextLine := line.new(bar_index - 5, nearestTarget, bar_index + 60, nearestTarget,
+                         color=heatColorNow, width=2, style=line.style_solid, extend=extend.right)
+    nextLbl  := label.new(bar_index + 62, nearestTarget,
+                          "▶ NEXT [" + tierStr + "-" + str.tostring(alphaScore) + "] " + nearestLabel,
+                          style=label.style_label_left, color=heatColorNow,
+                          textcolor=color.white, size=size.small)
+    if not na(ultLine)
+        line.delete(ultLine)
+    if not na(ultLbl)
+        label.delete(ultLbl)
+    if nearestTarget != ultimateTarget
+        ultLine := line.new(bar_index - 5, ultimateTarget, bar_index + 60, ultimateTarget,
+                            color=color.new(#FF0055, 30), width=2, style=line.style_dashed, extend=extend.right)
+        ultLbl  := label.new(bar_index + 62, ultimateTarget,
+                             "⚡ ULTIMATE " + ultimateLabel,
+                             style=label.style_label_left, color=color.new(#FF0055, 10),
+                             textcolor=color.white, size=size.small)
+
+// ─────────────────────────────────────────────────────────────
+// 12. SIGNALS — Entry Arrows
+// ─────────────────────────────────────────────────────────────
+sTierBull = signalFires and alphaScore >= 88 and dirBias > 0 and barstate.isconfirmed
+sTierBear = signalFires and alphaScore >= 88 and dirBias < 0 and barstate.isconfirmed
+aTierBull = signalFires and alphaScore >= 72 and alphaScore < 88 and dirBias > 0 and barstate.isconfirmed
+aTierBear = signalFires and alphaScore >= 72 and alphaScore < 88 and dirBias < 0 and barstate.isconfirmed
+bTierBull = signalFires and alphaScore >= 58 and alphaScore < 72 and dirBias > 0 and barstate.isconfirmed
+bTierBear = signalFires and alphaScore >= 58 and alphaScore < 72 and dirBias < 0 and barstate.isconfirmed
+fvgBullSignal = bullFVG and dirBias > 0 and confluenceMult >= 1.2 and barstate.isconfirmed
+fvgBearSignal = bearFVG and dirBias < 0 and confluenceMult >= 1.2 and barstate.isconfirmed
+
+plotshape(sTierBull,     "S-Tier Bull",  shape.arrowup,     location.belowbar, color.new(#FF0055, 0),  size=size.normal, text="S")
+plotshape(sTierBear,     "S-Tier Bear",  shape.arrowdown,   location.abovebar, color.new(#FF0055, 0),  size=size.normal, text="S")
+plotshape(aTierBull,     "A-Tier Bull",  shape.arrowup,     location.belowbar, color.new(#FF6600, 0),  size=size.small,  text="A")
+plotshape(aTierBear,     "A-Tier Bear",  shape.arrowdown,   location.abovebar, color.new(#FF6600, 0),  size=size.small,  text="A")
+plotshape(bTierBull,     "B-Tier Bull",  shape.triangleup,  location.belowbar, color.new(#FFD700, 40), size=size.tiny,   text="B")
+plotshape(bTierBear,     "B-Tier Bear",  shape.triangledown,location.abovebar, color.new(#FFD700, 40), size=size.tiny,   text="B")
+plotshape(fvgBullSignal, "FVG Bull",     shape.circle,      location.belowbar, color.new(#00FF88, 30), size=size.tiny)
+plotshape(fvgBearSignal, "FVG Bear",     shape.circle,      location.abovebar, color.new(#FF0055, 30), size=size.tiny)
+
+// ─────────────────────────────────────────────────────────────
+// 13. ROTATING ARROW PANEL (Right-Edge Label Stack)
+// ─────────────────────────────────────────────────────────────
+if showArrows and barstate.islast
+
+    // Regime arrow
+    regArrow = regimeScore > 0.25  ? "▲" : regimeScore < -0.25 ? "▼" : "▶"
+    regCol   = regimeScore > 0.25 ? color.new(#00FF88, 0) : regimeScore < -0.25 ? color.new(#FF0055, 0) : color.new(#FFD700, 0)
+    regTxt   = regArrow + "  REGIME  " + regimeLabelFinal + "  [" + str.tostring(math.round(regimeScore * 100)) + "]"
+
+    // Heat arrow
+    heatArrow = alphaScore >= 72 ? "▲" : alphaScore >= 58 ? "▶" : "▼"
+    heatCol2  = heatColorNow
+    heatTxt   = heatArrow + "  HEAT  " + tierStr + "-TIER  Score:" + str.tostring(alphaScore)
+
+    // Next target arrow
+    ntArrow = dirBias > 0 ? "▲" : dirBias < 0 ? "▼" : "▶"
+    ntCol   = dirBias > 0 ? color.new(#00FF88, 0) : dirBias < 0 ? color.new(#FF0055, 0) : color.new(#888888, 0)
+    ntPriceStr = nearestTarget != 0.0 ? str.tostring(nearestTarget, "#.##") : "N/A"
+    ntTxt   = ntArrow + "  NEXT TARGET  " + nearestLabel + " @ " + ntPriceStr
+
+    // Ultimate target arrow
+    utArrow   = dirBias > 0 ? "▲" : dirBias < 0 ? "▼" : "▶"
+    utCol     = color.new(#FF0055, 0)
+    utPriceStr = ultimateTarget != 0.0 ? str.tostring(ultimateTarget, "#.##") : "N/A"
+    utTxt     = utArrow + "  ULTIMATE  " + ultimateLabel + " @ " + utPriceStr
+
+    // MTF trend arrow
+    mtfBias   = dir4h + dirD + (useWeekly ? dirW : 0)
+    mtfArrow  = mtfBias > 0 ? "▲" : mtfBias < 0 ? "▼" : "▶"
+    mtfCol    = mtfBias > 0 ? color.new(#00FF88, 0) : mtfBias < 0 ? color.new(#FF0055, 0) : color.new(#888888, 0)
+    mtfStr    = confluenceMult >= 1.5 ? " STRONG" : confluenceMult >= 1.2 ? " MED" : " WEAK"
+    mtfTxt    = mtfArrow + "  MTF TREND  4H+D" + (useWeekly ? "+W" : "") + mtfStr
+
+    // Safety
+    safetyTxt = regimeMismatch ? "! SAFETY: REGIME MISMATCH" : alphaScore < 58 ? "! SAFETY: LOW SCORE" : "SHIELD: ARMED"
+    safetyCol = (regimeMismatch or alphaScore < 58) ? color.new(#FF0055, 0) : color.new(#00FF88, 0)
+
+    spacing = atr14 * 1.4
+    baseY   = high + atr14 * 4.0
+    xPos    = bar_index + 3
+
+    if not na(lReg)
+        label.delete(lReg)
+    if not na(lHeat)
+        label.delete(lHeat)
+    if not na(lNext)
+        label.delete(lNext)
+    if not na(lUlt)
+        label.delete(lUlt)
+    if not na(lMTF)
+        label.delete(lMTF)
+    if not na(lSafe)
+        label.delete(lSafe)
+
+    lReg  := label.new(xPos, baseY,               regTxt,    style=label.style_label_left, color=color.new(#0A0A0A, 10), textcolor=regCol,    size=size.small)
+    lHeat := label.new(xPos, baseY - spacing,     heatTxt,   style=label.style_label_left, color=color.new(#0A0A0A, 10), textcolor=heatCol2,  size=size.small)
+    lNext := label.new(xPos, baseY - spacing * 2, ntTxt,     style=label.style_label_left, color=color.new(#0A0A0A, 10), textcolor=ntCol,     size=size.small)
+    lUlt  := label.new(xPos, baseY - spacing * 3, utTxt,     style=label.style_label_left, color=color.new(#0A0A0A, 10), textcolor=utCol,     size=size.small)
+    lMTF  := label.new(xPos, baseY - spacing * 4, mtfTxt,    style=label.style_label_left, color=color.new(#0A0A0A, 10), textcolor=mtfCol,    size=size.small)
+    lSafe := label.new(xPos, baseY - spacing * 5, safetyTxt, style=label.style_label_left, color=color.new(#0A0A0A, 10), textcolor=safetyCol, size=size.small)
+
+// ─────────────────────────────────────────────────────────────
+// 14. REGIME BACKGROUND
+// ─────────────────────────────────────────────────────────────
+bgcolor(regimeScore > 0.50 ? color.new(#00FF88, 97) : regimeScore < -0.50 ? color.new(#FF0055, 97) : math.abs(regimeScore) < 0.25 ? color.new(#FFD700, 98) : na, title="Regime Background")
+
+// ─────────────────────────────────────────────────────────────
+// 15. DASHBOARD TABLE
+// ─────────────────────────────────────────────────────────────
+if showDash and barstate.islast
+    var table dash = table.new(position.top_right, 2, 12,
+                                bgcolor=color.new(#0A0A0A, 10),
+                                border_color=color.new(#333333, 0),
+                                border_width=1,
+                                frame_color=color.new(#FF0055, 0),
+                                frame_width=1)
+
+    headBg   = color.new(#FF0055, 20)
+    rowBg    = color.new(#0A0A0A, 30)
+    altBg    = color.new(#111111, 30)
+    tWht     = color.white
+    tGrn     = color.new(#00FF88, 0)
+    tRed     = color.new(#FF0055, 0)
+    tGld     = color.new(#FFD700, 0)
+    tGry     = color.gray
+
+    table.cell(dash, 0, 0,  "HEATSEEKER V3.0",    text_color=tWht, bgcolor=headBg, text_size=size.small)
+    table.cell(dash, 1, 0,  "AI MASTER TRADER",   text_color=tGld, bgcolor=headBg, text_size=size.small)
+
+    table.cell(dash, 0, 1,  "REGIME",             text_color=tGry, bgcolor=rowBg, text_size=size.tiny)
+    table.cell(dash, 1, 1,  regimeLabelFinal,      text_color=regimeScore > 0.25 ? tGrn : regimeScore < -0.25 ? tRed : tGld, bgcolor=rowBg, text_size=size.tiny)
+
+    table.cell(dash, 0, 2,  "REGIME SCORE",       text_color=tGry, bgcolor=altBg, text_size=size.tiny)
+    table.cell(dash, 1, 2,  str.tostring(math.round(regimeScore * 100) / 100),   text_color=tWht, bgcolor=altBg, text_size=size.tiny)
+
+    table.cell(dash, 0, 3,  "CONFLUENCE",         text_color=tGry, bgcolor=rowBg, text_size=size.tiny)
+    table.cell(dash, 1, 3,  str.tostring(math.round(confluenceMult * 100) / 100) + "x",
+               text_color=confluenceMult >= 1.5 ? tGrn : confluenceMult >= 1.2 ? tGld : tRed, bgcolor=rowBg, text_size=size.tiny)
+
+    table.cell(dash, 0, 4,  "DIR BIAS",           text_color=tGry, bgcolor=altBg, text_size=size.tiny)
+    table.cell(dash, 1, 4,  dirBias > 0 ? "BULL" : dirBias < 0 ? "BEAR" : "NEUTRAL",
+               text_color=dirBias > 0 ? tGrn : dirBias < 0 ? tRed : tGld, bgcolor=altBg, text_size=size.tiny)
+
+    table.cell(dash, 0, 5,  "ALPHA SCORE",        text_color=tGry, bgcolor=rowBg, text_size=size.tiny)
+    table.cell(dash, 1, 5,  str.tostring(alphaScore) + "  [" + tierStr + "]",
+               text_color=tierColor, bgcolor=rowBg, text_size=size.tiny)
+
+    table.cell(dash, 0, 6,  "VOL / RVOL",         text_color=tGry, bgcolor=altBg, text_size=size.tiny)
+    table.cell(dash, 1, 6,  str.tostring(math.round(volScore * 100)) + "%  " + str.tostring(math.round(rvol * 10) / 10) + "x",
+               text_color=rvol > 2.0 ? tGrn : rvol > 1.3 ? tGld : tGry, bgcolor=altBg, text_size=size.tiny)
+
+    table.cell(dash, 0, 7,  "FVG",                text_color=tGry, bgcolor=rowBg, text_size=size.tiny)
+    table.cell(dash, 1, 7,  str.tostring(math.round(fvgScore * 10) / 10) + "  MTF:" + str.tostring(math.round(mtfFvgScore * 10) / 10),
+               text_color=fvgScore > 1.0 ? tGrn : fvgScore > 0.5 ? tGld : tGry, bgcolor=rowBg, text_size=size.tiny)
+
+    table.cell(dash, 0, 8,  "OB SCORE",           text_color=tGry, bgcolor=altBg, text_size=size.tiny)
+    table.cell(dash, 1, 8,  str.tostring(math.round(obScore * 10) / 10),
+               text_color=obScore > 0.7 ? tGrn : tGry, bgcolor=altBg, text_size=size.tiny)
+
+    table.cell(dash, 0, 9,  "NEXT TARGET",        text_color=tGry, bgcolor=rowBg, text_size=size.tiny)
+    ntDisp = nearestTarget != 0.0 ? nearestLabel + " @ " + str.tostring(nearestTarget, "#.##") : "N/A"
+    table.cell(dash, 1, 9,  ntDisp,               text_color=tGld, bgcolor=rowBg, text_size=size.tiny)
+
+    table.cell(dash, 0, 10, "ULTIMATE",           text_color=tGry, bgcolor=altBg, text_size=size.tiny)
+    utDisp = ultimateTarget != 0.0 ? ultimateLabel + " @ " + str.tostring(ultimateTarget, "#.##") : "N/A"
+    table.cell(dash, 1, 10, utDisp,               text_color=tRed, bgcolor=altBg, text_size=size.tiny)
+
+    table.cell(dash, 0, 11, "SAFETY",             text_color=tGry, bgcolor=rowBg, text_size=size.tiny)
+    table.cell(dash, 1, 11, regimeMismatch ? "VETO - MISMATCH" : signalFires ? "ARMED" : "STANDBY",
+               text_color=regimeMismatch ? tRed : signalFires ? tGrn : tGry, bgcolor=rowBg, text_size=size.tiny)
+
+// ─────────────────────────────────────────────────────────────
+// 16. ALERTS
+// ─────────────────────────────────────────────────────────────
+alertcondition(sTierBull,
+     "S-TIER BULL — Institutional Grade",
+     "HEATSEEKER S-TIER BULL | Full size | Trail 1.5-2.0 ATR | Next Target above")
+
+alertcondition(sTierBear,
+     "S-TIER BEAR — Institutional Grade",
+     "HEATSEEKER S-TIER BEAR | Full size | Trail 1.5-2.0 ATR | Next Target below")
+
+alertcondition(aTierBull,
+     "A-TIER BULL — High Conviction",
+     "HEATSEEKER A-TIER BULL | Standard size | Adverse cap 0.7 ATR")
+
+alertcondition(aTierBear,
+     "A-TIER BEAR — High Conviction",
+     "HEATSEEKER A-TIER BEAR | Standard size | Adverse cap 0.7 ATR")
+
+alertcondition(bTierBull or bTierBear,
+     "B-TIER SIGNAL — Watch",
+     "HEATSEEKER B-TIER | Half size | Tighter Safety | Confirm volume")
+
+alertcondition(fvgBullSignal,
+     "FVG BULLISH — Unmitigated Gap",
+     "HEATSEEKER: Bull FVG with confluence >= 1.2 | Potential continuation target above")
+
+alertcondition(fvgBearSignal,
+     "FVG BEARISH — Unmitigated Gap",
+     "HEATSEEKER: Bear FVG with confluence >= 1.2 | Potential continuation target below")
+
+alertcondition(ta.change(math.sign(regimeScore)) != 0,
+     "REGIME FLIP — Heatseeker",
+     "HEATSEEKER: Regime direction shifted | Re-assess dirBias and targets")
+
+alertcondition(regimeMismatch and barstate.isconfirmed,
+     "SAFETY — REGIME MISMATCH VETO",
+     "HEATSEEKER SAFETY: Regime vs dirBias mismatch | Veto or flatten")
+
+alertcondition(confluenceMult >= 1.5 and ta.change(confluenceMult) > 0 and barstate.isconfirmed,
+     "HTF CONFLUENCE BOOST >= 1.5x",
+     "HEATSEEKER: Strong multi-TF structure alignment | Assess S/A-tier setups now")
+
+alertcondition(isHighEnergy and barstate.isconfirmed,
+     "HIGH ENERGY REGIME — RVOL > 2.0",
+     "HEATSEEKER: High Energy detected | Aggressive continuation mode | Watch exhaustion")
+
+alertcondition(ta.crossover(close, prevDayHigh) and dirBias > 0 and barstate.isconfirmed,
+     "PDH BREAK — Bull Continuation",
+     "HEATSEEKER: Price broke above PDH | Confirm volume + confluence for continuation")
+
+alertcondition(ta.crossunder(close, prevDayLow) and dirBias < 0 and barstate.isconfirmed,
+     "PDL BREAK — Bear Continuation",
+     "HEATSEEKER: Price broke below PDL | Confirm volume + confluence for continuation")
+
+alertcondition(ta.crossover(close, nz(orHigh, high)) and orSet and barstate.isconfirmed,
+     "OR EXPANSION BULL",
+     "HEATSEEKER: Opening Range High broken | Bull OR expansion | Check confluenceMult")
+
+alertcondition(ta.crossunder(close, nz(orLow, low)) and orSet and barstate.isconfirmed,
+     "OR EXPANSION BEAR",
+     "HEATSEEKER: Opening Range Low broken | Bear OR expansion | Check confluenceMult")
+
+// Hidden reference plots
+plot(alphaScore,    "AlphaScore",    display=display.none)
+plot(confluenceMult,"ConfMult",      display=display.none)
+plot(regimeScore,   "RegimeScore",   display=display.none)
+
+// ─────────────────────────────────────────────────────────────
+// END — HEATSEEKER V3.0
+// HUNTING ALPHA. REGIME-AWARE. SHIELDED. EXECUTING.
+// ─────────────────────────────────────────────────────────────

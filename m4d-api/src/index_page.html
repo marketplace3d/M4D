@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>M4D · m4d-api (Axum)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0d1117; color: #e6edf3; margin: 1.25rem; line-height: 1.5; }
+    h1 { font-size: 1rem; letter-spacing: 0.08em; color: #58a6ff; }
+    ul { padding-left: 1.1rem; max-width: 42rem; }
+    a { color: #79c0ff; }
+    code { background: #21262d; padding: 0.12rem 0.35rem; border-radius: 4px; font-size: 0.88em; }
+    p.note { font-size: 0.8rem; color: #8b949e; margin-top: 1rem; max-width: 42rem; line-height: 1.45; }
+  </style>
+</head>
+<body>
+  <h1>M4D · m4d-api (Axum)</h1>
+  <p>There is no full UI at the bare host root — use:</p>
+  <ul>
+    <li><a href="/mission/"><code>/mission/</code></a> — MISSION React (after <code>npm run build:embed</code> → <code>build/mission/</code>)</li>
+    <li><a href="/opt"><code>/opt</code></a> — CDN React bench (tiny demo; <a href="/opt/ping"><code>/opt/ping</code></a> JSON)</li>
+    <li><a href="/health"><code>/health</code></a> — <code>ok</code></li>
+    <li><a href="/v1/algo-day"><code>/v1/algo-day</code></a> — JSON (needs files in <code>--data-dir</code>)</li>
+    <li><code>/v1/votes?algo_id=…</code></li>
+  </ul>
+  <p class="note">
+    Django mirror <a href="http://127.0.0.1:8050/">http://127.0.0.1:8050/</a> —
+    <a href="http://127.0.0.1:8050/ping/"><code>/ping/</code></a> JSON;
+    <a href="http://127.0.0.1:8050/mission/"><code>/mission/</code></a> full MISSION React (<code>build/mission/</code>).
+    MISSION dev <a href="http://127.0.0.1:5550/">http://127.0.0.1:5550/</a>.
+  </p>
+  <p class="note">
+    Build MISSION for <code>/mission/</code>: from repo root run <code>./gob.sh embed</code> or <code>cd spec-kit/MISSION &amp;&amp; npm run build:embed</code>.
+    Keep m4d-api on <code>127.0.0.1:3330</code> so this app can proxy <code>/v1/*</code> and <code>/health</code>.
+  </p>
+</body>
+</html>

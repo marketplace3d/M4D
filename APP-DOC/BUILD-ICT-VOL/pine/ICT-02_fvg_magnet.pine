@@ -1,0 +1,191 @@
+// ICT-02 — FVG Magnet + Partial Fill + Decay
+// KEY FIX: FVG only disappears when CLOSE crosses center line (50%)
+//   · Wick-only spike through center → box stays, no resize
+//   · CLOSE beyond center → box resizes to show only REMAINING UNFILLED portion
+//   · CLOSE beyond full zone → fully filled, fade to near-invisible (stays in CONF)
+// Decay applies to opacity only; zone is NEVER deleted while partially unfilled
+
+//@version=5
+indicator("ICT-02 · FVG + Partial Fill + Decay", overlay=true, max_boxes_count=100)
+
+// ── Inputs ────────────────────────────────────────────────────────────────────
+max_age      = input.int(80,    "FVG max age (bars)",            minval=10, maxval=500)
+atr_period   = input.int(14,    "ATR period")
+atr_mult     = input.float(1.5, "Max FVG approach dist (ATR)",  minval=0.1, maxval=5.0, step=0.1)
+vol_mult     = input.float(1.3, "Volume expansion mult",        minval=1.0, maxval=3.0, step=0.1)
+keep_faded   = input.bool(true, "Keep ghost zones in CONF calc")
+min_fvg_atr  = input.float(0.1, "Min FVG height (ATR mult)",    minval=0.02, maxval=1.0, step=0.02)
+col_bull     = input.color(color.new(color.teal,   55), "Bull FVG")
+col_bear     = input.color(color.new(color.orange, 55), "Bear FVG")
+
+// ── Decay helpers ─────────────────────────────────────────────────────────────
+// Fresh FVG: fill=92% transp (light tint only — never blocks candles)
+//            border=60% transp (visible edge line, not heavy)
+// Touched:   fill=82%, border=40% (accent — briefly brighter)
+// Aged/ghost: 97%+ (nearly invisible, still in CONF calc)
+// Decay swing: 92→97 fill, 60→97 border — change is clearly visible over time
+fvg_fill(base_col, ratio, touched) =>
+    t = touched ? 82 : math.min(97, math.round(92 + ratio * 5))
+    color.new(base_col, t)
+
+fvg_border(base_col, ratio, touched) =>
+    t = touched ? 40 : math.min(97, math.round(60 + ratio * 37))
+    color.new(base_col, t)
+
+// ── Indicators ────────────────────────────────────────────────────────────────
+atr     = ta.atr(atr_period)
+vol_avg = ta.sma(volume, 20)
+vol_exp = volume > vol_avg * vol_mult
+min_size = atr * min_fvg_atr
+
+// ── FVG detection ─────────────────────────────────────────────────────────────
+// Bull FVG: bar[2].high < bar[0].low  (gap above — bullish imbalance)
+// Bear FVG: bar[2].low  > bar[0].high (gap below — bearish imbalance)
+raw_bull_top = low       // bar[0].low  = top of gap  (price will return from below)
+raw_bull_bot = high[2]   // bar[2].high = bot of gap
+raw_bear_top = low[2]    // bar[2].low  = top of gap
+raw_bear_bot = high      // bar[0].high = bot of gap
+
+is_bull_fvg = raw_bull_top > raw_bull_bot and (raw_bull_top - raw_bull_bot) >= min_size
+is_bear_fvg = raw_bear_top > raw_bear_bot and (raw_bear_top - raw_bear_bot) >= min_size
+
+// ── State per active FVG ──────────────────────────────────────────────────────
+// Track: original top/bot, center, fill watermark, creation bar, box ref
+var float bf_orig_top = na; var float bf_orig_bot = na
+var float bf_center   = na; var float bf_fill_wm  = na  // fill watermark (highest close inside bull FVG)
+var float bf_cur_top  = na; var float bf_cur_bot  = na  // current visible box edges
+var int   bf_bar      = na; var bool  bf_touched   = false; var bool bf_ghost = false
+var box   bf_box      = na
+
+var float brf_orig_top= na; var float brf_orig_bot= na
+var float brf_center  = na; var float brf_fill_wm = na  // lowest close inside bear FVG
+var float brf_cur_top = na; var float brf_cur_bot = na
+var int   brf_bar     = na; var bool  brf_touched  = false; var bool brf_ghost = false
+var box   brf_box     = na
+
+// ── FVG creation ──────────────────────────────────────────────────────────────
+if is_bull_fvg
+    if not na(bf_box) then box.delete(bf_box)
+    bf_orig_top := raw_bull_top;  bf_orig_bot := raw_bull_bot
+    bf_center   := (raw_bull_top + raw_bull_bot) / 2
+    bf_fill_wm  := raw_bull_bot   // watermark starts at bot (nothing filled yet)
+    bf_cur_top  := raw_bull_top;  bf_cur_bot  := raw_bull_bot
+    bf_bar      := bar_index;     bf_touched  := false; bf_ghost := false
+    bf_box      := box.new(bar_index - 2, bf_cur_top, bar_index + max_age, bf_cur_bot,
+                            border_color=fvg_border(col_bull, 0.0, false),
+                            bgcolor      =fvg_fill(col_bull, 0.0, false), border_width=1)
+
+if is_bear_fvg
+    if not na(brf_box) then box.delete(brf_box)
+    brf_orig_top := raw_bear_top;  brf_orig_bot := raw_bear_bot
+    brf_center   := (raw_bear_top + raw_bear_bot) / 2
+    brf_fill_wm  := raw_bear_top   // watermark starts at top (nothing filled yet)
+    brf_cur_top  := raw_bear_top;  brf_cur_bot  := raw_bear_bot
+    brf_bar      := bar_index;     brf_touched  := false; brf_ghost := false
+    brf_box      := box.new(bar_index - 2, brf_cur_top, bar_index + max_age, brf_cur_bot,
+                             border_color=fvg_border(col_bear, 0.0, false),
+                             bgcolor      =fvg_fill(col_bear, 0.0, false), border_width=1)
+
+// ── Per-bar update: partial fill + decay ──────────────────────────────────────
+
+// BULL FVG
+if not na(bf_box) and not na(bf_bar)
+    age   = bar_index - bf_bar
+    ratio = math.min(1.0, age / max_age)
+
+    // Touch: any part of bar enters zone
+    if high >= bf_cur_bot and low <= bf_cur_top
+        bf_touched := true
+
+    // PARTIAL FILL LOGIC:
+    // Close-based watermark — only CLOSES count (not wicks)
+    // Watermark advances only when close is inside the original zone
+    if close > bf_orig_bot and close < bf_orig_top
+        bf_fill_wm := math.max(bf_fill_wm, close)  // highest close inside zone
+
+    // Center-line close: resize box — show remaining UNFILLED portion (below center)
+    center_closed = close >= bf_center and close < bf_orig_top
+    fully_closed  = close >= bf_orig_top
+
+    if fully_closed and not bf_ghost
+        // Fully filled — ghost mode: near-invisible, still in CONF if keep_faded
+        bf_ghost := true
+        if keep_faded
+            box.set_bgcolor(bf_box,      color.new(col_bull, 97))
+            box.set_border_color(bf_box, color.new(col_bull, 97))
+        else
+            box.delete(bf_box); bf_box := na
+    else if center_closed and not bf_ghost
+        // Partial fill: resize top down to fill watermark, showing unfilled bottom portion
+        bf_cur_top := bf_fill_wm  // shrink from top
+        if not na(bf_box)
+            box.set_top(bf_box, bf_cur_top)
+        // Accent the remaining portion
+        box.set_border_color(bf_box, color.new(col_bull, 10))
+        box.set_bgcolor(bf_box,      fvg_fill(col_bull, ratio * 0.5, true))
+    else if not bf_ghost
+        // Normal decay
+        box.set_bgcolor(bf_box,      fvg_fill(col_bull, ratio, bf_touched))
+        box.set_border_color(bf_box, fvg_border(col_bull, ratio, bf_touched))
+        if age >= max_age
+            if keep_faded
+                bf_ghost := true
+                box.set_bgcolor(bf_box,      color.new(col_bull, 97))
+                box.set_border_color(bf_box, color.new(col_bull, 97))
+            else
+                box.delete(bf_box); bf_box := na
+
+// BEAR FVG
+if not na(brf_box) and not na(brf_bar)
+    age   = bar_index - brf_bar
+    ratio = math.min(1.0, age / max_age)
+
+    if high >= brf_cur_bot and low <= brf_cur_top
+        brf_touched := true
+
+    // Watermark: lowest close inside zone (bear FVG fills from top down)
+    if close < brf_orig_top and close > brf_orig_bot
+        brf_fill_wm := math.min(brf_fill_wm, close)
+
+    center_closed = close <= brf_center and close > brf_orig_bot
+    fully_closed  = close <= brf_orig_bot
+
+    if fully_closed and not brf_ghost
+        brf_ghost := true
+        if keep_faded
+            box.set_bgcolor(brf_box,      color.new(col_bear, 97))
+            box.set_border_color(brf_box, color.new(col_bear, 97))
+        else
+            box.delete(brf_box); brf_box := na
+    else if center_closed and not brf_ghost
+        brf_cur_bot := brf_fill_wm  // shrink from bottom
+        if not na(brf_box)
+            box.set_bottom(brf_box, brf_cur_bot)
+        box.set_border_color(brf_box, color.new(col_bear, 10))
+        box.set_bgcolor(brf_box,      fvg_fill(col_bear, ratio * 0.5, true))
+    else if not brf_ghost
+        box.set_bgcolor(brf_box,      fvg_fill(col_bear, ratio, brf_touched))
+        box.set_border_color(brf_box, fvg_border(col_bear, ratio, brf_touched))
+        if age >= max_age
+            if keep_faded
+                brf_ghost := true
+                box.set_bgcolor(brf_box,      color.new(col_bear, 97))
+                box.set_border_color(brf_box, color.new(col_bear, 97))
+            else
+                box.delete(brf_box); brf_box := na
+
+// ── CONF contribution (uses ORIGINAL zone, not resized) ───────────────────────
+bf_mid  = not na(bf_orig_top)  ? bf_center  : na
+brf_mid = not na(brf_orig_top) ? brf_center : na
+
+long_entry  = not na(bf_mid)  and not bf_ghost and math.abs(close - bf_mid)  < atr * atr_mult and close < bf_mid  and vol_exp
+short_entry = not na(brf_mid) and not brf_ghost and math.abs(close - brf_mid) < atr * atr_mult and close > brf_mid and vol_exp
+
+plotshape(long_entry,  "FVG Long",  style=shape.circle, location=location.belowbar, color=color.teal,   size=size.tiny)
+plotshape(short_entry, "FVG Short", style=shape.circle, location=location.abovebar, color=color.orange, size=size.tiny)
+
+plot(bf_mid,  "Bull FVG center", color=color.new(color.teal,   55), style=plot.style_linebr, linewidth=1)
+plot(brf_mid, "Bear FVG center", color=color.new(color.orange, 55), style=plot.style_linebr, linewidth=1)
+
+alertcondition(long_entry,  "ICT-02 LONG",  "ICT-02: FVG Long · {{ticker}} · {{close}}")
+alertcondition(short_entry, "ICT-02 SHORT", "ICT-02: FVG Short · {{ticker}} · {{close}}")

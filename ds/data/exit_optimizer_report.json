@@ -1,0 +1,92 @@
+{
+  "baseline_sharpe": 15.862,
+  "baseline_n": 1310,
+  "per_signal": [
+    {
+      "signal": "regime_degrade",
+      "sharpe": 16.983,
+      "delta": 1.121,
+      "n_early": 49,
+      "pct_triggered": 3.7,
+      "verdict": "IMPROVES"
+    },
+    {
+      "signal": "jedi_fade",
+      "sharpe": 16.348,
+      "delta": 0.486,
+      "n_early": 125,
+      "pct_triggered": 9.5,
+      "verdict": "IMPROVES"
+    },
+    {
+      "signal": "atr_diverge",
+      "sharpe": 16.297,
+      "delta": 0.435,
+      "n_early": 451,
+      "pct_triggered": 34.4,
+      "verdict": "IMPROVES"
+    },
+    {
+      "signal": "over_extension",
+      "sharpe": 15.534,
+      "delta": -0.328,
+      "n_early": 365,
+      "pct_triggered": 27.9,
+      "verdict": "HURTS"
+    },
+    {
+      "signal": "body_shrink",
+      "sharpe": 14.485,
+      "delta": -1.377,
+      "n_early": 233,
+      "pct_triggered": 17.8,
+      "verdict": "HURTS"
+    },
+    {
+      "signal": "round_number",
+      "sharpe": 12.522,
+      "delta": -3.34,
+      "n_early": 911,
+      "pct_triggered": 69.5,
+      "verdict": "HURTS"
+    },
+    {
+      "signal": "bb_touch",
+      "sharpe": 11.796,
+      "delta": -4.066,
+      "n_early": 1077,
+      "pct_triggered": 82.2,
+      "verdict": "HURTS"
+    },
+    {
+      "signal": "tape_decel",
+      "sharpe": 11.025,
+      "delta": -4.837,
+      "n_early": 1195,
+      "pct_triggered": 91.2,
+      "verdict": "HURTS"
+    },
+    {
+      "signal": "score_decay_fast",
+      "sharpe": 10.821,
+      "delta": -5.041,
+      "n_early": 1298,
+      "pct_triggered": 99.1,
+      "verdict": "HURTS"
+    },
+    {
+      "signal": "rvol_fade",
+      "sharpe": 10.766,
+      "delta": -5.096,
+      "n_early": 1297,
+      "pct_triggered": 99.0,
+      "verdict": "HURTS"
+    }
+  ],
+  "selected_exits": [
+    "regime_degrade",
+    "jedi_fade"
+  ],
+  "combined_sharpe": 17.887,
+  "generated_at": "2026-04-19T01:09:59"
+}

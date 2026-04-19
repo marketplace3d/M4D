@@ -1,0 +1,145 @@
+// SESSION-01 — Session Boxes + Kill Zones + ORB Levels
+// Asia / London / NY session range boxes with ORB extension levels
+// Kill zone highlighting: London 03-05 ET, NY 09:30-11 ET, London close 10-12 ET
+// Premium/Discount reference lines per session
+
+//@version=5
+indicator("SESSION-01 · Sessions + Kill Zones", overlay=true, max_boxes_count=30, max_lines_count=50, max_labels_count=30)
+
+// ── Inputs ────────────────────────────────────────────────────────────────────
+show_asia    = input.bool(true, "Asia session box")
+show_london  = input.bool(true, "London session box")
+show_ny      = input.bool(true, "NY session box")
+show_orb     = input.bool(true, "ORB extension levels")
+show_kz      = input.bool(true, "Kill zone highlight")
+show_eq_line = input.bool(true, "Session equilibrium (50%)")
+tz           = input.string("America/New_York", "Timezone", options=["America/New_York","UTC","Europe/London","Asia/Tokyo"])
+
+// Session hours in ET (America/New_York)
+asia_start   = input.int(20, "Asia start (ET prev day)", minval=0, maxval=23)
+asia_end     = input.int(0,  "Asia end (ET)",            minval=0, maxval=23)
+london_start = input.int(3,  "London start (ET)",        minval=0, maxval=23)
+london_end   = input.int(8,  "London end (ET)",          minval=0, maxval=23)
+ny_start     = input.int(9,  "NY start (ET)",            minval=0, maxval=23)
+ny_end       = input.int(16, "NY end (ET)",              minval=0, maxval=23)
+orb_min      = input.int(15, "ORB candle (minutes)",     minval=5,  maxval=60)
+
+col_asia    = input.color(color.new(color.blue,   85), "Asia box")
+col_london  = input.color(color.new(color.green,  85), "London box")
+col_ny      = input.color(color.new(color.orange, 85), "NY box")
+col_kz      = input.color(color.new(color.yellow, 92), "Kill zone")
+col_eq      = input.color(color.new(color.white,  60), "Equilibrium")
+col_orb_ext = input.color(color.new(color.yellow, 40), "ORB extension")
+
+// ── Time helpers ──────────────────────────────────────────────────────────────
+h = hour(time, tz)
+m = minute(time, tz)
+hm = h * 100 + m  // e.g. 0930
+
+in_asia   = (hm >= asia_start * 100) or (hm < asia_end * 100)
+in_london = hm >= london_start * 100 and hm < london_end * 100
+in_ny     = hm >= ny_start * 100     and hm < ny_end * 100
+
+// Kill zones: London open (03:00-05:00 ET), NY open (09:30-11:00 ET), London close (10:00-12:00 ET)
+in_kz_london_open  = hm >= 300  and hm < 500
+in_kz_ny_open      = hm >= 930  and hm < 1100
+in_kz_london_close = hm >= 1000 and hm < 1200
+in_any_kz = in_kz_london_open or in_kz_ny_open or in_kz_london_close
+
+kz_col = in_kz_ny_open      ? color.new(color.orange, 90) :
+         in_kz_london_open   ? color.new(color.green,  90) :
+         in_kz_london_close  ? color.new(color.red,    92) : na
+
+// ── Session box tracking ──────────────────────────────────────────────────────
+// Generic session tracker
+track_session(in_sess, sess_col) =>
+    var float s_high = na; var float s_low = na
+    var bool  s_open = false
+    var box   s_box  = na
+    var line  s_eq   = na
+
+    sess_started = in_sess and not in_sess[1]
+    sess_ended   = not in_sess and in_sess[1]
+
+    if sess_started
+        s_high  := high; s_low := low; s_open := true
+        if not na(s_box) then box.delete(s_box)
+        if not na(s_eq)  then line.delete(s_eq)
+        s_box := box.new(bar_index, high, bar_index, low,
+                          border_color=color.new(sess_col, 30),
+                          bgcolor=sess_col, border_width=1)
+    if s_open and not sess_started
+        s_high := math.max(s_high, high)
+        s_low  := math.min(s_low,  low)
+        box.set_top(s_box,    s_high)
+        box.set_bottom(s_box, s_low)
+        box.set_right(s_box,  bar_index)
+    if sess_ended and show_eq_line and not na(s_box)
+        eq_lvl = (s_high + s_low) / 2
+        s_eq := line.new(bar_index, eq_lvl, bar_index + 200, eq_lvl,
+                          color=col_eq, width=1, style=line.style_dotted, extend=extend.right)
+    [s_high, s_low, s_open]
+
+[asia_h,   asia_l,   _] = track_session(in_asia   and show_asia,   col_asia)
+[london_h, london_l, _] = track_session(in_london  and show_london, col_london)
+[ny_h,     ny_l,     _] = track_session(in_ny      and show_ny,     col_ny)
+
+// ── Kill zone background ──────────────────────────────────────────────────────
+bgcolor(show_kz and in_any_kz ? kz_col : na, title="Kill Zone")
+
+// ── Kill zone labels (on entry) ───────────────────────────────────────────────
+kz_label_txt = in_kz_ny_open     ? "NY KILL" :
+               in_kz_london_open  ? "LN KILL" :
+               in_kz_london_close ? "LN CLOSE" : ""
+kz_just_entered = in_any_kz and not in_any_kz[1]
+if kz_just_entered and show_kz
+    label.new(bar_index, high + ta.atr(14) * 0.5, kz_label_txt,
+               color=color.new(color.black, 80),
+               textcolor=color.yellow, style=label.style_label_down, size=size.tiny)
+
+// ── ORB levels (first N-minute candle of NY session) ─────────────────────────
+var float orb_h = na; var float orb_l = na; var float orb_eq = na
+var bool  orb_captured = false
+var line  ln_orb_h = na; var line ln_orb_l = na; var line ln_orb_eq = na
+var line  ln_orb_ext1_h = na; var line ln_orb_ext1_l = na
+
+ny_open_bar = hm == ny_start * 100 + 30 or (hm >= ny_start * 100 and hm < (ny_start * 100 + orb_min))
+
+if ny_open_bar and not orb_captured
+    orb_h        := high; orb_l := low; orb_eq := (high + low) / 2
+    orb_captured := true
+    if show_orb
+        if not na(ln_orb_h) then line.delete(ln_orb_h)
+        if not na(ln_orb_l) then line.delete(ln_orb_l)
+        if not na(ln_orb_eq) then line.delete(ln_orb_eq)
+        if not na(ln_orb_ext1_h) then line.delete(ln_orb_ext1_h)
+        if not na(ln_orb_ext1_l) then line.delete(ln_orb_ext1_l)
+        rng = orb_h - orb_l
+        ln_orb_h    := line.new(bar_index, orb_h,        bar_index + 300, orb_h,        color=col_orb_ext, width=2, extend=extend.right)
+        ln_orb_l    := line.new(bar_index, orb_l,        bar_index + 300, orb_l,        color=col_orb_ext, width=2, extend=extend.right)
+        ln_orb_eq   := line.new(bar_index, orb_eq,       bar_index + 300, orb_eq,       color=color.new(col_orb_ext, 50), width=1, style=line.style_dashed, extend=extend.right)
+        ln_orb_ext1_h := line.new(bar_index, orb_h + rng, bar_index + 300, orb_h + rng, color=color.new(col_orb_ext, 60), width=1, style=line.style_dotted, extend=extend.right)
+        ln_orb_ext1_l := line.new(bar_index, orb_l - rng, bar_index + 300, orb_l - rng, color=color.new(col_orb_ext, 60), width=1, style=line.style_dotted, extend=extend.right)
+        label.new(bar_index, orb_h, "ORH", color=color.new(color.black,85), textcolor=col_orb_ext, style=label.style_label_left, size=size.tiny)
+        label.new(bar_index, orb_l, "ORL", color=color.new(color.black,85), textcolor=col_orb_ext, style=label.style_label_left, size=size.tiny)
+
+// Reset ORB capture on new day
+if dayofweek != dayofweek[1]
+    orb_captured := false
+
+// ── Premium / Discount reference per active session ───────────────────────────
+// Use London range as reference during NY session; Asia range during London
+ref_high = in_ny     ? london_h : in_london ? asia_h : na
+ref_low  = in_ny     ? london_l : in_london ? asia_l : na
+ref_eq   = not na(ref_high) and not na(ref_low) ? (ref_high + ref_low) / 2 : na
+
+in_premium   = not na(ref_eq) and close > ref_eq   // above EQ = premium, look to sell
+in_discount  = not na(ref_eq) and close < ref_eq   // below EQ = discount, look to buy
+
+plot(ref_eq, "Session EQ", color=color.new(color.white, 50), style=plot.style_linebr, linewidth=1)
+
+// ── Alerts ────────────────────────────────────────────────────────────────────
+alertcondition(in_kz_london_open  and not in_kz_london_open[1],  "SESSION-01 LONDON KILL", "London Kill Zone open · {{ticker}}")
+alertcondition(in_kz_ny_open      and not in_kz_ny_open[1],      "SESSION-01 NY KILL",     "NY Kill Zone open · {{ticker}}")
+alertcondition(in_kz_london_close and not in_kz_london_close[1], "SESSION-01 LN CLOSE",    "London Close Kill Zone · {{ticker}}")
+alertcondition(orb_captured       and not orb_captured[1],        "SESSION-01 ORB SET",     "ORB captured · H=" + str.tostring(orb_h) + " L=" + str.tostring(orb_l) + " · {{ticker}}")

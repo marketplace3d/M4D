@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>M4D BOOM expansion backtest</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0d1117; color: #e6edf3; margin: 1rem; }
+    a { color: #58a6ff; }
+    code { background: #21262d; padding: 0.15rem 0.35rem; border-radius: 4px; }
+    .card { max-width: 70rem; border: 1px solid #30363d; border-radius: 10px; background: #161b22; padding: 0.9rem 1rem; }
+    .ok { color: #3fb950; }
+    .err { color: #f85149; }
+    table { width: 100%; border-collapse: collapse; margin-top: 0.7rem; font-size: 0.87rem; }
+    th, td { padding: 0.38rem 0.3rem; border-bottom: 1px solid #30363d; text-align: left; }
+    th { color: #8b949e; font-weight: 600; }
+    .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.6rem; margin: 0.65rem 0; }
+    .mini { border: 1px solid #30363d; border-radius: 8px; background: #0f141c; padding: 0.55rem 0.65rem; }
+    .mini h3 { margin: 0 0 0.35rem; font-size: 0.76rem; letter-spacing: 0.08em; color: #8b949e; text-transform: uppercase; }
+    .k { font-size: 1.25rem; font-weight: 700; color: #7dd3fc; margin: 0; }
+    .sub { margin: 0.2rem 0 0; color: #8b949e; font-size: 0.78rem; }
+    .bar { height: 8px; border-radius: 6px; background: #21262d; overflow: hidden; margin-top: 0.35rem; }
+    .fill { height: 100%; background: linear-gradient(90deg, #22d3ee, #4ade80); }
+    .rank-grid { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem; margin: 0.6rem 0 0.8rem; }
+    .rank-item { border: 1px solid #30363d; background:#0f141c; border-radius:8px; padding:0.5rem 0.6rem; }
+    .rank-item h4 { margin:0 0 0.35rem; font-size:0.78rem; color:#8b949e; text-transform:uppercase; }
+    .rank-item ol { margin:0; padding-left:1.1rem; }
+    .rank-item li { margin: 0.15rem 0; font-size:0.82rem; }
+    ul.presets { list-style: none; margin: 0.35rem 0 0; padding: 0; font-size: 0.83rem; }
+    ul.presets li { margin: 0.28rem 0; padding-left: 0.85rem; text-indent: -0.85rem; color: #8b949e; }
+    tr.sym-quiet td { color: #6e7681; }
+    .hint { font-size: 0.8rem; color: #8b949e; margin: 0.35rem 0 0; }
+  </style>
+</head>
+<body>
+  <p><a href="/">← home</a></p>
+  <div class="card">
+    <h1 style="margin: 0 0 0.4rem;">BOOM expansion backtest (chart arrows / Darvas selectable)</h1>
+    <p style="font-size:0.86rem;margin:0 0 0.5rem;"><a href="/boom-optimizer/">BOOM URL optimizer</a> · <a href="/vectorbt-boom/">vectorbt Darvas-only grid</a> · <a href="/vectorbt-expansion/">vectorbt full BOOM expansion</a> (same grids as this page) · <a href="/boom-visual/">chart + trades</a></p>
+    {% if ok %}
+      <p class="ok" style="margin: 0.2rem 0;">
+        Sweep complete — tested <strong>{{ tested }}</strong> sets · <strong>{{ meets_min_count }}</strong> meet <code>min_trades >= {{ min_trades }}</code> · ranking pool <strong>{{ eligible }}</strong> on <code>{{ dataset }}</code>.
+      </p>
+      <p style="font-size:0.86rem;color:#8b949e;margin:0.2rem 0;">
+        TF <code>{{ timeframe }}</code> · Period <code>{{ period }}</code> · Flat EOD <code>{{ flat_eod }}</code>
+        · Signal <code>{{ signal_source }}</code> · Exit <code>{{ exit_mode }}</code> · BE offset <code>+{{ break_even_offset_pct }}%</code> · ATR gate <code>> {{ atr_mult }}x avg</code> · First-half <code>{{ first_half_only }}</code> · Wide grid <code>{{ wide_grid }}</code>
+        {% if symbols %} · Symbols ({{ symbols|length }}): {{ symbols|join:", " }}{% endif %}
+      </p>
+      {% if first_half_only and timeframe|lower == "1d" %}
+      <p class="hint" style="margin-top:0;">Note: <code>first_half=1</code> on <code>1d</code> bars does not drop days — each bar is already one full session.</p>
+      {% endif %}
+      {% if analysis.surface %}
+      <p style="font-size:0.82rem;color:#8b949e;margin:0.15rem 0 0.35rem;">
+        Surface: <strong>{{ analysis.surface.trades_observed_total }}</strong> trades summed across
+        <strong>{{ analysis.surface.runs_total }}</strong> runs
+        (<strong>{{ analysis.surface.symbols_loaded }}</strong> symbols × <strong>{{ analysis.surface.param_sets_per_symbol }}</strong> param sets).
+        Sparse weeks on one ticker are expected; use the table below and/or more names / longer daily history.
+      </p>
+      {% endif %}
+      <p style="margin: 0.35rem 0 0.45rem;">
+        <a href="/boom-backtest.pdf?{{ export_qs }}" target="_blank" rel="noopener">Download PDF clip sheet</a>
+        {% if visual_qs %} · <a href="/boom-visual/?{{ visual_qs }}">Open visual chart (trades on price)</a>{% endif %}
+      </p>
+      <p style="margin: 0.35rem 0 0.2rem; font-size:0.83rem; color:#8b949e;">
+        Presets — intraday uses <strong>5m · 60d</strong> (Yahoo cap); ~6 months of history → <strong>1d · 6mo</strong>:
+      </p>
+      <ul class="presets">
+        <li><a href="/boom-backtest/?scan=1">Liquid 15-name sweep (5m · 60d)</a></li>
+        <li><a href="/boom-backtest/?scan=1&amp;tf=5m&amp;period=60d&amp;eod=1&amp;min_trades=7&amp;signal=darvas&amp;exit=ema13&amp;be_off=0.05&amp;atr_mult=1.05&amp;first_half=1">Liquid 5m/60d · darvas · ema13 · EOD · min_trades≥7 · ATR 1.05 · first-half</a></li>
+        <li><a href="/boom-backtest/?scan=1&amp;tf=5m&amp;period=60d&amp;eod=1&amp;min_trades=8&amp;signal=darvas&amp;exit=ema13&amp;be_off=0.05&amp;atr_mult=1.05&amp;first_half=1">Same · min_trades≥8 (stricter eligible pool)</a></li>
+        <li><a href="/boom-backtest/?scan=1&amp;tf=1d&amp;period=6mo">Liquid sweep · daily · 6 months</a> (same as your current TF/period)</li>
+        <li><a href="/boom-backtest/?scan=1&amp;wide=1">Liquid + wide parameter grid</a></li>
+        <li><a href="/boom-backtest/?scan=1&amp;symbols=TSLA%2CNVDA&amp;wide=1">TSLA + NVDA · wide</a></li>
+        <li><a href="/boom-backtest/?scan=0">Single-ticker SPY · daily · 6mo</a></li>
+        <li><a href="/boom-backtest/?scan=0&amp;period=18mo">Single-ticker SPY · daily · 18mo</a></li>
+      </ul>
+      <p style="font-size:0.88rem;color:#8b949e;margin:0.2rem 0 0.5rem;">
+        Ranking score = return - 0.35 * |max drawdown| + 0.05 * win rate.
+      </p>
+
+      {% if analysis.best %}
+        <div class="grid">
+          <div class="mini">
+            <h3>Best Setup</h3>
+            <p class="k">SQ {{ analysis.best.squeeze_len }} · DV {{ analysis.best.darvas_lookback }}</p>
+            <p class="sub">RVOL {{ analysis.best.rvol_mult }} · HOLD {{ analysis.best.hold_bars }} · GROK {{ analysis.best.grok_x_weight }}</p>
+          </div>
+          <div class="mini">
+            <h3>Return / Drawdown</h3>
+            <p class="k">{{ analysis.best.return_pct|floatformat:2 }}% / {{ analysis.best.max_dd_pct|floatformat:2 }}%</p>
+            <div class="bar"><div class="fill" style="width:{% widthratio analysis.best.return_pct 40 100 %}%"></div></div>
+            <p class="sub">
+              Eligible-set avg return {{ analysis.avg_eligible_return_pct|floatformat:2 }}% ·
+              top-bucket avg {{ analysis.top_bucket_avg.return_pct|floatformat:2 }}%
+            </p>
+          </div>
+          <div class="mini">
+            <h3>Win Rate / Trades</h3>
+            <p class="k">{{ analysis.best.win_rate_pct|floatformat:2 }}% · {{ analysis.best.trades }}</p>
+            <div class="bar"><div class="fill" style="width:{{ analysis.best.win_rate_pct|floatformat:0 }}%"></div></div>
+            <p class="sub">
+              Eligible win {{ analysis.avg_eligible_win_rate_pct|floatformat:2 }}% ·
+              trades {{ analysis.avg_eligible_trades|floatformat:1 }} (all runs avg {{ analysis.avg_trades|floatformat:1 }})
+            </p>
+          </div>
+        </div>
+        {% if analysis.best.trades|default:0 < 3 %}
+        <p class="hint">Best row has only <strong>{{ analysis.best.trades|default:0 }}</strong> trade(s) on that symbol×params — win rate is not statistically meaningful; use more history or relax gates.</p>
+        {% endif %}
+
+        {% if analysis.per_symbol %}
+        <div class="rank-item" style="margin: 0.5rem 0;">
+          <h4>Per symbol (all runs in this sweep) — σ ret = consistency across parameters; Meet≥min = runs with trades ≥ min_trades</h4>
+          <p class="hint" style="margin-top:0;">Meet≥min = 0 means no parameter combo on that symbol closed enough trades (e.g. IWM too quiet for this strategy/window).</p>
+          <table style="margin-top:0.35rem;">
+            <thead>
+              <tr>
+                <th>Symbol</th><th>Runs</th><th>Meet≥min</th><th>Avg ret %</th><th>σ ret %</th><th>Avg win %</th><th>Avg DD %</th><th>Avg trades</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for ps in analysis.per_symbol %}
+              <tr class="{% if ps.meets_min_runs == 0 %}sym-quiet{% endif %}">
+                <td>{{ ps.symbol }}</td>
+                <td>{{ ps.runs }}</td>
+                <td>{{ ps.meets_min_runs }}</td>
+                <td>{{ ps.avg_return_pct|floatformat:2 }}</td>
+                <td>{{ ps.std_return_pct|floatformat:2 }}</td>
+                <td>{{ ps.avg_win_rate_pct|floatformat:2 }}</td>
+                <td>{{ ps.avg_max_dd_pct|floatformat:2 }}</td>
+                <td>{{ ps.avg_trades|floatformat:1 }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+
+        <div class="rank-grid">
+          <div class="rank-item">
+            <h4>Input Rank · Squeeze Length</h4>
+            <ol>
+              {% for row in analysis.ranked_inputs.squeeze_len %}
+                <li>{{ row.value }} ({{ row.score|floatformat:2 }})</li>
+              {% endfor %}
+            </ol>
+          </div>
+          <div class="rank-item">
+            <h4>Input Rank · Darvas Lookback (compare)</h4>
+            <ol>
+              {% for row in analysis.ranked_inputs.darvas_lookback %}
+                <li>{{ row.value }} ({{ row.score|floatformat:2 }})</li>
+              {% endfor %}
+            </ol>
+          </div>
+          <div class="rank-item">
+            <h4>Input Rank · RVOL Multiplier</h4>
+            <ol>
+              {% for row in analysis.ranked_inputs.rvol_mult %}
+                <li>{{ row.value }} ({{ row.score|floatformat:2 }})</li>
+              {% endfor %}
+            </ol>
+          </div>
+          <div class="rank-item">
+            <h4>Input Rank · Hold Bars</h4>
+            <ol>
+              {% for row in analysis.ranked_inputs.hold_bars %}
+                <li>{{ row.value }} ({{ row.score|floatformat:2 }})</li>
+              {% endfor %}
+            </ol>
+          </div>
+        </div>
+      {% endif %}
+
+      {% if returns_chart_b64 or risk_chart_b64 %}
+        <div class="rank-grid" style="grid-template-columns: 1fr; gap: 0.8rem;">
+          {% if returns_chart_b64 %}
+            <div class="rank-item">
+              <h4>Visual · Return vs Win Rate</h4>
+              <img src="data:image/png;base64,{{ returns_chart_b64 }}" alt="Return and win rate chart" style="width:100%;border-radius:8px;border:1px solid #30363d;" />
+            </div>
+          {% endif %}
+          {% if risk_chart_b64 %}
+            <div class="rank-item">
+              <h4>Visual · Risk/Reward Map</h4>
+              <img src="data:image/png;base64,{{ risk_chart_b64 }}" alt="Risk reward map chart" style="width:100%;border-radius:8px;border:1px solid #30363d;" />
+            </div>
+          {% endif %}
+        </div>
+      {% endif %}
+
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>Symbol</th><th>Signal</th><th>Exit</th><th>BE Off %</th><th>Squeeze</th><th>Darvas</th><th>RVOL</th><th>Hold</th><th>Grok-X</th><th>Stop %</th>
+            <th>Return %</th><th>Win %</th><th>Max DD %</th><th>Trades</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in top %}
+            <tr>
+              <td>{{ forloop.counter }}</td>
+              <td>{{ r.symbol }}</td>
+              <td>{{ r.signal_source }}</td>
+              <td>{{ r.exit_mode }}</td>
+              <td>{{ r.break_even_offset_pct|floatformat:2 }}</td>
+              <td>{{ r.squeeze_len }}</td>
+              <td>{{ r.darvas_lookback }}</td>
+              <td>{{ r.rvol_mult }}</td>
+              <td>{{ r.hold_bars }}</td>
+              <td>{{ r.grok_x_weight }}</td>
+              <td>{{ r.stop_loss_pct|floatformat:2 }}</td>
+              <td>{{ r.return_pct|floatformat:2 }}</td>
+              <td>{{ r.win_rate_pct|floatformat:2 }}</td>
+              <td>{{ r.max_dd_pct|floatformat:2 }}</td>
+              <td>{{ r.trades }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="err" style="margin: 0.2rem 0;">Backtest run failed.</p>
+      <pre style="white-space: pre-wrap; background:#0b0f15; border:1px solid #30363d; padding:0.7rem;">{{ error }}</pre>
+    {% endif %}
+  </div>
+</body>
+</html>

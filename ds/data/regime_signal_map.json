@@ -1,0 +1,528 @@
+{
+  "TRENDING": [
+    {
+      "algo_id": "TREND_SMA",
+      "sharpe": 10.795,
+      "n_trades": 22,
+      "hit_rate": 0.545,
+      "avg_ret_pct": 0.1561
+    },
+    {
+      "algo_id": "MACD_CROSS",
+      "sharpe": 3.663,
+      "n_trades": 65,
+      "hit_rate": 0.492,
+      "avg_ret_pct": 0.0546
+    },
+    {
+      "algo_id": "CONSEC_BULL",
+      "sharpe": 2.901,
+      "n_trades": 20,
+      "hit_rate": 0.55,
+      "avg_ret_pct": 0.0285
+    },
+    {
+      "algo_id": "SUPERTREND",
+      "sharpe": 1.868,
+      "n_trades": 232,
+      "hit_rate": 0.491,
+      "avg_ret_pct": 0.0316
+    },
+    {
+      "algo_id": "ADX_TREND",
+      "sharpe": 1.868,
+      "n_trades": 232,
+      "hit_rate": 0.491,
+      "avg_ret_pct": 0.0316
+    },
+    {
+      "algo_id": "RSI_CROSS",
+      "sharpe": 1.567,
+      "n_trades": 124,
+      "hit_rate": 0.5,
+      "avg_ret_pct": 0.0209
+    },
+    {
+      "algo_id": "PULLBACK",
+      "sharpe": 0.975,
+      "n_trades": 110,
+      "hit_rate": 0.527,
+      "avg_ret_pct": 0.0172
+    }
+  ],
+  "RANGING": [
+    {
+      "algo_id": "VOL_BO",
+      "sharpe": 2.124,
+      "n_trades": 6292,
+      "hit_rate": 0.515,
+      "avg_ret_pct": 0.0585
+    },
+    {
+      "algo_id": "DON_BO",
+      "sharpe": 1.998,
+      "n_trades": 31521,
+      "hit_rate": 0.524,
+      "avg_ret_pct": 0.061
+    },
+    {
+      "algo_id": "KC_BREAK",
+      "sharpe": 1.874,
+      "n_trades": 14138,
+      "hit_rate": 0.527,
+      "avg_ret_pct": 0.0514
+    },
+    {
+      "algo_id": "BB_BREAK",
+      "sharpe": 1.829,
+      "n_trades": 14313,
+      "hit_rate": 0.517,
+      "avg_ret_pct": 0.0437
+    },
+    {
+      "algo_id": "RANGE_BO",
+      "sharpe": 1.693,
+      "n_trades": 47778,
+      "hit_rate": 0.523,
+      "avg_ret_pct": 0.0498
+    },
+    {
+      "algo_id": "NEW_HIGH",
+      "sharpe": 1.525,
+      "n_trades": 65340,
+      "hit_rate": 0.521,
+      "avg_ret_pct": 0.0396
+    },
+    {
+      "algo_id": "RSI_STRONG",
+      "sharpe": 1.482,
+      "n_trades": 24625,
+      "hit_rate": 0.523,
+      "avg_ret_pct": 0.0361
+    },
+    {
+      "algo_id": "OBV_TREND",
+      "sharpe": 1.476,
+      "n_trades": 31807,
+      "hit_rate": 0.519,
+      "avg_ret_pct": 0.037
+    },
+    {
+      "algo_id": "VOL_SURGE",
+      "sharpe": 1.384,
+      "n_trades": 9566,
+      "hit_rate": 0.517,
+      "avg_ret_pct": 0.0356
+    },
+    {
+      "algo_id": "GOLDEN",
+      "sharpe": 1.117,
+      "n_trades": 2197,
+      "hit_rate": 0.517,
+      "avg_ret_pct": 0.0245
+    },
+    {
+      "algo_id": "SUPERTREND",
+      "sharpe": 1.013,
+      "n_trades": 8838,
+      "hit_rate": 0.505,
+      "avg_ret_pct": 0.0309
+    },
+    {
+      "algo_id": "PSAR",
+      "sharpe": 0.943,
+      "n_trades": 25771,
+      "hit_rate": 0.517,
+      "avg_ret_pct": 0.0225
+    },
+    {
+      "algo_id": "MACD_CROSS",
+      "sharpe": 0.941,
+      "n_trades": 27304,
+      "hit_rate": 0.516,
+      "avg_ret_pct": 0.0221
+    },
+    {
+      "algo_id": "PULLBACK",
+      "sharpe": 0.914,
+      "n_trades": 170363,
+      "hit_rate": 0.521,
+      "avg_ret_pct": 0.0185
+    },
+    {
+      "algo_id": "EMA_STACK",
+      "sharpe": 0.902,
+      "n_trades": 35014,
+      "hit_rate": 0.519,
+      "avg_ret_pct": 0.0211
+    },
+    {
+      "algo_id": "MFI_CROSS",
+      "sharpe": 0.87,
+      "n_trades": 35347,
+      "hit_rate": 0.514,
+      "avg_ret_pct": 0.021
+    },
+    {
+      "algo_id": "ADX_TREND",
+      "sharpe": 0.74,
+      "n_trades": 27703,
+      "hit_rate": 0.515,
+      "avg_ret_pct": 0.0184
+    },
+    {
+      "algo_id": "SQZPOP",
+      "sharpe": 0.686,
+      "n_trades": 7590,
+      "hit_rate": 0.525,
+      "avg_ret_pct": 0.0131
+    }
+  ],
+  "BREAKOUT": [
+    {
+      "algo_id": "GOLDEN",
+      "sharpe": 3.441,
+      "n_trades": 530,
+      "hit_rate": 0.562,
+      "avg_ret_pct": 0.0735
+    },
+    {
+      "algo_id": "DON_BO",
+      "sharpe": 1.955,
+      "n_trades": 19010,
+      "hit_rate": 0.528,
+      "avg_ret_pct": 0.057
+    },
+    {
+      "algo_id": "OBV_TREND",
+      "sharpe": 1.637,
+      "n_trades": 14059,
+      "hit_rate": 0.523,
+      "avg_ret_pct": 0.0427
+    },
+    {
+      "algo_id": "NEW_HIGH",
+      "sharpe": 1.594,
+      "n_trades": 28083,
+      "hit_rate": 0.525,
+      "avg_ret_pct": 0.0432
+    },
+    {
+      "algo_id": "SUPERTREND",
+      "sharpe": 1.563,
+      "n_trades": 5731,
+      "hit_rate": 0.52,
+      "avg_ret_pct": 0.0404
+    },
+    {
+      "algo_id": "RANGE_BO",
+      "sharpe": 1.56,
+      "n_trades": 25181,
+      "hit_rate": 0.526,
+      "avg_ret_pct": 0.0438
+    },
+    {
+      "algo_id": "TREND_SMA",
+      "sharpe": 1.515,
+      "n_trades": 4136,
+      "hit_rate": 0.526,
+      "avg_ret_pct": 0.0273
+    },
+    {
+      "algo_id": "KC_BREAK",
+      "sharpe": 1.448,
+      "n_trades": 10170,
+      "hit_rate": 0.527,
+      "avg_ret_pct": 0.0388
+    },
+    {
+      "algo_id": "MFI_CROSS",
+      "sharpe": 1.405,
+      "n_trades": 9524,
+      "hit_rate": 0.516,
+      "avg_ret_pct": 0.0399
+    },
+    {
+      "algo_id": "EMA_STACK",
+      "sharpe": 1.315,
+      "n_trades": 11131,
+      "hit_rate": 0.523,
+      "avg_ret_pct": 0.0344
+    },
+    {
+      "algo_id": "BB_BREAK",
+      "sharpe": 1.27,
+      "n_trades": 11203,
+      "hit_rate": 0.522,
+      "avg_ret_pct": 0.0294
+    },
+    {
+      "algo_id": "PULLBACK",
+      "sharpe": 1.183,
+      "n_trades": 54701,
+      "hit_rate": 0.523,
+      "avg_ret_pct": 0.0242
+    },
+    {
+      "algo_id": "VOL_BO",
+      "sharpe": 1.162,
+      "n_trades": 10082,
+      "hit_rate": 0.525,
+      "avg_ret_pct": 0.0274
+    },
+    {
+      "algo_id": "STOCH_CROSS",
+      "sharpe": 1.16,
+      "n_trades": 14563,
+      "hit_rate": 0.509,
+      "avg_ret_pct": 0.0339
+    },
+    {
+      "algo_id": "CMF_POS",
+      "sharpe": 1.107,
+      "n_trades": 6840,
+      "hit_rate": 0.521,
+      "avg_ret_pct": 0.0255
+    },
+    {
+      "algo_id": "RSI_STRONG",
+      "sharpe": 0.989,
+      "n_trades": 12707,
+      "hit_rate": 0.521,
+      "avg_ret_pct": 0.024
+    },
+    {
+      "algo_id": "EMA_CROSS",
+      "sharpe": 0.937,
+      "n_trades": 5120,
+      "hit_rate": 0.517,
+      "avg_ret_pct": 0.021
+    },
+    {
+      "algo_id": "ATR_EXP",
+      "sharpe": 0.89,
+      "n_trades": 26191,
+      "hit_rate": 0.521,
+      "avg_ret_pct": 0.017
+    },
+    {
+      "algo_id": "CONSOL_BO",
+      "sharpe": 0.881,
+      "n_trades": 27665,
+      "hit_rate": 0.52,
+      "avg_ret_pct": 0.0168
+    },
+    {
+      "algo_id": "PSAR",
+      "sharpe": 0.865,
+      "n_trades": 9355,
+      "hit_rate": 0.521,
+      "avg_ret_pct": 0.0197
+    },
+    {
+      "algo_id": "VOL_SURGE",
+      "sharpe": 0.827,
+      "n_trades": 13780,
+      "hit_rate": 0.521,
+      "avg_ret_pct": 0.0192
+    },
+    {
+      "algo_id": "ADX_TREND",
+      "sharpe": 0.77,
+      "n_trades": 10275,
+      "hit_rate": 0.515,
+      "avg_ret_pct": 0.0199
+    },
+    {
+      "algo_id": "MACD_CROSS",
+      "sharpe": 0.622,
+      "n_trades": 8248,
+      "hit_rate": 0.519,
+      "avg_ret_pct": 0.0151
+    }
+  ],
+  "RISK-OFF": [
+    {
+      "algo_id": "SUPERTREND",
+      "sharpe": 5.011,
+      "n_trades": 1701,
+      "hit_rate": 0.56,
+      "avg_ret_pct": 0.4999
+    },
+    {
+      "algo_id": "TREND_SMA",
+      "sharpe": 4.117,
+      "n_trades": 1444,
+      "hit_rate": 0.531,
+      "avg_ret_pct": 0.295
+    },
+    {
+      "algo_id": "DON_BO",
+      "sharpe": 4.115,
+      "n_trades": 6521,
+      "hit_rate": 0.556,
+      "avg_ret_pct": 0.4157
+    },
+    {
+      "algo_id": "OBV_TREND",
+      "sharpe": 3.98,
+      "n_trades": 4999,
+      "hit_rate": 0.555,
+      "avg_ret_pct": 0.309
+    },
+    {
+      "algo_id": "ATR_EXP",
+      "sharpe": 3.636,
+      "n_trades": 2965,
+      "hit_rate": 0.543,
+      "avg_ret_pct": 0.1353
+    },
+    {
+      "algo_id": "EMA_STACK",
+      "sharpe": 3.592,
+      "n_trades": 4525,
+      "hit_rate": 0.551,
+      "avg_ret_pct": 0.2751
+    },
+    {
+      "algo_id": "NEW_HIGH",
+      "sharpe": 3.473,
+      "n_trades": 11413,
+      "hit_rate": 0.549,
+      "avg_ret_pct": 0.2885
+    },
+    {
+      "algo_id": "RANGE_BO",
+      "sharpe": 3.47,
+      "n_trades": 8831,
+      "hit_rate": 0.555,
+      "avg_ret_pct": 0.3444
+    },
+    {
+      "algo_id": "EMA_CROSS",
+      "sharpe": 3.379,
+      "n_trades": 2104,
+      "hit_rate": 0.553,
+      "avg_ret_pct": 0.23
+    },
+    {
+      "algo_id": "BB_BREAK",
+      "sharpe": 3.368,
+      "n_trades": 2977,
+      "hit_rate": 0.555,
+      "avg_ret_pct": 0.2842
+    },
+    {
+      "algo_id": "ADX_TREND",
+      "sharpe": 3.362,
+      "n_trades": 4073,
+      "hit_rate": 0.546,
+      "avg_ret_pct": 0.2545
+    },
+    {
+      "algo_id": "VOL_SURGE",
+      "sharpe": 3.303,
+      "n_trades": 2811,
+      "hit_rate": 0.546,
+      "avg_ret_pct": 0.2294
+    },
+    {
+      "algo_id": "MFI_CROSS",
+      "sharpe": 3.247,
+      "n_trades": 4515,
+      "hit_rate": 0.552,
+      "avg_ret_pct": 0.2559
+    },
+    {
+      "algo_id": "MACD_CROSS",
+      "sharpe": 3.205,
+      "n_trades": 3741,
+      "hit_rate": 0.551,
+      "avg_ret_pct": 0.2341
+    },
+    {
+      "algo_id": "VOL_BO",
+      "sharpe": 3.173,
+      "n_trades": 2046,
+      "hit_rate": 0.548,
+      "avg_ret_pct": 0.2588
+    },
+    {
+      "algo_id": "RSI_CROSS",
+      "sharpe": 3.104,
+      "n_trades": 5401,
+      "hit_rate": 0.553,
+      "avg_ret_pct": 0.2176
+    },
+    {
+      "algo_id": "GOLDEN",
+      "sharpe": 3.102,
+      "n_trades": 317,
+      "hit_rate": 0.53,
+      "avg_ret_pct": 0.1918
+    },
+    {
+      "algo_id": "PSAR",
+      "sharpe": 3.083,
+      "n_trades": 4031,
+      "hit_rate": 0.544,
+      "avg_ret_pct": 0.2066
+    },
+    {
+      "algo_id": "STOCH_CROSS",
+      "sharpe": 2.994,
+      "n_trades": 8297,
+      "hit_rate": 0.541,
+      "avg_ret_pct": 0.2174
+    },
+    {
+      "algo_id": "RSI_STRONG",
+      "sharpe": 2.957,
+      "n_trades": 3909,
+      "hit_rate": 0.544,
+      "avg_ret_pct": 0.2349
+    },
+    {
+      "algo_id": "CONSOL_BO",
+      "sharpe": 2.929,
+      "n_trades": 4154,
+      "hit_rate": 0.542,
+      "avg_ret_pct": 0.1038
+    },
+    {
+      "algo_id": "PULLBACK",
+      "sharpe": 2.775,
+      "n_trades": 23784,
+      "hit_rate": 0.542,
+      "avg_ret_pct": 0.1401
+    },
+    {
+      "algo_id": "KC_BREAK",
+      "sharpe": 2.76,
+      "n_trades": 2633,
+      "hit_rate": 0.537,
+      "avg_ret_pct": 0.2716
+    },
+    {
+      "algo_id": "CONSEC_BULL",
+      "sharpe": 2.652,
+      "n_trades": 3372,
+      "hit_rate": 0.529,
+      "avg_ret_pct": 0.1142
+    },
+    {
+      "algo_id": "CMF_POS",
+      "sharpe": 1.91,
+      "n_trades": 3816,
+      "hit_rate": 0.535,
+      "avg_ret_pct": 0.0816
+    },
+    {
+      "algo_id": "SQZPOP",
+      "sharpe": 0.86,
+      "n_trades": 1345,
+      "hit_rate": 0.53,
+      "avg_ret_pct": 0.0363
+    }
+  ]
+}

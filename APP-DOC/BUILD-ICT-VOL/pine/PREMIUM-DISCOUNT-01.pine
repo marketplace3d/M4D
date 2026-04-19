@@ -1,0 +1,145 @@
+// PREMIUM-DISCOUNT-01 — ICT Premium/Discount + Equilibrium + Optimal Trade Entry
+// Premium: above 50% of range → institutional sell zone
+// Discount: below 50% → institutional buy zone
+// OTE (Optimal Trade Entry): 61.8–79% Fibonacci retracement of last swing
+// Used to gate entries: only buy in discount, only sell in premium
+
+//@version=5
+indicator("PREMIUM-DISCOUNT-01 · P/D + OTE", overlay=true, max_boxes_count=20, max_lines_count=30)
+
+// ── Inputs ────────────────────────────────────────────────────────────────────
+pd_source     = input.string("HTF Range",  "P/D reference",   options=["HTF Range","Session","Swing"])
+htf_pd        = input.timeframe("D",       "HTF for P/D range")
+swing_len     = input.int(20,              "Swing lookback",   minval=5, maxval=100)
+show_ote      = input.bool(true,           "Show OTE zone (61.8–79%)")
+show_pd_zones = input.bool(true,           "Show P/D zones")
+show_labels   = input.bool(true,           "Show labels")
+extend_bars   = input.int(50,              "Extend right (bars)")
+
+col_premium  = input.color(color.new(color.red,    80), "Premium zone")
+col_discount = input.color(color.new(color.green,  80), "Discount zone")
+col_eq       = input.color(color.new(color.white,  50), "Equilibrium")
+col_ote      = input.color(color.new(color.yellow, 75), "OTE zone")
+
+// ── HTF range ─────────────────────────────────────────────────────────────────
+htf_high = request.security(syminfo.tickerid, htf_pd, ta.highest(high, 1), lookahead=barmerge.lookahead_off)
+htf_low  = request.security(syminfo.tickerid, htf_pd, ta.lowest(low,  1), lookahead=barmerge.lookahead_off)
+
+swing_high = ta.highest(high, swing_len)
+swing_low  = ta.lowest(low,   swing_len)
+
+// Select reference range
+ref_high = pd_source == "HTF Range" ? htf_high :
+           pd_source == "Swing"     ? swing_high : na
+ref_low  = pd_source == "HTF Range" ? htf_low  :
+           pd_source == "Swing"     ? swing_low  : na
+
+// Session reference (previous session H/L)
+var float sess_h = na; var float sess_l = na
+var float prev_h = na; var float prev_l = na
+if dayofweek != dayofweek[1]
+    if not na(prev_h)
+        sess_h := prev_h; sess_l := prev_l
+    prev_h := high; prev_l := low
+else
+    prev_h := math.max(prev_h, high)
+    prev_l := math.min(prev_l,  low)
+
+if pd_source == "Session"
+    ref_high := sess_h; ref_low := sess_l
+
+rng = not na(ref_high) and not na(ref_low) ? ref_high - ref_low : na
+eq  = not na(rng) ? ref_low + rng * 0.5 : na
+
+// ── Fibonacci levels ──────────────────────────────────────────────────────────
+// OTE = 61.8–79% retracement zone
+// For bullish: retracement of upswing (buying the pullback in discount)
+// fib 0 = swing low, fib 1 = swing high
+ph = ta.pivothigh(high, swing_len / 2, swing_len / 2)
+pl = ta.pivotlow(low,   swing_len / 2, swing_len / 2)
+var float last_ph = na; var float last_pl = na
+if not na(ph) then last_ph := ph
+if not na(pl) then last_pl := pl
+
+// Last confirmed swing
+var float sw_high = na; var float sw_low = na
+if not na(last_ph) and not na(last_pl)
+    if last_ph > last_pl   // upswing: pl → ph
+        sw_low  := last_pl
+        sw_high := last_ph
+    else                   // downswing: ph → pl
+        sw_low  := last_pl
+        sw_high := last_ph
+
+sw_rng = not na(sw_high) and not na(sw_low) ? sw_high - sw_low : na
+
+// OTE for bullish (buy in discount, OTE = pullback to 61.8–79% from swing low)
+ote_bull_top = not na(sw_rng) ? sw_high - sw_rng * 0.618 : na
+ote_bull_bot = not na(sw_rng) ? sw_high - sw_rng * 0.79  : na
+
+// OTE for bearish (sell in premium, OTE = pullback to 61.8–79% from swing high)
+ote_bear_top = not na(sw_rng) ? sw_low + sw_rng * 0.79   : na
+ote_bear_bot = not na(sw_rng) ? sw_low + sw_rng * 0.618  : na
+
+// ── P/D classification ────────────────────────────────────────────────────────
+in_premium  = not na(eq) and close > eq
+in_discount = not na(eq) and close < eq
+in_ote_bull = not na(ote_bull_top) and close <= ote_bull_top and close >= ote_bull_bot and in_discount
+in_ote_bear = not na(ote_bear_top) and close <= ote_bear_top and close >= ote_bear_bot and in_premium
+
+// ── Draw zones ────────────────────────────────────────────────────────────────
+var box bx_premium = na; var box bx_discount = na; var box bx_ote_b = na; var box bx_ote_br = na
+var line ln_eq = na
+
+// Redraw when range changes
+if barstate.islast and not na(eq)
+    if not na(bx_premium)  then box.delete(bx_premium)
+    if not na(bx_discount) then box.delete(bx_discount)
+    if not na(ln_eq)       then line.delete(ln_eq)
+    if show_pd_zones
+        bx_premium  := box.new(bar_index - extend_bars, ref_high, bar_index + extend_bars, eq,
+                                bgcolor=col_premium,  border_color=color.new(color.red,   50), border_width=1)
+        bx_discount := box.new(bar_index - extend_bars, eq,       bar_index + extend_bars, ref_low,
+                                bgcolor=col_discount, border_color=color.new(color.green, 50), border_width=1)
+    ln_eq := line.new(bar_index - extend_bars, eq, bar_index + extend_bars, eq,
+                       color=col_eq, width=2, style=line.style_solid, extend=extend.right)
+    if show_labels
+        label.new(bar_index + 2, ref_high, "PREMIUM",  color=color.new(color.black, 85), textcolor=color.red,   style=label.style_label_left, size=size.tiny)
+        label.new(bar_index + 2, ref_low,  "DISCOUNT", color=color.new(color.black, 85), textcolor=color.green, style=label.style_label_left, size=size.tiny)
+        label.new(bar_index + 2, eq,       "EQ 50%",   color=color.new(color.black, 85), textcolor=color.white, style=label.style_label_left, size=size.tiny)
+
+// OTE zones
+if barstate.islast and show_ote
+    if not na(bx_ote_b)  then box.delete(bx_ote_b)
+    if not na(bx_ote_br) then box.delete(bx_ote_br)
+    if not na(ote_bull_top) and in_discount
+        bx_ote_b := box.new(bar_index - 10, ote_bull_top, bar_index + extend_bars, ote_bull_bot,
+                              bgcolor=col_ote, border_color=color.new(color.yellow, 30), border_width=2)
+        if show_labels
+            label.new(bar_index + 2, ote_bull_top, "OTE 61.8–79% BULL",
+                       color=color.new(color.black, 85), textcolor=color.yellow,
+                       style=label.style_label_left, size=size.tiny)
+    if not na(ote_bear_top) and in_premium
+        bx_ote_br := box.new(bar_index - 10, ote_bear_top, bar_index + extend_bars, ote_bear_bot,
+                               bgcolor=col_ote, border_color=color.new(color.yellow, 30), border_width=2)
+        if show_labels
+            label.new(bar_index + 2, ote_bear_top, "OTE 61.8–79% BEAR",
+                       color=color.new(color.black, 85), textcolor=color.yellow,
+                       style=label.style_label_left, size=size.tiny)
+
+// ── Background tint ───────────────────────────────────────────────────────────
+bgcolor(in_premium  ? color.new(color.red,    96) : na, title="Premium tint")
+bgcolor(in_discount ? color.new(color.green,  96) : na, title="Discount tint")
+bgcolor(in_ote_bull ? color.new(color.yellow, 92) : na, title="OTE bull tint")
+bgcolor(in_ote_bear ? color.new(color.yellow, 92) : na, title="OTE bear tint")
+
+// Fib levels
+plot(eq,           "EQ 50%",    color=color.new(color.white, 30), style=plot.style_linebr, linewidth=1)
+plot(ote_bull_top, "OTE 61.8%", color=color.new(color.yellow, 50), style=plot.style_linebr, linewidth=1)
+plot(ote_bull_bot, "OTE 79%",   color=color.new(color.yellow, 60), style=plot.style_linebr, linewidth=1)
+
+// ── Alerts ────────────────────────────────────────────────────────────────────
+alertcondition(in_ote_bull and not in_ote_bull[1], "P/D OTE BULL", "OTE Bull zone entered · discount + 61.8-79% · {{ticker}} · {{close}}")
+alertcondition(in_ote_bear and not in_ote_bear[1], "P/D OTE BEAR", "OTE Bear zone entered · premium + 61.8-79% · {{ticker}} · {{close}}")
+alertcondition(ta.crossover(close,  eq),            "P/D EQ CROSS UP",   "Price crossed EQ into PREMIUM · {{ticker}}")
+alertcondition(ta.crossunder(close, eq),            "P/D EQ CROSS DOWN", "Price crossed EQ into DISCOUNT · {{ticker}}")

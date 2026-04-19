@@ -1,0 +1,43 @@
+.boom-explore {
+  position: relative;
+  background: #050810;
+  min-height: 100%;
+  flex: 1;
+  font-family: monospace;
+  color: #ccc;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Contained to BOOM panel only — `fixed` was painting over the whole app and hid the top menu */
+.boom-explore__scanlines {
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.15) 2px,
+    rgba(0, 0, 0, 0.15) 4px
+  );
+  pointer-events: none;
+  z-index: 0;
+  border-radius: 0;
+}
+
+.boom-explore__main {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 0;
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  z-index: 1;
+}
+
+@media (max-width: 900px) {
+  .boom-explore__main {
+    grid-template-columns: 1fr;
+  }
+}

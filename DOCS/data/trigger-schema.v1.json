@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "m3d/trigger-schema.v1",
+  "title": "M3D Market Trigger — Atomic Actionable Signal",
+  "description": "Every trigger from Grok Pulse Daemon must conform to this schema. Gaming-detected triggers are discarded before reaching HALO.",
+
+  "type": "object",
+  "required": ["trigger_id", "ts", "trigger_class", "urgency", "direction", "confidence", "source_confidence", "gaming_detected"],
+
+  "properties": {
+    "trigger_id":         { "type": "string", "format": "uuid" },
+    "ts":                 { "type": "string", "format": "date-time" },
+
+    "trigger_class": {
+      "type": "string",
+      "enum": ["CATALYST", "REGIME_SHIFT", "MOMENTUM", "REVERSAL", "MACRO_PRINT", "WHALE", "TWEET_STORM", "REGULATORY"]
+    },
+
+    "urgency": {
+      "type": "string",
+      "enum": ["NOW", "5MIN", "1HR", "EOD", "NEXT_SESSION"],
+      "description": "NOW = enter within 60s. 5MIN = within 5 min before priced in."
+    },
+
+    "direction": {
+      "type": "string",
+      "enum": ["LONG", "SHORT", "HEDGE", "HOLD", "EXIT", "REDUCE"]
+    },
+
+    "ticker": {
+      "type": ["string", "null"],
+      "description": "e.g. BTCUSDT, SPY, GLD. null = market-wide signal"
+    },
+
+    "sector": {
+      "type": ["string", "null"],
+      "enum": ["CRYPTO", "TECH", "ENERGY", "FINANCIALS", "HEALTHCARE", "MACRO", "COMMODITIES", null]
+    },
+
+    "catalyst_type": {
+      "type": ["string", "null"],
+      "enum": ["EARNINGS", "FDA", "M&A", "MACRO_PRINT", "TWEET_STORM", "WHALE_MOVE", "REGULATORY", "GEOPOLITICAL", "SUPPLY_CHAIN", "RATES", "LIQUIDATION", null]
+    },
+
+    "confidence": {
+      "type": "integer", "minimum": 0, "maximum": 100,
+      "description": "Grok confidence this event moves price materially"
+    },
+
+    "source_confidence": {
+      "type": "integer", "minimum": 0, "maximum": 100,
+      "description": "Grok confidence the source is REAL — not gamed, coordinated, or astroturfed. Below 60 = do not trade."
+    },
+
+    "gaming_detected": {
+      "type": "boolean",
+      "description": "True if Grok detects coordinated amplification, fake accounts, wash trading signals, or manufactured narrative. DISCARD if true."
+    },
+
+    "gaming_flags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "examples": [
+        "Coordinated X accounts amplifying same text",
+        "Source domain registered 3 days ago",
+        "On-chain volume inconsistent with exchange data",
+        "Story appears on 12 low-DA sites simultaneously"
+      ]
+    },
+
+    "entry_window_min": {
+      "type": "number",
+      "description": "Minutes before this catalyst is likely fully priced in"
+    },
+
+    "target_pct": {
+      "type": ["number", "null"],
+      "description": "Estimated price move size (positive)"
+    },
+
+    "stop_pct": {
+      "type": ["number", "null"],
+      "description": "Suggested stop loss from entry"
+    },
+
+    "source": {
+      "type": "string",
+      "enum": ["X_POST", "NEWS_WIRE", "CHAIN_DATA", "MACRO_PRINT", "FILING", "BLOG", "OPTIONS_FLOW"]
+    },
+
+    "source_url":   { "type": ["string", "null"] },
+    "raw_headline": { "type": "string" },
+
+    "expert_votes": {
+      "type": "object",
+      "description": "How each swarm persona voted on this trigger",
+      "properties": {
+        "BULL":  { "type": "integer", "enum": [-1, 0, 1] },
+        "BEAR":  { "type": "integer", "enum": [-1, 0, 1] },
+        "MACRO": { "type": "integer", "enum": [-1, 0, 1] },
+        "QUANT": { "type": "integer", "enum": [-1, 0, 1] },
+        "DEVIL": { "type": "integer", "enum": [-1, 0, 1] }
+      }
+    },
+
+    "dissent": {
+      "type": ["string", "null"],
+      "description": "Key dissent point if expert_votes are split"
+    },
+
+    "halo_auto": {
+      "type": "boolean",
+      "description": "Whether this trigger qualifies for automatic HALO JUMP scheduling. Requires: gaming_detected=false AND source_confidence>=80 AND confidence>=75 AND urgency in [NOW, 5MIN]"
+    },
+
+    "outcome": {
+      "type": ["object", "null"],
+      "description": "Filled in by IC feedback loop after the window expires",
+      "properties": {
+        "entry_price":  { "type": "number" },
+        "price_5min":   { "type": "number" },
+        "price_1hr":    { "type": "number" },
+        "was_correct":  { "type": "boolean" },
+        "pnl_pct":      { "type": "number" }
+      }
+    }
+  }
+}

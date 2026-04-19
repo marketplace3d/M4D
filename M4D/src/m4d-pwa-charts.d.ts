@@ -1,0 +1,111 @@
+/**
+ * Ambient typings for Vite-aliased PWA modules (`@pwa/lib/*`, `$indicators/*`).
+ * Implementation lives under `pwa/` and `indicators/`; we avoid compiling those
+ * trees with MISSION's stricter `tsc` options.
+ */
+declare module '$indicators/boom3d-tech' {
+  export type Bar = {
+    time: number;
+    open: number;
+    high: number;
+    low: number;
+    close: number;
+    volume: number;
+  };
+}
+
+declare module '@pwa/lib/chartControls' {
+  export type ChartControls = {
+    masterOn: boolean;
+    showBB: boolean;
+    showKC: boolean;
+    showMas: boolean;
+    showSar: boolean;
+    squeezeLinesGreen: boolean;
+    squeezePurpleBg: boolean;
+    showSqueeze: boolean;
+    showDarvas: boolean;
+    showCouncilArrows: boolean;
+    minVote: number;
+    showFvg: boolean;
+    fvgMaxDisplay: number;
+    showOrderBlocks: boolean;
+    showSwingRays: boolean;
+    showSessionLevels: boolean;
+    useMockSentiment: boolean;
+    showVoteDots: boolean;
+    showIchimoku: boolean;
+    showGrid: boolean;
+    showPoc: boolean;
+    showVwap: boolean;
+    sigOpacity: number;
+    squeezePurpleOpacity: number;
+    sigMode: 'balanced' | 'strict';
+    sigRvolMin: number;
+    sigAtrExpandMin: number;
+    sigBreakAtrFrac: number;
+    safetyDefenseOn: boolean;
+  };
+  export const defaultControls: ChartControls;
+  export const defaultControlsAllOff: ChartControls;
+  export function loadControls(): ChartControls;
+  export function saveControls(c: ChartControls): void;
+  export function setSigLayers(c: ChartControls, on: boolean): ChartControls;
+  export function setMasLayer(c: ChartControls, on: boolean): ChartControls;
+}
+
+declare module '@pwa/lib/chartTimeframes' {
+  export type TimeframePreset = '1d1m' | '5d5m' | '1m15m' | '1y1d';
+  export const TIMEFRAME_OPTIONS: { id: TimeframePreset; label: string }[];
+  export function loadTimeframe(): TimeframePreset;
+  export function saveTimeframe(tf: TimeframePreset): void;
+}
+
+declare module '@pwa/lib/fetchBars' {
+  import type { Bar } from '$indicators/boom3d-tech';
+  export type ChartSymbol = string;
+  export const SYMBOLS: { id: ChartSymbol; label: string; polygon: string; note?: string }[];
+  export function fetchBarsForSymbol(
+    sym: ChartSymbol,
+    vitePolygonKey: string | undefined,
+    preset: import('@pwa/lib/chartTimeframes').TimeframePreset,
+  ): Promise<Bar[]>;
+}
+
+declare module '@pwa/lib/computePriceTargets' {
+  import type { Bar } from '$indicators/boom3d-tech';
+  export type TargetBucket = 'vp' | 'sess' | 'ob';
+  export type PriceTargetRow = {
+    id: string;
+    label: string;
+    price: number;
+    rating: number;
+    bucket: TargetBucket;
+    sources: string[];
+  };
+  export function computePriceTargets(bars: Bar[]): {
+    targets: PriceTargetRow[];
+    lastClose: number;
+    atr: number;
+  };
+  export function formatTargetPrice(p: number): string;
+}
+
+declare module '@pwa/lib/boomChartBuild' {
+  import type { Bar } from '$indicators/boom3d-tech';
+  import type { ChartControls } from '@pwa/lib/chartControls';
+  import type { IChartApi, LogicalRange } from 'lightweight-charts';
+
+  export type MountBoomChartOpts = {
+    snapToLatest?: boolean;
+    initialLogicalRange?: LogicalRange | null;
+    compactUi?: boolean;
+  };
+
+  export function mountBoomChart(
+    el: HTMLElement,
+    bars: Bar[],
+    controls: ChartControls,
+    opts?: MountBoomChartOpts,
+  ): Promise<{ chart: IChartApi; ro: ResizeObserver }>;
+}

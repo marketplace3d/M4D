@@ -1,0 +1,1592 @@
+{
+  "pca": {
+    "n_signals": 23,
+    "n_bars": 62994,
+    "effective_dims": {
+      "at_80pct": 9,
+      "at_90pct": 13,
+      "at_95pct": 15,
+      "at_99pct": 19
+    },
+    "interpretation": "MOSTLY INDEPENDENT \u2014 9 components at 80%. Signals cover genuine dimensions. Good ensemble.",
+    "variance_per_component": [
+      40.21,
+      9.45,
+      6.36,
+      4.66,
+      4.35,
+      4.13,
+      3.94,
+      3.87,
+      3.55,
+      3.24,
+      3.18,
+      2.86,
+      2.23,
+      2.02,
+      1.77,
+      1.26,
+      0.93,
+      0.66,
+      0.48,
+      0.34,
+      0.27,
+      0.19,
+      0.03
+    ],
+    "cumulative_variance": [
+      40.21,
+      49.66,
+      56.02,
+      60.69,
+      65.04,
+      69.17,
+      73.1,
+      76.97,
+      80.52,
+      83.76,
+      86.94,
+      89.8,
+      92.03,
+      94.05,
+      95.82,
+      97.09,
+      98.02,
+      98.68,
+      99.16,
+      99.5,
+      99.78,
+      99.97,
+      100.0
+    ],
+    "components": [
+      {
+        "pc": 1,
+        "var_pct": 40.21,
+        "cum_var_pct": 40.21,
+        "top_signals": [
+          {
+            "signal": "VOL_BO",
+            "loading": 0.3165
+          },
+          {
+            "signal": "VOL_SURGE",
+            "loading": 0.3157
+          },
+          {
+            "signal": "KC_BREAK",
+            "loading": 0.3144
+          },
+          {
+            "signal": "RSI_STRONG",
+            "loading": 0.3115
+          },
+          {
+            "signal": "EMA_STACK",
+            "loading": 0.3074
+          }
+        ]
+      },
+      {
+        "pc": 2,
+        "var_pct": 9.45,
+        "cum_var_pct": 49.66,
+        "top_signals": [
+          {
+            "signal": "ATR_EXP",
+            "loading": 0.4744
+          },
+          {
+            "signal": "SQZPOP",
+            "loading": 0.434
+          },
+          {
+            "signal": "RSI_CROSS",
+            "loading": 0.3854
+          },
+          {
+            "signal": "PSAR",
+            "loading": 0.2878
+          },
+          {
+            "signal": "MACD_CROSS",
+            "loading": 0.2845
+          }
+        ]
+      },
+      {
+        "pc": 3,
+        "var_pct": 6.36,
+        "cum_var_pct": 56.02,
+        "top_signals": [
+          {
+            "signal": "STOCH_CROSS",
+            "loading": 0.4373
+          },
+          {
+            "signal": "SUPERTREND",
+            "loading": -0.4048
+          },
+          {
+            "signal": "DON_BO",
+            "loading": -0.3599
+          },
+          {
+            "signal": "SQZPOP",
+            "loading": 0.3547
+          },
+          {
+            "signal": "EMA_CROSS",
+            "loading": -0.3365
+          }
+        ]
+      },
+      {
+        "pc": 4,
+        "var_pct": 4.66,
+        "cum_var_pct": 60.69,
+        "top_signals": [
+          {
+            "signal": "STOCH_CROSS",
+            "loading": 0.4648
+          },
+          {
+            "signal": "PSAR",
+            "loading": 0.4514
+          },
+          {
+            "signal": "ADX_TREND",
+            "loading": 0.3578
+          },
+          {
+            "signal": "MACD_CROSS",
+            "loading": 0.3355
+          },
+          {
+            "signal": "ATR_EXP",
+            "loading": -0.327
+          }
+        ]
+      },
+      {
+        "pc": 5,
+        "var_pct": 4.35,
+        "cum_var_pct": 65.04,
+        "top_signals": [
+          {
+            "signal": "GOLDEN",
+            "loading": 0.9384
+          },
+          {
+            "signal": "MFI_CROSS",
+            "loading": -0.2137
+          },
+          {
+            "signal": "STOCH_CROSS",
+            "loading": -0.1507
+          },
+          {
+            "signal": "SQZPOP",
+            "loading": 0.1035
+          },
+          {
+            "signal": "ATR_EXP",
+            "loading": 0.1024
+          }
+        ]
+      },
+      {
+        "pc": 6,
+        "var_pct": 4.13,
+        "cum_var_pct": 69.17,
+        "top_signals": [
+          {
+            "signal": "MFI_CROSS",
+            "loading": 0.5669
+          },
+          {
+            "signal": "EMA_CROSS",
+            "loading": 0.5456
+          },
+          {
+            "signal": "PSAR",
+            "loading": -0.3187
+          },
+          {
+            "signal": "MACD_CROSS",
+            "loading": -0.2947
+          },
+          {
+            "signal": "STOCH_CROSS",
+            "loading": 0.2892
+          }
+        ]
+      },
+      {
+        "pc": 7,
+        "var_pct": 3.94,
+        "cum_var_pct": 73.1,
+        "top_signals": [
+          {
+            "signal": "SUPERTREND",
+            "loading": 0.6736
+          },
+          {
+            "signal": "MFI_CROSS",
+            "loading": -0.4549
+          },
+          {
+            "signal": "STOCH_CROSS",
+            "loading": 0.3327
+          },
+          {
+            "signal": "MACD_CROSS",
+            "loading": -0.3116
+          },
+          {
+            "signal": "DON_BO",
+            "loading": 0.1978
+          }
+        ]
+      },
+      {
+        "pc": 8,
+        "var_pct": 3.87,
+        "cum_var_pct": 76.97,
+        "top_signals": [
+          {
+            "signal": "MFI_CROSS",
+            "loading": 0.5325
+          },
+          {
+            "signal": "EMA_CROSS",
+            "loading": -0.5308
+          },
+          {
+            "signal": "DON_BO",
+            "loading": 0.3159
+          },
+          {
+            "signal": "RSI_CROSS",
+            "loading": -0.2719
+          },
+          {
+            "signal": "CONSEC_BULL",
+            "loading": 0.2439
+          }
+        ]
+      },
+      {
+        "pc": 9,
+        "var_pct": 3.55,
+        "cum_var_pct": 80.52,
+        "top_signals": [
+          {
+            "signal": "MACD_CROSS",
+            "loading": 0.5962
+          },
+          {
+            "signal": "ADX_TREND",
+            "loading": -0.5521
+          },
+          {
+            "signal": "STOCH_CROSS",
+            "loading": 0.3151
+          },
+          {
+            "signal": "PSAR",
+            "loading": -0.2569
+          },
+          {
+            "signal": "EMA_CROSS",
+            "loading": 0.2106
+          }
+        ]
+      },
+      {
+        "pc": 10,
+        "var_pct": 3.24,
+        "cum_var_pct": 83.76,
+        "top_signals": [
+          {
+            "signal": "PSAR",
+            "loading": 0.6167
+          },
+          {
+            "signal": "MACD_CROSS",
+            "loading": -0.4007
+          },
+          {
+            "signal": "RSI_CROSS",
+            "loading": -0.3214
+          },
+          {
+            "signal": "EMA_CROSS",
+            "loading": 0.3213
+          },
+          {
+            "signal": "ADX_TREND",
+            "loading": -0.3012
+          }
+        ]
+      }
+    ]
+  },
+  "correlation": {
+    "high_corr_pairs": [
+      {
+        "a": "VOL_BO",
+        "b": "VOL_SURGE",
+        "corr": 0.991,
+        "flag": "HIGH"
+      },
+      {
+        "a": "KC_BREAK",
+        "b": "VOL_BO",
+        "corr": 0.966,
+        "flag": "HIGH"
+      },
+      {
+        "a": "KC_BREAK",
+        "b": "VOL_SURGE",
+        "corr": 0.958,
+        "flag": "HIGH"
+      },
+      {
+        "a": "VOL_BO",
+        "b": "EMA_STACK",
+        "corr": 0.944,
+        "flag": "HIGH"
+      },
+      {
+        "a": "KC_BREAK",
+        "b": "EMA_STACK",
+        "corr": 0.938,
+        "flag": "HIGH"
+      },
+      {
+        "a": "VOL_BO",
+        "b": "RSI_STRONG",
+        "corr": 0.938,
+        "flag": "HIGH"
+      },
+      {
+        "a": "EMA_STACK",
+        "b": "VOL_SURGE",
+        "corr": 0.937,
+        "flag": "HIGH"
+      },
+      {
+        "a": "RSI_STRONG",
+        "b": "VOL_SURGE",
+        "corr": 0.932,
+        "flag": "HIGH"
+      },
+      {
+        "a": "KC_BREAK",
+        "b": "RSI_STRONG",
+        "corr": 0.931,
+        "flag": "HIGH"
+      },
+      {
+        "a": "EMA_STACK",
+        "b": "RSI_STRONG",
+        "corr": 0.925,
+        "flag": "HIGH"
+      },
+      {
+        "a": "BB_BREAK",
+        "b": "KC_BREAK",
+        "corr": 0.921,
+        "flag": "HIGH"
+      },
+      {
+        "a": "BB_BREAK",
+        "b": "VOL_BO",
+        "corr": 0.919,
+        "flag": "HIGH"
+      },
+      {
+        "a": "BB_BREAK",
+        "b": "VOL_SURGE",
+        "corr": 0.911,
+        "flag": "HIGH"
+      },
+      {
+        "a": "BB_BREAK",
+        "b": "RSI_STRONG",
+        "corr": 0.894,
+        "flag": "HIGH"
+      },
+      {
+        "a": "BB_BREAK",
+        "b": "EMA_STACK",
+        "corr": 0.879,
+        "flag": "HIGH"
+      },
+      {
+        "a": "TREND_SMA",
+        "b": "RSI_STRONG",
+        "corr": 0.833,
+        "flag": "HIGH"
+      },
+      {
+        "a": "VOL_BO",
+        "b": "TREND_SMA",
+        "corr": 0.825,
+        "flag": "HIGH"
+      },
+      {
+        "a": "TREND_SMA",
+        "b": "VOL_SURGE",
+        "corr": 0.819,
+        "flag": "HIGH"
+      },
+      {
+        "a": "KC_BREAK",
+        "b": "TREND_SMA",
+        "corr": 0.818,
+        "flag": "HIGH"
+      },
+      {
+        "a": "EMA_STACK",
+        "b": "TREND_SMA",
+        "corr": 0.811,
+        "flag": "HIGH"
+      },
+      {
+        "a": "BB_BREAK",
+        "b": "TREND_SMA",
+        "corr": 0.775,
+        "flag": "HIGH"
+      },
+      {
+        "a": "SQZPOP",
+        "b": "ATR_EXP",
+        "corr": 0.764,
+        "flag": "HIGH"
+      },
+      {
+        "a": "BB_BREAK",
+        "b": "OBV_TREND",
+        "corr": 0.751,
+        "flag": "HIGH"
+      },
+      {
+        "a": "VOL_SURGE",
+        "b": "OBV_TREND",
+        "corr": 0.748,
+        "flag": "HIGH"
+      },
+      {
+        "a": "VOL_BO",
+        "b": "OBV_TREND",
+        "corr": 0.747,
+        "flag": "HIGH"
+      },
+      {
+        "a": "KC_BREAK",
+        "b": "OBV_TREND",
+        "corr": 0.745,
+        "flag": "HIGH"
+      },
+      {
+        "a": "PULLBACK",
+        "b": "TREND_SMA",
+        "corr": 0.74,
+        "flag": "HIGH"
+      },
+      {
+        "a": "RSI_STRONG",
+        "b": "OBV_TREND",
+        "corr": 0.728,
+        "flag": "HIGH"
+      },
+      {
+        "a": "PULLBACK",
+        "b": "RSI_STRONG",
+        "corr": 0.721,
+        "flag": "HIGH"
+      },
+      {
+        "a": "EMA_STACK",
+        "b": "PULLBACK",
+        "corr": 0.703,
+        "flag": "HIGH"
+      },
+      {
+        "a": "EMA_STACK",
+        "b": "OBV_TREND",
+        "corr": 0.703,
+        "flag": "HIGH"
+      },
+      {
+        "a": "PULLBACK",
+        "b": "VOL_SURGE",
+        "corr": 0.695,
+        "flag": "HIGH"
+      },
+      {
+        "a": "KC_BREAK",
+        "b": "PULLBACK",
+        "corr": 0.687,
+        "flag": "HIGH"
+      },
+      {
+        "a": "VOL_BO",
+        "b": "PULLBACK",
+        "corr": 0.686,
+        "flag": "HIGH"
+      },
+      {
+        "a": "TREND_SMA",
+        "b": "OBV_TREND",
+        "corr": 0.672,
+        "flag": "HIGH"
+      },
+      {
+        "a": "TREND_SMA",
+        "b": "CMF_POS",
+        "corr": 0.656,
+        "flag": "HIGH"
+      },
+      {
+        "a": "VOL_BO",
+        "b": "CMF_POS",
+        "corr": 0.653,
+        "flag": "HIGH"
+      },
+      {
+        "a": "RSI_STRONG",
+        "b": "CMF_POS",
+        "corr": 0.648,
+        "flag": "HIGH"
+      },
+      {
+        "a": "BB_BREAK",
+        "b": "CMF_POS",
+        "corr": 0.647,
+        "flag": "HIGH"
+      },
+      {
+        "a": "KC_BREAK",
+        "b": "CMF_POS",
+        "corr": 0.647,
+        "flag": "HIGH"
+      },
+      {
+        "a": "BB_BREAK",
+        "b": "PULLBACK",
+        "corr": 0.645,
+        "flag": "HIGH"
+      },
+      {
+        "a": "VOL_SURGE",
+        "b": "CMF_POS",
+        "corr": 0.645,
+        "flag": "HIGH"
+      },
+      {
+        "a": "OBV_TREND",
+        "b": "CMF_POS",
+        "corr": 0.632,
+        "flag": "HIGH"
+      },
+      {
+        "a": "EMA_STACK",
+        "b": "CMF_POS",
+        "corr": 0.621,
+        "flag": "HIGH"
+      },
+      {
+        "a": "KC_BREAK",
+        "b": "CONSEC_BULL",
+        "corr": 0.605,
+        "flag": "HIGH"
+      },
+      {
+        "a": "VOL_BO",
+        "b": "CONSEC_BULL",
+        "corr": 0.603,
+        "flag": "HIGH"
+      },
+      {
+        "a": "VOL_SURGE",
+        "b": "CONSEC_BULL",
+        "corr": 0.603,
+        "flag": "HIGH"
+      }
+    ],
+    "mod_corr_pairs": [
+      {
+        "a": "RSI_STRONG",
+        "b": "CONSEC_BULL",
+        "corr": 0.596,
+        "flag": "MOD"
+      },
+      {
+        "a": "BB_BREAK",
+        "b": "CONSEC_BULL",
+        "corr": 0.587,
+        "flag": "MOD"
+      },
+      {
+        "a": "EMA_STACK",
+        "b": "CONSEC_BULL",
+        "corr": 0.585,
+        "flag": "MOD"
+      },
+      {
+        "a": "CONSEC_BULL",
+        "b": "OBV_TREND",
+        "corr": 0.579,
+        "flag": "MOD"
+      },
+      {
+        "a": "PULLBACK",
+        "b": "OBV_TREND",
+        "corr": 0.548,
+        "flag": "MOD"
+      },
+      {
+        "a": "TREND_SMA",
+        "b": "CONSEC_BULL",
+        "corr": 0.548,
+        "flag": "MOD"
+      },
+      {
+        "a": "PULLBACK",
+        "b": "CONSEC_BULL",
+        "corr": 0.522,
+        "flag": "MOD"
+      },
+      {
+        "a": "CONSEC_BULL",
+        "b": "CMF_POS",
+        "corr": 0.492,
+        "flag": "MOD"
+      },
+      {
+        "a": "PULLBACK",
+        "b": "CMF_POS",
+        "corr": 0.465,
+        "flag": "MOD"
+      },
+      {
+        "a": "DON_BO",
+        "b": "BB_BREAK",
+        "corr": 0.428,
+        "flag": "MOD"
+      },
+      {
+        "a": "DON_BO",
+        "b": "VOL_BO",
+        "corr": 0.423,
+        "flag": "MOD"
+      },
+      {
+        "a": "DON_BO",
+        "b": "VOL_SURGE",
+        "corr": 0.42,
+        "flag": "MOD"
+      },
+      {
+        "a": "DON_BO",
+        "b": "KC_BREAK",
+        "corr": 0.414,
+        "flag": "MOD"
+      },
+      {
+        "a": "DON_BO",
+        "b": "PULLBACK",
+        "corr": 0.409,
+        "flag": "MOD"
+      },
+      {
+        "a": "DON_BO",
+        "b": "CONSEC_BULL",
+        "corr": 0.402,
+        "flag": "MOD"
+      },
+      {
+        "a": "DON_BO",
+        "b": "RSI_STRONG",
+        "corr": 0.395,
+        "flag": "MOD"
+      },
+      {
+        "a": "ATR_EXP",
+        "b": "RSI_CROSS",
+        "corr": 0.385,
+        "flag": "MOD"
+      },
+      {
+        "a": "DON_BO",
+        "b": "OBV_TREND",
+        "corr": 0.379,
+        "flag": "MOD"
+      },
+      {
+        "a": "SQZPOP",
+        "b": "CONSEC_BULL",
+        "corr": 0.37,
+        "flag": "MOD"
+      },
+      {
+        "a": "DON_BO",
+        "b": "EMA_STACK",
+        "corr": 0.363,
+        "flag": "MOD"
+      },
+      {
+        "a": "ATR_EXP",
+        "b": "CONSEC_BULL",
+        "corr": 0.349,
+        "flag": "MOD"
+      },
+      {
+        "a": "PULLBACK",
+        "b": "STOCH_CROSS",
+        "corr": -0.345,
+        "flag": "MOD"
+      },
+      {
+        "a": "SQZPOP",
+        "b": "RSI_CROSS",
+        "corr": 0.334,
+        "flag": "MOD"
+      },
+      {
+        "a": "DON_BO",
+        "b": "TREND_SMA",
+        "corr": 0.32,
+        "flag": "MOD"
+      },
+      {
+        "a": "ATR_EXP",
+        "b": "VOL_SURGE",
+        "corr": 0.314,
+        "flag": "MOD"
+      }
+    ],
+    "matrix_signals": [
+      "DON_BO",
+      "BB_BREAK",
+      "KC_BREAK",
+      "SQZPOP",
+      "ATR_EXP",
+      "VOL_BO",
+      "EMA_CROSS",
+      "EMA_STACK",
+      "MACD_CROSS",
+      "SUPERTREND",
+      "ADX_TREND",
+      "GOLDEN",
+      "PSAR",
+      "PULLBACK",
+      "TREND_SMA",
+      "RSI_CROSS",
+      "RSI_STRONG",
+      "VOL_SURGE",
+      "CONSEC_BULL",
+      "OBV_TREND",
+      "STOCH_CROSS",
+      "MFI_CROSS",
+      "CMF_POS"
+    ],
+    "matrix_values": [
+      [
+        1.0,
+        0.428,
+        0.414,
+        0.091,
+        0.215,
+        0.423,
+        0.153,
+        0.363,
+        0.148,
+        0.282,
+        0.101,
+        0.031,
+        0.153,
+        0.409,
+        0.32,
+        0.105,
+        0.395,
+        0.42,
+        0.402,
+        0.379,
+        -0.294,
+        0.117,
+        0.294
+      ],
+      [
+        0.428,
+        1.0,
+        0.921,
+        0.238,
+        0.272,
+        0.919,
+        0.156,
+        0.879,
+        0.1,
+        0.164,
+        0.239,
+        0.018,
+        0.087,
+        0.645,
+        0.775,
+        0.149,
+        0.894,
+        0.911,
+        0.587,
+        0.751,
+        -0.288,
+        0.089,
+        0.647
+      ],
+      [
+        0.414,
+        0.921,
+        1.0,
+        0.27,
+        0.292,
+        0.966,
+        0.158,
+        0.938,
+        0.103,
+        0.14,
+        0.257,
+        0.024,
+        0.093,
+        0.687,
+        0.818,
+        0.199,
+        0.931,
+        0.958,
+        0.605,
+        0.745,
+        -0.268,
+        0.089,
+        0.647
+      ],
+      [
+        0.091,
+        0.238,
+        0.27,
+        1.0,
+        0.764,
+        0.261,
+        0.074,
+        0.251,
+        0.129,
+        0.062,
+        0.255,
+        0.0,
+        0.114,
+        0.195,
+        0.177,
+        0.334,
+        0.256,
+        0.26,
+        0.37,
+        0.185,
+        -0.043,
+        0.074,
+        0.161
+      ],
+      [
+        0.215,
+        0.272,
+        0.292,
+        0.764,
+        1.0,
+        0.3,
+        0.112,
+        0.264,
+        0.191,
+        0.138,
+        0.265,
+        -0.005,
+        0.174,
+        0.283,
+        0.176,
+        0.385,
+        0.285,
+        0.314,
+        0.349,
+        0.202,
+        -0.151,
+        0.118,
+        0.143
+      ],
+      [
+        0.423,
+        0.919,
+        0.966,
+        0.261,
+        0.3,
+        1.0,
+        0.16,
+        0.944,
+        0.101,
+        0.152,
+        0.259,
+        0.023,
+        0.098,
+        0.686,
+        0.825,
+        0.209,
+        0.938,
+        0.991,
+        0.603,
+        0.747,
+        -0.257,
+        0.086,
+        0.653
+      ],
+      [
+        0.153,
+        0.156,
+        0.158,
+        0.074,
+        0.112,
+        0.16,
+        1.0,
+        0.189,
+        0.114,
+        0.181,
+        0.057,
+        0.025,
+        0.102,
+        0.147,
+        0.097,
+        0.138,
+        0.165,
+        0.16,
+        0.109,
+        0.089,
+        -0.128,
+        0.13,
+        0.046
+      ],
+      [
+        0.363,
+        0.879,
+        0.938,
+        0.251,
+        0.264,
+        0.944,
+        0.189,
+        1.0,
+        0.099,
+        0.132,
+        0.25,
+        0.024,
+        0.09,
+        0.703,
+        0.811,
+        0.226,
+        0.925,
+        0.937,
+        0.585,
+        0.703,
+        -0.223,
+        0.089,
+        0.621
+      ],
+      [
+        0.148,
+        0.1,
+        0.103,
+        0.129,
+        0.191,
+        0.101,
+        0.114,
+        0.099,
+        1.0,
+        0.101,
+        0.128,
+        0.018,
+        0.224,
+        0.087,
+        0.024,
+        0.164,
+        0.093,
+        0.104,
+        0.164,
+        0.047,
+        -0.088,
+        0.105,
+        0.013
+      ],
+      [
+        0.282,
+        0.164,
+        0.14,
+        0.062,
+        0.138,
+        0.152,
+        0.181,
+        0.132,
+        0.101,
+        1.0,
+        0.077,
+        0.003,
+        0.126,
+        0.165,
+        0.094,
+        0.12,
+        0.172,
+        0.151,
+        0.149,
+        0.119,
+        -0.15,
+        0.103,
+        0.064
+      ],
+      [
+        0.101,
+        0.239,
+        0.257,
+        0.255,
+        0.265,
+        0.259,
+        0.057,
+        0.25,
+        0.128,
+        0.077,
+        1.0,
+        0.025,
+        0.183,
+        0.138,
+        0.191,
+        0.233,
+        0.248,
+        0.257,
+        0.276,
+        0.182,
+        0.001,
+        0.061,
+        0.173
+      ],
+      [
+        0.031,
+        0.018,
+        0.024,
+        0.0,
+        -0.005,
+        0.023,
+        0.025,
+        0.024,
+        0.018,
+        0.003,
+        0.025,
+        1.0,
+        0.016,
+        0.043,
+        0.057,
+        -0.005,
+        0.03,
+        0.022,
+        0.006,
+        0.032,
+        -0.007,
+        -0.004,
+        0.014
+      ],
+      [
+        0.153,
+        0.087,
+        0.093,
+        0.114,
+        0.174,
+        0.098,
+        0.102,
+        0.09,
+        0.224,
+        0.126,
+        0.183,
+        0.016,
+        1.0,
+        0.077,
+        0.026,
+        0.172,
+        0.09,
+        0.101,
+        0.159,
+        0.059,
+        -0.078,
+        0.108,
+        0.021
+      ],
+      [
+        0.409,
+        0.645,
+        0.687,
+        0.195,
+        0.283,
+        0.686,
+        0.147,
+        0.703,
+        0.087,
+        0.165,
+        0.138,
+        0.043,
+        0.077,
+        1.0,
+        0.74,
+        0.17,
+        0.721,
+        0.695,
+        0.522,
+        0.548,
+        -0.345,
+        0.085,
+        0.465
+      ],
+      [
+        0.32,
+        0.775,
+        0.818,
+        0.177,
+        0.176,
+        0.825,
+        0.097,
+        0.811,
+        0.024,
+        0.094,
+        0.191,
+        0.057,
+        0.026,
+        0.74,
+        1.0,
+        0.089,
+        0.833,
+        0.819,
+        0.548,
+        0.672,
+        -0.117,
+        0.034,
+        0.656
+      ],
+      [
+        0.105,
+        0.149,
+        0.199,
+        0.334,
+        0.385,
+        0.209,
+        0.138,
+        0.226,
+        0.164,
+        0.12,
+        0.233,
+        -0.005,
+        0.172,
+        0.17,
+        0.089,
+        1.0,
+        0.217,
+        0.212,
+        0.251,
+        0.072,
+        -0.045,
+        0.108,
+        0.044
+      ],
+      [
+        0.395,
+        0.894,
+        0.931,
+        0.256,
+        0.285,
+        0.938,
+        0.165,
+        0.925,
+        0.093,
+        0.172,
+        0.248,
+        0.03,
+        0.09,
+        0.721,
+        0.833,
+        0.217,
+        1.0,
+        0.932,
+        0.596,
+        0.728,
+        -0.262,
+        0.081,
+        0.648
+      ],
+      [
+        0.42,
+        0.911,
+        0.958,
+        0.26,
+        0.314,
+        0.991,
+        0.16,
+        0.937,
+        0.104,
+        0.151,
+        0.257,
+        0.022,
+        0.101,
+        0.695,
+        0.819,
+        0.212,
+        0.932,
+        1.0,
+        0.603,
+        0.748,
+        -0.265,
+        0.09,
+        0.645
+      ],
+      [
+        0.402,
+        0.587,
+        0.605,
+        0.37,
+        0.349,
+        0.603,
+        0.109,
+        0.585,
+        0.164,
+        0.149,
+        0.276,
+        0.006,
+        0.159,
+        0.522,
+        0.548,
+        0.251,
+        0.596,
+        0.603,
+        1.0,
+        0.579,
+        -0.01,
+        0.123,
+        0.492
+      ],
+      [
+        0.379,
+        0.751,
+        0.745,
+        0.185,
+        0.202,
+        0.747,
+        0.089,
+        0.703,
+        0.047,
+        0.119,
+        0.182,
+        0.032,
+        0.059,
+        0.548,
+        0.672,
+        0.072,
+        0.728,
+        0.748,
+        0.579,
+        1.0,
+        -0.215,
+        0.08,
+        0.632
+      ],
+      [
+        -0.294,
+        -0.288,
+        -0.268,
+        -0.043,
+        -0.151,
+        -0.257,
+        -0.128,
+        -0.223,
+        -0.088,
+        -0.15,
+        0.001,
+        -0.007,
+        -0.078,
+        -0.345,
+        -0.117,
+        -0.045,
+        -0.262,
+        -0.265,
+        -0.01,
+        -0.215,
+        1.0,
+        -0.083,
+        -0.078
+      ],
+      [
+        0.117,
+        0.089,
+        0.089,
+        0.074,
+        0.118,
+        0.086,
+        0.13,
+        0.089,
+        0.105,
+        0.103,
+        0.061,
+        -0.004,
+        0.108,
+        0.085,
+        0.034,
+        0.108,
+        0.081,
+        0.09,
+        0.123,
+        0.08,
+        -0.083,
+        1.0,
+        0.012
+      ],
+      [
+        0.294,
+        0.647,
+        0.647,
+        0.161,
+        0.143,
+        0.653,
+        0.046,
+        0.621,
+        0.013,
+        0.064,
+        0.173,
+        0.014,
+        0.021,
+        0.465,
+        0.656,
+        0.044,
+        0.648,
+        0.645,
+        0.492,
+        0.632,
+        -0.078,
+        0.012,
+        1.0
+      ]
+    ]
+  },
+  "per_signal": [
+    {
+      "signal": "TREND_SMA",
+      "n_fired": 32126,
+      "fire_rate": 0.51,
+      "mean_ret": 4.5851,
+      "std_ret": 103.2355,
+      "sharpe": 11.965
+    },
+    {
+      "signal": "BB_BREAK",
+      "n_fired": 33150,
+      "fire_rate": 0.5262,
+      "mean_ret": 4.2724,
+      "std_ret": 102.7401,
+      "sharpe": 11.203
+    },
+    {
+      "signal": "KC_BREAK",
+      "n_fired": 32741,
+      "fire_rate": 0.5197,
+      "mean_ret": 4.2668,
+      "std_ret": 103.0393,
+      "sharpe": 11.156
+    },
+    {
+      "signal": "VOL_BO",
+      "n_fired": 32517,
+      "fire_rate": 0.5162,
+      "mean_ret": 4.059,
+      "std_ret": 103.1159,
+      "sharpe": 10.604
+    },
+    {
+      "signal": "CMF_POS",
+      "n_fired": 35351,
+      "fire_rate": 0.5612,
+      "mean_ret": 3.9864,
+      "std_ret": 102.9205,
+      "sharpe": 10.435
+    },
+    {
+      "signal": "VOL_SURGE",
+      "n_fired": 32966,
+      "fire_rate": 0.5233,
+      "mean_ret": 3.8829,
+      "std_ret": 103.1046,
+      "sharpe": 10.146
+    },
+    {
+      "signal": "RSI_STRONG",
+      "n_fired": 35238,
+      "fire_rate": 0.5594,
+      "mean_ret": 3.8084,
+      "std_ret": 102.7684,
+      "sharpe": 9.983
+    },
+    {
+      "signal": "EMA_STACK",
+      "n_fired": 34404,
+      "fire_rate": 0.5461,
+      "mean_ret": 3.791,
+      "std_ret": 102.3147,
+      "sharpe": 9.982
+    },
+    {
+      "signal": "OBV_TREND",
+      "n_fired": 35513,
+      "fire_rate": 0.5638,
+      "mean_ret": 3.5513,
+      "std_ret": 100.7348,
+      "sharpe": 9.497
+    },
+    {
+      "signal": "GOLDEN",
+      "n_fired": 431,
+      "fire_rate": 0.0068,
+      "mean_ret": 2.9341,
+      "std_ret": 102.6369,
+      "sharpe": 7.701
+    },
+    {
+      "signal": "CONSEC_BULL",
+      "n_fired": 34062,
+      "fire_rate": 0.5407,
+      "mean_ret": 1.9676,
+      "std_ret": 100.4736,
+      "sharpe": 5.276
+    },
+    {
+      "signal": "DON_BO",
+      "n_fired": 9103,
+      "fire_rate": 0.1445,
+      "mean_ret": 1.9525,
+      "std_ret": 104.986,
+      "sharpe": 5.01
+    },
+    {
+      "signal": "PULLBACK",
+      "n_fired": 49123,
+      "fire_rate": 0.7798,
+      "mean_ret": 1.5006,
+      "std_ret": 101.3178,
+      "sharpe": 3.99
+    },
+    {
+      "signal": "STOCH_CROSS",
+      "n_fired": 19002,
+      "fire_rate": 0.3016,
+      "mean_ret": 1.2837,
+      "std_ret": 98.0696,
+      "sharpe": 3.526
+    },
+    {
+      "signal": "SQZPOP",
+      "n_fired": 6586,
+      "fire_rate": 0.1045,
+      "mean_ret": 1.028,
+      "std_ret": 98.1874,
+      "sharpe": 2.821
+    },
+    {
+      "signal": "ATR_EXP",
+      "n_fired": 8067,
+      "fire_rate": 0.1281,
+      "mean_ret": 0.4999,
+      "std_ret": 100.053,
+      "sharpe": 1.346
+    },
+    {
+      "signal": "ADX_TREND",
+      "n_fired": 13579,
+      "fire_rate": 0.2156,
+      "mean_ret": 0.2285,
+      "std_ret": 95.9607,
+      "sharpe": 0.642
+    },
+    {
+      "signal": "EMA_CROSS",
+      "n_fired": 3021,
+      "fire_rate": 0.048,
+      "mean_ret": 0.0242,
+      "std_ret": 98.6608,
+      "sharpe": 0.066
+    },
+    {
+      "signal": "PSAR",
+      "n_fired": 5210,
+      "fire_rate": 0.0827,
+      "mean_ret": -0.3154,
+      "std_ret": 103.4463,
+      "sharpe": -0.821
+    },
+    {
+      "signal": "MACD_CROSS",
+      "n_fired": 4984,
+      "fire_rate": 0.0791,
+      "mean_ret": -0.3643,
+      "std_ret": 101.3675,
+      "sharpe": -0.968
+    },
+    {
+      "signal": "RSI_CROSS",
+      "n_fired": 7655,
+      "fire_rate": 0.1215,
+      "mean_ret": -0.3821,
+      "std_ret": 98.8989,
+      "sharpe": -1.041
+    },
+    {
+      "signal": "MFI_CROSS",
+      "n_fired": 6516,
+      "fire_rate": 0.1034,
+      "mean_ret": -0.6284,
+      "std_ret": 98.588,
+      "sharpe": -1.717
+    },
+    {
+      "signal": "SUPERTREND",
+      "n_fired": 1941,
+      "fire_rate": 0.0308,
+      "mean_ret": -1.2965,
+      "std_ret": 98.682,
+      "sharpe": -3.539
+    }
+  ],
+  "survivors": [
+    "DON_BO",
+    "BB_BREAK",
+    "KC_BREAK",
+    "SQZPOP",
+    "ATR_EXP",
+    "VOL_BO",
+    "EMA_CROSS",
+    "EMA_STACK",
+    "MACD_CROSS",
+    "SUPERTREND",
+    "ADX_TREND",
+    "GOLDEN",
+    "PSAR",
+    "PULLBACK",
+    "TREND_SMA",
+    "RSI_CROSS",
+    "RSI_STRONG",
+    "VOL_SURGE",
+    "CONSEC_BULL",
+    "OBV_TREND",
+    "STOCH_CROSS",
+    "MFI_CROSS",
+    "CMF_POS"
+  ],
+  "killed": [
+    "RANGE_BO",
+    "ROC_MOM",
+    "NEW_HIGH",
+    "CONSOL_BO"
+  ]
+}

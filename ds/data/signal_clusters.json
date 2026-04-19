@@ -1,0 +1,296 @@
+[
+  {
+    "cluster_id": 0,
+    "size": 3,
+    "members": [
+      "DON_BO",
+      "NEW_HIGH",
+      "RANGE_BO"
+    ],
+    "member_sharpes": {
+      "DON_BO": 2.524,
+      "NEW_HIGH": 2.123,
+      "RANGE_BO": 2.21
+    },
+    "winner": "DON_BO",
+    "winner_sharpe": 2.524
+  },
+  {
+    "cluster_id": 9,
+    "size": 1,
+    "members": [
+      "SUPERTREND"
+    ],
+    "member_sharpes": {
+      "SUPERTREND": 2.15
+    },
+    "winner": "SUPERTREND",
+    "winner_sharpe": 2.15
+  },
+  {
+    "cluster_id": 20,
+    "size": 1,
+    "members": [
+      "OBV_TREND"
+    ],
+    "member_sharpes": {
+      "OBV_TREND": 2.064
+    },
+    "winner": "OBV_TREND",
+    "winner_sharpe": 2.064
+  },
+  {
+    "cluster_id": 1,
+    "size": 1,
+    "members": [
+      "BB_BREAK"
+    ],
+    "member_sharpes": {
+      "BB_BREAK": 1.959
+    },
+    "winner": "BB_BREAK",
+    "winner_sharpe": 1.959
+  },
+  {
+    "cluster_id": 5,
+    "size": 1,
+    "members": [
+      "VOL_BO"
+    ],
+    "member_sharpes": {
+      "VOL_BO": 1.85
+    },
+    "winner": "VOL_BO",
+    "winner_sharpe": 1.85
+  },
+  {
+    "cluster_id": 2,
+    "size": 1,
+    "members": [
+      "KC_BREAK"
+    ],
+    "member_sharpes": {
+      "KC_BREAK": 1.791
+    },
+    "winner": "KC_BREAK",
+    "winner_sharpe": 1.791
+  },
+  {
+    "cluster_id": 11,
+    "size": 1,
+    "members": [
+      "GOLDEN"
+    ],
+    "member_sharpes": {
+      "GOLDEN": 1.738
+    },
+    "winner": "GOLDEN",
+    "winner_sharpe": 1.738
+  },
+  {
+    "cluster_id": 13,
+    "size": 1,
+    "members": [
+      "PULLBACK"
+    ],
+    "member_sharpes": {
+      "PULLBACK": 1.707
+    },
+    "winner": "PULLBACK",
+    "winner_sharpe": 1.707
+  },
+  {
+    "cluster_id": 18,
+    "size": 1,
+    "members": [
+      "VOL_SURGE"
+    ],
+    "member_sharpes": {
+      "VOL_SURGE": 1.538
+    },
+    "winner": "VOL_SURGE",
+    "winner_sharpe": 1.538
+  },
+  {
+    "cluster_id": 16,
+    "size": 1,
+    "members": [
+      "RSI_STRONG"
+    ],
+    "member_sharpes": {
+      "RSI_STRONG": 1.512
+    },
+    "winner": "RSI_STRONG",
+    "winner_sharpe": 1.512
+  },
+  {
+    "cluster_id": 7,
+    "size": 1,
+    "members": [
+      "EMA_STACK"
+    ],
+    "member_sharpes": {
+      "EMA_STACK": 1.496
+    },
+    "winner": "EMA_STACK",
+    "winner_sharpe": 1.496
+  },
+  {
+    "cluster_id": 14,
+    "size": 1,
+    "members": [
+      "TREND_SMA"
+    ],
+    "member_sharpes": {
+      "TREND_SMA": 1.479
+    },
+    "winner": "TREND_SMA",
+    "winner_sharpe": 1.479
+  },
+  {
+    "cluster_id": 12,
+    "size": 1,
+    "members": [
+      "PSAR"
+    ],
+    "member_sharpes": {
+      "PSAR": 1.441
+    },
+    "winner": "PSAR",
+    "winner_sharpe": 1.441
+  },
+  {
+    "cluster_id": 4,
+    "size": 2,
+    "members": [
+      "ATR_EXP",
+      "CONSOL_BO"
+    ],
+    "member_sharpes": {
+      "ATR_EXP": 1.418,
+      "CONSOL_BO": 1.188
+    },
+    "winner": "ATR_EXP",
+    "winner_sharpe": 1.418
+  },
+  {
+    "cluster_id": 22,
+    "size": 1,
+    "members": [
+      "MFI_CROSS"
+    ],
+    "member_sharpes": {
+      "MFI_CROSS": 1.37
+    },
+    "winner": "MFI_CROSS",
+    "winner_sharpe": 1.37
+  },
+  {
+    "cluster_id": 10,
+    "size": 1,
+    "members": [
+      "ADX_TREND"
+    ],
+    "member_sharpes": {
+      "ADX_TREND": 1.353
+    },
+    "winner": "ADX_TREND",
+    "winner_sharpe": 1.353
+  },
+  {
+    "cluster_id": 8,
+    "size": 1,
+    "members": [
+      "MACD_CROSS"
+    ],
+    "member_sharpes": {
+      "MACD_CROSS": 1.281
+    },
+    "winner": "MACD_CROSS",
+    "winner_sharpe": 1.281
+  },
+  {
+    "cluster_id": 21,
+    "size": 1,
+    "members": [
+      "STOCH_CROSS"
+    ],
+    "member_sharpes": {
+      "STOCH_CROSS": 1.189
+    },
+    "winner": "STOCH_CROSS",
+    "winner_sharpe": 1.189
+  },
+  {
+    "cluster_id": 6,
+    "size": 1,
+    "members": [
+      "EMA_CROSS"
+    ],
+    "member_sharpes": {
+      "EMA_CROSS": 1.12
+    },
+    "winner": "EMA_CROSS",
+    "winner_sharpe": 1.12
+  },
+  {
+    "cluster_id": 15,
+    "size": 1,
+    "members": [
+      "RSI_CROSS"
+    ],
+    "member_sharpes": {
+      "RSI_CROSS": 1.003
+    },
+    "winner": "RSI_CROSS",
+    "winner_sharpe": 1.003
+  },
+  {
+    "cluster_id": 19,
+    "size": 1,
+    "members": [
+      "CONSEC_BULL"
+    ],
+    "member_sharpes": {
+      "CONSEC_BULL": 0.862
+    },
+    "winner": "CONSEC_BULL",
+    "winner_sharpe": 0.862
+  },
+  {
+    "cluster_id": 23,
+    "size": 1,
+    "members": [
+      "CMF_POS"
+    ],
+    "member_sharpes": {
+      "CMF_POS": 0.716
+    },
+    "winner": "CMF_POS",
+    "winner_sharpe": 0.716
+  },
+  {
+    "cluster_id": 3,
+    "size": 1,
+    "members": [
+      "SQZPOP"
+    ],
+    "member_sharpes": {
+      "SQZPOP": 0.512
+    },
+    "winner": "SQZPOP",
+    "winner_sharpe": 0.512
+  },
+  {
+    "cluster_id": 17,
+    "size": 1,
+    "members": [
+      "ROC_MOM"
+    ],
+    "member_sharpes": {
+      "ROC_MOM": -1.267
+    },
+    "winner": "ROC_MOM",
+    "winner_sharpe": -1.267
+  }
+]

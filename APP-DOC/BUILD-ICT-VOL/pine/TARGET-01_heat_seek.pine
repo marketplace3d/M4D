@@ -1,0 +1,234 @@
+// TARGET-01 — Heat-Seek Target Projector
+// Collects all significant levels → ranks by proximity + volume confluence → projects T1/T2/T3
+// "Next draw on liquidity" = nearest unswept level in bias direction with highest confluence score
+// Outputs: labelled target rays + alert on T1 approach
+
+//@version=5
+indicator("TARGET-01 · Heat-Seek Targets", overlay=true, max_lines_count=50, max_labels_count=30)
+
+// ── Inputs ────────────────────────────────────────────────────────────────────
+bias_tf        = input.timeframe("D",  "Bias timeframe")
+lookback       = input.int(50,         "Level scan lookback",    minval=20, maxval=200)
+approach_pct   = input.float(0.3,      "T1 approach zone (ATR)", minval=0.1, maxval=2.0, step=0.1)
+max_targets    = input.int(3,          "Max targets shown",      minval=1,   maxval=5)
+show_rays      = input.bool(true,      "Show target rays")
+show_heat      = input.bool(true,      "Show confluence heat")
+
+col_t1 = input.color(color.new(color.yellow,  10), "T1 (nearest)")
+col_t2 = input.color(color.new(color.orange,  30), "T2")
+col_t3 = input.color(color.new(color.gray,    50), "T3+")
+
+// ── Core calc ─────────────────────────────────────────────────────────────────
+atr       = ta.atr(14)
+vol_avg   = ta.sma(volume, 20)
+vwap_d    = ta.vwap(hlc3)
+
+// ── HTF bias ──────────────────────────────────────────────────────────────────
+htf_close = request.security(syminfo.tickerid, bias_tf, close, lookahead=barmerge.lookahead_off)
+htf_open  = request.security(syminfo.tickerid, bias_tf, open,  lookahead=barmerge.lookahead_off)
+bias_bull = htf_close > htf_open and close > vwap_d
+bias_bear = htf_close < htf_open and close < vwap_d
+
+// ── Level collection ─────────────────────────────────────────────────────────
+// Build arrays of candidate target levels with confluence scores
+// Each level scored on: type priority + how many other levels nearby + volume at creation
+
+// PDH / PDL
+var float pdh = na; var float pdl = na
+var float day_high = na; var float day_low = na
+if dayofweek != dayofweek[1]
+    if not na(day_high)
+        pdh := day_high; pdl := day_low
+    day_high := high; day_low := low
+else
+    day_high := math.max(day_high, high)
+    day_low  := math.min(day_low,  low)
+
+// Previous week high/low
+var float pwh = na; var float pwl = na
+var float wk_high = na; var float wk_low = na
+if weekofyear != weekofyear[1]
+    if not na(wk_high)
+        pwh := wk_high; pwl := wk_low
+    wk_high := high; wk_low := low
+else
+    wk_high := math.max(wk_high, high)
+    wk_low  := math.min(wk_low,  low)
+
+// Equal highs / lows (swing pivots within tolerance)
+ph = ta.pivothigh(high, 5, 5)
+pl = ta.pivotlow(low,   5, 5)
+var float last_ph1 = na; var float last_ph2 = na
+var float last_pl1 = na; var float last_pl2 = na
+if not na(ph) then last_ph2 := last_ph1, last_ph1 := ph
+if not na(pl) then last_pl2 := last_pl1, last_pl1 := pl
+
+tol        = atr * 0.2
+eq_high    = not na(last_ph1) and not na(last_ph2) and math.abs(last_ph1 - last_ph2) <= tol ?
+             (last_ph1 + last_ph2) / 2 : na
+eq_low     = not na(last_pl1) and not na(last_pl2) and math.abs(last_pl1 - last_pl2) <= tol ?
+             (last_pl1 + last_pl2) / 2 : na
+
+// Buyside / sellside (rolling N-bar extremes)
+bsl        = ta.highest(high, lookback)   // stops above = buyside target
+ssl        = ta.lowest(low,   lookback)   // stops below = sellside target
+
+// FVG midpoints (open gaps = magnetic)
+bull_fvg_mid = low  > high[2] ? (low + high[2]) / 2 : na
+bear_fvg_mid = high < low[2]  ? (high + low[2]) / 2 : na
+
+// VWAP + SD1 (institutional cost basis)
+vwap_val    = vwap_d
+// Rough SD1
+vwap_dev    = ta.stdev(hlc3, 20) * 1.0
+vwap_upper  = vwap_val + vwap_dev
+vwap_lower  = vwap_val - vwap_dev
+
+// Opening range (first bar of session)
+var float or_high = na; var float or_low = na; var bool or_set = false
+if not or_set and not na(open)
+    if hour == 9 and minute == 30
+        or_high := high; or_low := low; or_set := true
+    else if dayofweek != dayofweek[1]
+        or_set := false
+
+// ── Level array + scoring ─────────────────────────────────────────────────────
+// Collect levels above and below price; score each
+// Score: base_priority + nearby_confluence + volume_proximity
+if barstate.islast
+    // Levels above current price (bear targets / bull resistance)
+    var line[] ln_above = array.new_line()
+    var label[] lb_above = array.new_label()
+    var line[] ln_below = array.new_line()
+    var label[] lb_below = array.new_label()
+
+    // Clear previous
+    for l in ln_above  line.delete(l)
+    for l in ln_below  line.delete(l)
+    for l in lb_above  label.delete(l)
+    for l in lb_below  label.delete(l)
+    array.clear(ln_above); array.clear(ln_below)
+    array.clear(lb_above); array.clear(lb_below)
+
+    // Build candidate arrays
+    levels_above = array.new_float()
+    scores_above = array.new_float()
+    names_above  = array.new_string()
+    levels_below = array.new_float()
+    scores_below = array.new_float()
+    names_below  = array.new_string()
+
+    // Helper: add level if valid and not already close to existing
+    add_level(lvl, name, base_score, is_above) =>
+        if not na(lvl)
+            arr = is_above ? levels_above : levels_below
+            sc_arr = is_above ? scores_above : scores_below
+            nm_arr = is_above ? names_above : names_below
+            // Check not duplicate (within 0.5 ATR)
+            is_dup = false
+            for i = 0 to array.size(arr) - 1
+                if math.abs(array.get(arr, i) - lvl) < atr * 0.5
+                    // Merge: keep higher score
+                    if base_score > array.get(sc_arr, i)
+                        array.set(sc_arr, i, base_score)
+                        array.set(nm_arr, i, name)
+                    is_dup := true
+                    break
+            if not is_dup
+                if is_above
+                    array.push(levels_above, lvl)
+                    array.push(scores_above, base_score)
+                    array.push(names_above,  name)
+                else
+                    array.push(levels_below, lvl)
+                    array.push(scores_below, base_score)
+                    array.push(names_below,  name)
+
+    // Levels ABOVE current price
+    if not na(pdh)       and pdh       > close  then add_level(pdh,       "PDH",    90, true)
+    if not na(pwh)       and pwh       > close  then add_level(pwh,       "PWH",    85, true)
+    if not na(eq_high)   and eq_high   > close  then add_level(eq_high,   "EQH",    80, true)
+    if not na(bsl)       and bsl       > close  then add_level(bsl,       "BSL",    75, true)
+    if not na(vwap_upper)and vwap_upper> close  then add_level(vwap_upper,"VWAP+",  60, true)
+    if not na(or_high)   and or_high   > close  then add_level(or_high,   "ORH",    65, true)
+    if not na(bear_fvg_mid) and bear_fvg_mid > close then add_level(bear_fvg_mid, "FVG↑", 70, true)
+    if not na(last_ph1)  and last_ph1  > close  then add_level(last_ph1,  "SWH",    55, true)
+
+    // Levels BELOW current price
+    if not na(pdl)       and pdl       < close  then add_level(pdl,       "PDL",    90, false)
+    if not na(pwl)       and pwl       < close  then add_level(pwl,       "PWL",    85, false)
+    if not na(eq_low)    and eq_low    < close  then add_level(eq_low,    "EQL",    80, false)
+    if not na(ssl)       and ssl       < close  then add_level(ssl,       "SSL",    75, false)
+    if not na(vwap_lower)and vwap_lower< close  then add_level(vwap_lower,"VWAP-",  60, false)
+    if not na(or_low)    and or_low    < close  then add_level(or_low,    "ORL",    65, false)
+    if not na(bull_fvg_mid) and bull_fvg_mid < close then add_level(bull_fvg_mid, "FVG↓", 70, false)
+    if not na(last_pl1)  and last_pl1  < close  then add_level(last_pl1,  "SWL",    55, false)
+
+    // Sort above ascending (nearest first), below descending (nearest first)
+    // Simple bubble sort on scores (Pine has no native array sort with index map)
+    sz_a = array.size(levels_above)
+    for i = 0 to sz_a - 2
+        for j = 0 to sz_a - 2 - i
+            // sort above by level ascending (closest = lowest distance from price)
+            if array.get(levels_above, j) > array.get(levels_above, j + 1)
+                tmp_l = array.get(levels_above, j);   array.set(levels_above, j, array.get(levels_above, j+1)); array.set(levels_above, j+1, tmp_l)
+                tmp_s = array.get(scores_above, j);   array.set(scores_above, j, array.get(scores_above, j+1)); array.set(scores_above, j+1, tmp_s)
+                tmp_n = array.get(names_above, j);    array.set(names_above,  j, array.get(names_above,  j+1)); array.set(names_above,  j+1, tmp_n)
+
+    sz_b = array.size(levels_below)
+    for i = 0 to sz_b - 2
+        for j = 0 to sz_b - 2 - i
+            // sort below descending (closest = highest value)
+            if array.get(levels_below, j) < array.get(levels_below, j + 1)
+                tmp_l = array.get(levels_below, j);   array.set(levels_below, j, array.get(levels_below, j+1)); array.set(levels_below, j+1, tmp_l)
+                tmp_s = array.get(scores_below, j);   array.set(scores_below, j, array.get(scores_below, j+1)); array.set(scores_below, j+1, tmp_s)
+                tmp_n = array.get(names_below, j);    array.set(names_below,  j, array.get(names_below,  j+1)); array.set(names_below,  j+1, tmp_n)
+
+    // Draw targets in bias direction first
+    draw_target(lvl, nm, sc, rank) =>
+        col = rank == 1 ? col_t1 : rank == 2 ? col_t2 : col_t3
+        wid = rank == 1 ? 2      : 1
+        sty = rank == 1 ? line.style_solid : line.style_dashed
+        if show_rays
+            ln = line.new(bar_index - 10, lvl, bar_index + 60, lvl,
+                           color=col, width=wid, style=sty, extend=extend.right)
+            lbl_txt = "T" + str.tostring(rank) + " " + nm + " [" + str.tostring(math.round(sc)) + "]"
+            lb = label.new(bar_index + 2, lvl, lbl_txt,
+                            color=color.new(color.black, 80), textcolor=col,
+                            style= lvl > close ? label.style_label_down : label.style_label_up,
+                            size=size.small)
+            if lvl > close
+                array.push(ln_above, ln); array.push(lb_above, lb)
+            else
+                array.push(ln_below, ln); array.push(lb_below, lb)
+
+    // Draw up to max_targets above and below
+    targets_drawn = 0
+    if bias_bull or not bias_bear
+        // Bull bias: show upside targets first
+        for i = 0 to math.min(max_targets - 1, array.size(levels_above) - 1)
+            draw_target(array.get(levels_above, i), array.get(names_above, i), array.get(scores_above, i), i + 1)
+            targets_drawn += 1
+        for i = 0 to math.min(max_targets - 1, array.size(levels_below) - 1)
+            if targets_drawn < max_targets * 2
+                draw_target(array.get(levels_below, i), array.get(names_below, i), array.get(scores_below, i), i + 1)
+    else
+        // Bear bias: downside first
+        for i = 0 to math.min(max_targets - 1, array.size(levels_below) - 1)
+            draw_target(array.get(levels_below, i), array.get(names_below, i), array.get(scores_below, i), i + 1)
+            targets_drawn += 1
+        for i = 0 to math.min(max_targets - 1, array.size(levels_above) - 1)
+            if targets_drawn < max_targets * 2
+                draw_target(array.get(levels_above, i), array.get(names_above, i), array.get(scores_above, i), i + 1)
+
+// ── T1 approach alert ─────────────────────────────────────────────────────────
+t1_above = not na(pdh) and pdh > close ? pdh : not na(eq_high) and eq_high > close ? eq_high : bsl
+t1_below = not na(pdl) and pdl < close ? pdl : not na(eq_low)  and eq_low  < close ? eq_low  : ssl
+
+approach_above = not na(t1_above) and t1_above - close < atr * approach_pct and bias_bull
+approach_below = not na(t1_below) and close - t1_below < atr * approach_pct and bias_bear
+
+alertcondition(approach_above, "TARGET-01 T1 BULL",
+    "TARGET-01: Approaching T1 " + str.tostring(math.round(t1_above * 10000) / 10000) + " · {{ticker}} · {{close}}")
+alertcondition(approach_below, "TARGET-01 T1 BEAR",
+    "TARGET-01: Approaching T1 " + str.tostring(math.round(t1_below * 10000) / 10000) + " · {{ticker}} · {{close}}")

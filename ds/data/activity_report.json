@@ -1,0 +1,21 @@
+{
+  "ts": 1776527148,
+  "generated_at": "2026-04-18T15:45:48.932330+00:00",
+  "current": {
+    "activity_score": 0.4037,
+    "tick_score": 0.4037,
+    "grok_score": null,
+    "rvol_prank": 0.0895,
+    "atr_prank": 0.875,
+    "status": "SLOW",
+    "gate": "OPEN",
+    "kelly_size_mult": 0.634,
+    "reason": "tick-only mode"
+  },
+  "thresholds": {
+    "dead": 0.35,
+    "slow": 0.55,
+    "alive": 0.55
+  },
+  "grok_raw": null
+}

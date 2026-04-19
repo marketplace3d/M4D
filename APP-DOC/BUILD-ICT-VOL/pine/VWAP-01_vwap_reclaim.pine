@@ -1,0 +1,67 @@
+// VWAP-01 — VWAP Reclaim
+// Weight: 8%
+// Logic: Price rejected below VWAP → reclaims with volume · daily VWAP SD1 acting as support · POC above price
+// Edge: VWAP = institutional cost basis — reclaims signal large fund repositioning
+
+//@version=5
+indicator("VWAP-01 · VWAP Reclaim", overlay=true)
+
+// ── Inputs ────────────────────────────────────────────────────────────────────
+sd_mult      = input.float(1.0, "Std Dev band multiplier", minval=0.5, maxval=3.0, step=0.1)
+vol_mult     = input.float(1.2, "Volume confirmation mult", minval=1.0, maxval=3.0, step=0.1)
+poc_lookback = input.int(50,    "POC lookback (bars)",      minval=20,  maxval=200)
+rej_bars     = input.int(3,     "Min bars below VWAP before reclaim", minval=1, maxval=10)
+
+// ── Daily VWAP + SD bands ─────────────────────────────────────────────────────
+[vwap_val, vwap_upper, vwap_lower] = ta.vwap(hlc3, true, 1)
+sd1_upper = vwap_val + (vwap_upper - vwap_val) * sd_mult
+sd1_lower = vwap_val - (vwap_val - vwap_lower) * sd_mult
+
+// ── POC approximation (highest volume price in lookback) ──────────────────────
+// Simple proxy: price level with highest volume in lookback window
+var float poc = na
+var float max_vol = 0.0
+
+// Rolling highest-volume bar close as POC proxy
+poc_close = ta.highest(close * volume, poc_lookback) / ta.highest(volume, poc_lookback)
+poc := poc_close
+
+// ── Volume confirmation ───────────────────────────────────────────────────────
+vol_avg = ta.sma(volume, 20)
+vol_ok  = volume >= vol_avg * vol_mult
+
+// ── VWAP reclaim logic ────────────────────────────────────────────────────────
+// Count consecutive bars below VWAP
+var int bars_below = 0
+bars_below := close[1] < vwap_val[1] ? bars_below + 1 : 0
+
+// Reclaim: previously below VWAP, now closes above
+reclaim_bull = bars_below >= rej_bars and close > vwap_val and close[1] < vwap_val and vol_ok
+
+// SD1 support: price held above SD1 lower band
+sd1_support = low > sd1_lower and low[1] > sd1_lower[1]
+
+// POC above: institutional accumulation above current price
+poc_above = poc > close
+
+// Full long entry: reclaim + SD1 held + POC above
+long_entry = reclaim_bull and sd1_support and poc_above
+
+// Short: price loses VWAP after multiple bars above
+var int bars_above = 0
+bars_above := close[1] > vwap_val[1] ? bars_above + 1 : 0
+lose_bull = bars_above >= rej_bars and close < vwap_val and close[1] > vwap_val and vol_ok
+short_entry = lose_bull
+
+plotshape(long_entry,  "VWAP Long",  style=shape.diamond, location=location.belowbar, color=color.blue, size=size.small)
+plotshape(short_entry, "VWAP Short", style=shape.diamond,  location=location.abovebar, color=color.maroon, size=size.small)
+
+// ── Plot ──────────────────────────────────────────────────────────────────────
+plot(vwap_val,  "VWAP",      color=color.new(color.white,  20), linewidth=2)
+plot(sd1_upper, "VWAP SD1+", color=color.new(color.blue,   50), linewidth=1)
+plot(sd1_lower, "VWAP SD1-", color=color.new(color.blue,   50), linewidth=1)
+plot(poc,       "POC",       color=color.new(color.yellow, 40), style=plot.style_linebr, linewidth=1)
+
+// ── Alerts ────────────────────────────────────────────────────────────────────
+alertcondition(long_entry,  "VWAP-01 LONG",  "VWAP-01: VWAP Reclaim Long · {{ticker}} · {{close}}")
+alertcondition(short_entry, "VWAP-01 SHORT", "VWAP-01: VWAP Lost Short · {{ticker}} · {{close}}")

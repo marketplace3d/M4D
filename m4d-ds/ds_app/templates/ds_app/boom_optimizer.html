@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BOOM optimizer — URLs &amp; curl</title>
+  <style>
+    :root {
+      --bg: #0a0e14;
+      --card: #121820;
+      --border: #2a3444;
+      --text: #e8edf4;
+      --muted: #8b9cb3;
+      --accent: #3b9eff;
+      --accent-dim: #2563b8;
+      --ok: #3ecf8e;
+      --pill-narrow: #334155;
+      --pill-wide: #1d4ed8;
+      --pill-daily: #5b21b6;
+      --radius: 12px;
+      --font: "Segoe UI", system-ui, -apple-system, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+      min-height: 100vh;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .wrap { max-width: 58rem; margin: 0 auto; padding: 1.25rem 1rem 2.5rem; }
+    header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1rem;
+      margin-bottom: 1.25rem;
+    }
+    header h1 {
+      margin: 0 0 0.35rem;
+      font-size: 1.35rem;
+      font-weight: 650;
+      letter-spacing: -0.02em;
+    }
+    header p { margin: 0; color: var(--muted); font-size: 0.88rem; }
+    .tabs {
+      display: flex;
+      gap: 0.35rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+    .tabs button {
+      font: inherit;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--muted);
+      padding: 0.45rem 0.9rem;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .tabs button[aria-selected="true"] {
+      background: linear-gradient(135deg, var(--accent-dim), #1e3a5f);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    .panel {
+      display: none;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--card);
+      padding: 1rem 1.1rem 1.15rem;
+    }
+    .panel.active { display: block; }
+    .panel h2 {
+      margin: 0 0 0.75rem;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      font-weight: 700;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 0.5rem 1rem;
+      align-items: center;
+      margin-bottom: 0.65rem;
+    }
+    .row label { font-size: 0.86rem; color: var(--muted); }
+    .row .val {
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+      color: var(--ok);
+      min-width: 3.2rem;
+      text-align: right;
+      font-size: 0.86rem;
+    }
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+    .seg {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+    .seg button {
+      font: inherit;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: #0d1218;
+      color: var(--muted);
+      padding: 0.35rem 0.65rem;
+      border-radius: 8px;
+      font-size: 0.82rem;
+    }
+    .seg button.on {
+      border-color: var(--accent);
+      color: #fff;
+      background: #1a2f4a;
+    }
+    .host-row {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    .host-row input[type="text"] {
+      flex: 1;
+      min-width: 12rem;
+      font: inherit;
+      padding: 0.5rem 0.65rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #0d1218;
+      color: var(--text);
+    }
+    .url-box {
+      font-family: ui-monospace, monospace;
+      font-size: 0.72rem;
+      word-break: break-all;
+      background: #0d1218;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.65rem 0.75rem;
+      margin: 0.5rem 0;
+      color: #c8d4e4;
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+      margin-top: 0.65rem;
+    }
+    .actions button, .link-btn {
+      font: inherit;
+      cursor: pointer;
+      border-radius: 8px;
+      padding: 0.4rem 0.75rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      background: #1a2330;
+      color: var(--text);
+    }
+    .actions button.primary, .link-btn.primary {
+      background: linear-gradient(135deg, #1d4ed8, var(--accent-dim));
+      border-color: var(--accent);
+      color: #fff;
+    }
+    .pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin: 0.5rem 0 0.25rem;
+    }
+    .pill {
+      font-size: 0.72rem;
+      padding: 0.2rem 0.45rem;
+      border-radius: 6px;
+      background: var(--pill-narrow);
+      color: #e2e8f0;
+      font-variant-numeric: tabular-nums;
+    }
+    .pill.wide { background: var(--pill-wide); }
+    .pill.daily { background: var(--pill-daily); }
+    .stat {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-top: 0.35rem;
+    }
+    .stat strong { color: var(--ok); }
+    .subpanel {
+      border-top: 1px solid var(--border);
+      margin-top: 1rem;
+      padding-top: 1rem;
+    }
+    textarea.curl-out {
+      width: 100%;
+      min-height: 7rem;
+      font-family: ui-monospace, monospace;
+      font-size: 0.72rem;
+      background: #0d1218;
+      color: #c8d4e4;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.65rem;
+      resize: vertical;
+    }
+    .quick-links { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.65rem; }
+    .toast {
+      position: fixed;
+      bottom: 1rem;
+      right: 1rem;
+      background: #14532d;
+      color: #ecfdf5;
+      padding: 0.5rem 0.85rem;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+      z-index: 50;
+    }
+    .toast.show { opacity: 1; }
+    .hint { font-size: 0.78rem; color: var(--muted); margin-top: 0.25rem; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <p><a href="/">← home</a> · <a href="/boom-backtest/">boom-backtest</a> · <a href="/vectorbt-boom/">vectorbt-boom</a> · <a href="/vectorbt-expansion/">vectorbt-expansion</a></p>
+    <header>
+      <h1>BOOM parameter optimizer</h1>
+      <p>Build <code>/boom-backtest/</code>, <code>/vectorbt-boom/</code>, and <code>/vectorbt-expansion/</code> URLs; copy curl and shell review commands. Grid pills mirror <code>boom_backtest.py</code> axes.</p>
+    </header>
+
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" id="tab-btn-sweep" aria-selected="true" aria-controls="panel-sweep">Sweep</button>
+      <button type="button" role="tab" id="tab-btn-vbt" aria-selected="false" aria-controls="panel-vbt">vectorbt</button>
+      <button type="button" role="tab" id="tab-btn-curl" aria-selected="false" aria-controls="panel-curl">curl / bash</button>
+    </div>
+
+    <!-- Sweep -->
+    <section id="panel-sweep" class="panel active" role="tabpanel" aria-labelledby="tab-btn-sweep">
+      <h2>/boom-backtest/</h2>
+      <div class="seg" id="sweep-scan-seg">
+        <button type="button" class="on" data-scan="1">Liquid scan (15-name)</button>
+        <button type="button" data-scan="0">Single benchmark</button>
+      </div>
+      <p class="hint">Signal default follows Django: scan on → darvas; scan off → arrows.</p>
+      <div class="seg" id="sweep-signal-seg" style="margin-top:0.65rem;">
+        <button type="button" class="on" data-sig="darvas">darvas</button>
+        <button type="button" data-sig="arrows">arrows</button>
+      </div>
+      <div class="seg" id="sweep-exit-seg" style="margin-top:0.5rem;">
+        <button type="button" class="on" data-ex="ema13">ema13</button>
+        <button type="button" data-ex="holdbars">holdbars</button>
+      </div>
+
+      <div style="margin-top:1rem;">
+        <div class="row">
+          <label for="sl-min-trades">min_trades</label>
+          <span class="val" id="v-min-trades">1</span>
+        </div>
+        <input type="range" id="sl-min-trades" min="1" max="20" value="1" />
+      </div>
+      <div>
+        <div class="row">
+          <label for="sl-atr">atr_mult (ATR gate)</label>
+          <span class="val" id="v-atr">1.05</span>
+        </div>
+        <input type="range" id="sl-atr" min="0" max="200" value="105" />
+      </div>
+      <div>
+        <div class="row">
+          <label for="sl-be">be_off (% breakeven lock)</label>
+          <span class="val" id="v-be">0.05</span>
+        </div>
+        <input type="range" id="sl-be" min="0" max="30" value="5" />
+      </div>
+      <div>
+        <div class="row">
+          <label for="sl-wide">wide grid (0/1)</label>
+          <span class="val" id="v-wide">0</span>
+        </div>
+        <input type="range" id="sl-wide" min="0" max="1" value="0" />
+      </div>
+      <div>
+        <div class="row">
+          <label for="sl-eod">flat EOD eod (0/1)</label>
+          <span class="val" id="v-eod">1</span>
+        </div>
+        <input type="range" id="sl-eod" min="0" max="1" value="1" />
+      </div>
+      <div>
+        <div class="row">
+          <label for="sl-fh">first_half session (0/1)</label>
+          <span class="val" id="v-fh">1</span>
+        </div>
+        <input type="range" id="sl-fh" min="0" max="1" value="1" />
+      </div>
+      <div>
+        <div class="row">
+          <label for="sl-json">append format=json (0/1)</label>
+          <span class="val" id="v-json">0</span>
+        </div>
+        <input type="range" id="sl-json" min="0" max="1" value="0" />
+      </div>
+
+      <div style="margin-top:1rem;">
+        <label for="sweep-tf" class="hint" style="display:block;margin-bottom:0.35rem;">tf</label>
+        <input id="sweep-tf" type="text" value="5m" style="width:100%;max-width:10rem;padding:0.45rem;border-radius:8px;border:1px solid var(--border);background:#0d1218;color:var(--text);font:inherit;" />
+        <label for="sweep-period" class="hint" style="display:block;margin:0.65rem 0 0.35rem;">period</label>
+        <input id="sweep-period" type="text" value="60d" style="width:100%;max-width:10rem;padding:0.45rem;border-radius:8px;border:1px solid var(--border);background:#0d1218;color:var(--text);font:inherit;" />
+        <label for="sweep-symbols" class="hint" style="display:block;margin:0.65rem 0 0.35rem;">symbols (optional, comma-separated, scan only)</label>
+        <input id="sweep-symbols" type="text" placeholder="TSLA,NVDA" style="width:100%;padding:0.45rem;border-radius:8px;border:1px solid var(--border);background:#0d1218;color:var(--text);font:inherit;" />
+      </div>
+
+      <h2 style="margin-top:1.25rem;">Grid preview</h2>
+      <div id="grid-pills" class="pills"></div>
+      <p class="stat" id="grid-stat"></p>
+
+      <p class="hint">Blue pills = liquid wide axes; slate = liquid narrow; violet = daily single-symbol grid.</p>
+      <div class="url-box" id="sweep-url"></div>
+      <div class="actions">
+        <button type="button" class="primary" id="sweep-open">Open ↗</button>
+        <button type="button" id="sweep-copy">Copy URL</button>
+        <button type="button" id="sweep-copy-json">Copy JSON URL</button>
+        <a class="link-btn" id="sweep-pdf" href="#" target="_blank" rel="noopener">PDF clip sheet</a>
+      </div>
+    </section>
+
+    <!-- vectorbt -->
+    <section id="panel-vbt" class="panel" role="tabpanel" aria-labelledby="tab-btn-vbt" hidden>
+      <h2>/vectorbt-boom/ — Darvas grid</h2>
+      <div class="row"><label for="vb-symbol">symbol</label><input id="vb-symbol" type="text" value="SPY" style="max-width:8rem;padding:0.35rem;border-radius:8px;border:1px solid var(--border);background:#0d1218;color:var(--text);font:inherit;" /></div>
+      <div class="row"><label for="vb-tf">tf</label><input id="vb-tf" type="text" value="1d" style="max-width:8rem;padding:0.35rem;border-radius:8px;border:1px solid var(--border);background:#0d1218;color:var(--text);font:inherit;" /></div>
+      <div class="row"><label for="vb-period">period</label><input id="vb-period" type="text" value="6mo" style="max-width:8rem;padding:0.35rem;border-radius:8px;border:1px solid var(--border);background:#0d1218;color:var(--text);font:inherit;" /></div>
+      <div class="row"><label for="vb-sqmin">sq_min</label><input id="vb-sqmin" type="number" value="10" style="max-width:6rem;padding:0.35rem;border-radius:8px;border:1px solid var(--border);background:#0d1218;color:var(--text);font:inherit;" /></div>
+      <div class="row"><label for="vb-sqmax">sq_max</label><input id="vb-sqmax" type="number" value="22" style="max-width:6rem;padding:0.35rem;border-radius:8px;border:1px solid var(--border);background:#0d1218;color:var(--text);font:inherit;" /></div>
+      <div class="row"><label for="vb-sqstep">sq_step</label><input id="vb-sqstep" type="number" value="6" style="max-width:6rem;padding:0.35rem;border-radius:8px;border:1px solid var(--border);background:#0d1218;color:var(--text);font:inherit;" /></div>
+      <div class="row"><label for="vb-dvmin">dv_min</label><input id="vb-dvmin" type="number" value="8" style="max-width:6rem;padding:0.35rem;border-radius:8px;border:1px solid var(--border);background:#0d1218;color:var(--text);font:inherit;" /></div>
+      <div class="row"><label for="vb-dvmax">dv_max</label><input id="vb-dvmax" type="number" value="18" style="max-width:6rem;padding:0.35rem;border-radius:8px;border:1px solid var(--border);background:#0d1218;color:var(--text);font:inherit;" /></div>
+      <div class="row"><label for="vb-dvstep">dv_step</label><input id="vb-dvstep" type="number" value="5" style="max-width:6rem;padding:0.35rem;border-radius:8px;border:1px solid var(--border);background:#0d1218;color:var(--text);font:inherit;" /></div>
+      <div class="row"><label for="vb-rvoln">rvol_n</label><input id="vb-rvoln" type="number" value="6" min="3" max="48" style="max-width:6rem;padding:0.35rem;border-radius:8px;border:1px solid var(--border);background:#0d1218;color:var(--text);font:inherit;" /></div>
+      <div class="row"><label for="vb-rvlo">rvol_lo</label><input id="vb-rvlo" type="text" value="1.0" style="max-width:6rem;padding:0.35rem;border-radius:8px;border:1px solid var(--border);background:#0d1218;color:var(--text);font:inherit;" /></div>
+      <div class="row"><label for="vb-rvhi">rvol_hi</label><input id="vb-rvhi" type="text" value="2.0" style="max-width:6rem;padding:0.35rem;border-radius:8px;border:1px solid var(--border);background:#0d1218;color:var(--text);font:inherit;" /></div>
+      <div class="row"><label for="vb-mv">min_vote</label><input id="vb-mv" type="number" value="2" style="max-width:6rem;padding:0.35rem;border-radius:8px;border:1px solid var(--border);background:#0d1218;color:var(--text);font:inherit;" /></div>
+      <div class="row"><label for="vb-atr">atr_mult</label><input id="vb-atr" type="text" value="0" style="max-width:6rem;padding:0.35rem;border-radius:8px;border:1px solid var(--border);background:#0d1218;color:var(--text);font:inherit;" /></div>
+      <div class="row"><label for="vb-mc">max_combos</label><input id="vb-mc" type="number" value="500" style="max-width:6rem;padding:0.35rem;border-radius:8px;border:1px solid var(--border);background:#0d1218;color:var(--text);font:inherit;" /></div>
+      <div class="row"><label for="vb-sl">sl_stop (0=off)</label><input id="vb-sl" type="text" value="0.0065" style="max-width:6rem;padding:0.35rem;border-radius:8px;border:1px solid var(--border);background:#0d1218;color:var(--text);font:inherit;" /></div>
+      <div class="row"><label for="vb-hold">hold (chart)</label><input id="vb-hold" type="number" value="5" style="max-width:6rem;padding:0.35rem;border-radius:8px;border:1px solid var(--border);background:#0d1218;color:var(--text);font:inherit;" /></div>
+      <div class="row"><label for="vb-mb">max_bars</label><input id="vb-mb" type="number" value="280" style="max-width:6rem;padding:0.35rem;border-radius:8px;border:1px solid var(--border);background:#0d1218;color:var(--text);font:inherit;" /></div>
+      <div class="row"><label for="vb-be">be_off</label><input id="vb-be" type="text" value="0.05" style="max-width:6rem;padding:0.35rem;border-radius:8px;border:1px solid var(--border);background:#0d1218;color:var(--text);font:inherit;" /></div>
+      <div class="seg" id="vb-fh-seg" style="margin-top:0.5rem;">
+        <button type="button" class="on" data-fh="1">first_half on</button>
+        <button type="button" data-fh="0">first_half off</button>
+      </div>
+      <div class="seg" id="vb-chart-seg" style="margin-top:0.5rem;">
+        <button type="button" class="on" data-ch="0">chart off</button>
+        <button type="button" data-ch="1">chart on</button>
+      </div>
+      <div class="url-box" id="vb-boom-url"></div>
+      <div class="actions">
+        <button type="button" class="primary" id="vb-boom-open">Open ↗</button>
+        <button type="button" id="vb-boom-copy">Copy</button>
+      </div>
+
+      <div class="subpanel">
+        <h2>/vectorbt-expansion/ — full BOOM axes</h2>
+        <div class="seg" id="vex-scan-seg">
+          <button type="button" class="on" data-vscan="1">scan on</button>
+          <button type="button" data-vscan="0">scan off</button>
+        </div>
+        <div class="seg" id="vex-wide-seg" style="margin-top:0.5rem;">
+          <button type="button" class="on" data-vwide="0">wide off</button>
+          <button type="button" data-vwide="1">wide on</button>
+        </div>
+        <div class="row"><label for="vex-tf">tf</label><input id="vex-tf" type="text" value="5m" style="max-width:8rem;padding:0.35rem;border-radius:8px;border:1px solid var(--border);background:#0d1218;color:var(--text);font:inherit;" /></div>
+        <div class="row"><label for="vex-period">period</label><input id="vex-period" type="text" value="60d" style="max-width:8rem;padding:0.35rem;border-radius:8px;border:1px solid var(--border);background:#0d1218;color:var(--text);font:inherit;" /></div>
+        <div class="row"><label for="vex-sym">symbol (bench when scan off)</label><input id="vex-sym" type="text" value="SPY" style="max-width:8rem;padding:0.35rem;border-radius:8px;border:1px solid var(--border);background:#0d1218;color:var(--text);font:inherit;" /></div>
+        <div class="row"><label for="vex-symbols">symbols override</label><input id="vex-symbols" type="text" placeholder="optional" style="flex:1;min-width:12rem;padding:0.35rem;border-radius:8px;border:1px solid var(--border);background:#0d1218;color:var(--text);font:inherit;" /></div>
+        <div class="seg" id="vex-sig-seg" style="margin-top:0.5rem;">
+          <button type="button" class="on" data-vsig="darvas">darvas</button>
+          <button type="button" data-vsig="arrows">arrows</button>
+        </div>
+        <div class="seg" id="vex-ex-seg" style="margin-top:0.5rem;">
+          <button type="button" class="on" data-vex="ema13">ema13</button>
+          <button type="button" data-vex="holdbars">holdbars</button>
+        </div>
+        <div class="row"><label for="vex-atr">atr_mult</label><input id="vex-atr" type="text" value="1.05" style="max-width:6rem;padding:0.35rem;border-radius:8px;border:1px solid var(--border);background:#0d1218;color:var(--text);font:inherit;" /></div>
+        <div class="row"><label for="vex-mc">max_combos</label><input id="vex-mc" type="number" value="500" style="max-width:6rem;padding:0.35rem;border-radius:8px;border:1px solid var(--border);background:#0d1218;color:var(--text);font:inherit;" /></div>
+        <div class="row"><label for="vex-lt">limit_top</label><input id="vex-lt" type="number" value="12" style="max-width:6rem;padding:0.35rem;border-radius:8px;border:1px solid var(--border);background:#0d1218;color:var(--text);font:inherit;" /></div>
+        <div class="row"><label for="vex-mt">min_trades</label><input id="vex-mt" type="number" value="1" style="max-width:6rem;padding:0.35rem;border-radius:8px;border:1px solid var(--border);background:#0d1218;color:var(--text);font:inherit;" /></div>
+        <div class="row"><label for="vex-be">be_off</label><input id="vex-be" type="text" value="0.05" style="max-width:6rem;padding:0.35rem;border-radius:8px;border:1px solid var(--border);background:#0d1218;color:var(--text);font:inherit;" /></div>
+        <div class="row"><label for="vex-mb">max_bars</label><input id="vex-mb" type="number" value="280" style="max-width:6rem;padding:0.35rem;border-radius:8px;border:1px solid var(--border);background:#0d1218;color:var(--text);font:inherit;" /></div>
+        <div class="seg" id="vex-fh-seg" style="margin-top:0.5rem;">
+          <button type="button" class="on" data-vfh="1">first_half on</button>
+          <button type="button" data-vfh="0">first_half off</button>
+        </div>
+        <div class="seg" id="vex-chart-seg" style="margin-top:0.5rem;">
+          <button type="button" class="on" data-vch="0">chart off</button>
+          <button type="button" data-vch="1">chart on</button>
+        </div>
+        <div class="pills" id="vex-grid-pills"></div>
+        <p class="stat" id="vex-grid-stat"></p>
+        <div class="url-box" id="vex-url"></div>
+        <div class="actions">
+          <button type="button" class="primary" id="vex-open">Open ↗</button>
+          <button type="button" id="vex-copy">Copy</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- curl -->
+    <section id="panel-curl" class="panel" role="tabpanel" aria-labelledby="tab-btn-curl" hidden>
+      <h2>Host &amp; paste-ready commands</h2>
+      <div class="host-row">
+        <label for="curl-host" style="color:var(--muted);font-size:0.86rem;">Base URL</label>
+        <input type="text" id="curl-host" placeholder="http://127.0.0.1:8050" autocomplete="url" />
+      </div>
+      <textarea class="curl-out" id="curl-text" readonly></textarea>
+      <div class="actions">
+        <button type="button" class="primary" id="curl-copy">Copy block</button>
+      </div>
+      <h2 style="margin-top:1.25rem;">Open endpoints</h2>
+      <div class="quick-links" id="quick-links"></div>
+    </section>
+  </div>
+  <div class="toast" id="toast" role="status">Copied</div>
+
+  <script>
+(function () {
+  const GRID_NARROW = { sq: [14, 20], dv: [10, 20], rv: [1.2, 1.5], hold: [3, 6] };
+  const GRID_WIDE = { sq: [12, 14, 20, 26], dv: [8, 10, 15, 20], rv: [1.2, 1.35, 1.5, 1.75], hold: [3, 5, 8] };
+  const GRID_DAILY = { sq: [14, 20, 30], dv: [10, 20, 30], rv: [1.2, 1.5, 2.0], hold: [5, 8, 12] };
+
+  function prodGrid(g) {
+    return g.sq.length * g.dv.length * g.rv.length * g.hold.length;
+  }
+
+  function pillClass(scan, wide) {
+    if (!scan) return "pill daily";
+    return wide ? "pill wide" : "pill";
+  }
+
+  function renderGridPills(el, scan, wide) {
+    const g = scan ? (wide ? GRID_WIDE : GRID_NARROW) : GRID_DAILY;
+    const cls = pillClass(scan, wide);
+    const parts = [
+      ["SQ", g.sq],
+      ["DV", g.dv],
+      ["RVOL", g.rv],
+      ["HOLD", g.hold],
+    ];
+    el.innerHTML = parts
+      .map(
+        ([label, arr]) =>
+          `<span class="${cls}">${label}: ${arr.join(", ")}</span>`
+      )
+      .join("");
+    const n = prodGrid(g);
+    const symNote = scan ? "15-symbol default basket × " : "1 symbol × ";
+    return { combos: n, symNote };
+  }
+
+  const LS_HOST = "boomOptimizerBaseUrl";
+
+  function baseUrl() {
+    const raw = (document.getElementById("curl-host").value || "").trim().replace(/\/$/, "");
+    return raw || `${location.protocol}//${location.host}`;
+  }
+
+  function sweepState() {
+    const scan = document.querySelector("#sweep-scan-seg button.on")?.dataset.scan === "1";
+    const sigBtn = document.querySelector("#sweep-signal-seg button.on");
+    const signal = (sigBtn && sigBtn.dataset.sig) || "darvas";
+    const exit = document.querySelector("#sweep-exit-seg button.on")?.dataset.ex || "ema13";
+    const minTrades = +document.getElementById("sl-min-trades").value;
+    const atr = (+document.getElementById("sl-atr").value / 100).toFixed(2);
+    const be = (+document.getElementById("sl-be").value / 100).toFixed(2);
+    const wide = document.getElementById("sl-wide").value === "1";
+    const eod = document.getElementById("sl-eod").value === "1";
+    const fh = document.getElementById("sl-fh").value === "1";
+    const wantJson = document.getElementById("sl-json").value === "1";
+    const tf = document.getElementById("sweep-tf").value.trim() || (scan ? "5m" : "1d");
+    const period = document.getElementById("sweep-period").value.trim() || (scan ? "60d" : "6mo");
+    const symRaw = document.getElementById("sweep-symbols").value.trim();
+    return {
+      scan,
+      signal,
+      exit,
+      minTrades,
+      atr,
+      be,
+      wide,
+      eod,
+      fh,
+      wantJson,
+      tf,
+      period,
+      symRaw,
+    };
+  }
+
+  function buildSweepQS() {
+    const s = sweepState();
+    const q = new URLSearchParams();
+    q.set("scan", s.scan ? "1" : "0");
+    q.set("tf", s.tf);
+    q.set("period", s.period);
+    q.set("eod", s.eod ? "1" : "0");
+    q.set("min_trades", String(s.minTrades));
+    q.set("signal", s.signal);
+    q.set("exit", s.exit);
+    q.set("be_off", s.be);
+    q.set("atr_mult", s.atr);
+    q.set("first_half", s.fh ? "1" : "0");
+    if (s.wide) q.set("wide", "1");
+    if (s.scan && s.symRaw) q.set("symbols", s.symRaw);
+    if (s.wantJson) q.set("format", "json");
+    return q.toString();
+  }
+
+  function syncSweepDefaultsFromScan() {
+    document.getElementById("sweep-signal-seg").dataset.userPick = "";
+    const scan = document.querySelector("#sweep-scan-seg button.on")?.dataset.scan === "1";
+    const tf = document.getElementById("sweep-tf");
+    const period = document.getElementById("sweep-period");
+    const mt = document.getElementById("sl-min-trades");
+    const atr = document.getElementById("sl-atr");
+    const fh = document.getElementById("sl-fh");
+    const eod = document.getElementById("sl-eod");
+    if (scan) {
+      if (!tf.dataset.touched) {
+        tf.value = "5m";
+        period.value = "60d";
+      }
+      mt.value = mt.dataset.touched ? mt.value : "1";
+      atr.value = atr.dataset.touched ? atr.value : "105";
+      fh.value = fh.dataset.touched ? fh.value : "1";
+      eod.value = eod.dataset.touched ? eod.value : "1";
+      const sigDar = document.querySelector('#sweep-signal-seg button[data-sig="darvas"]');
+      const sigArr = document.querySelector('#sweep-signal-seg button[data-sig="arrows"]');
+      sigDar.classList.add("on");
+      sigArr.classList.remove("on");
+    } else {
+      if (!tf.dataset.touched) {
+        tf.value = "1d";
+        period.value = "6mo";
+      }
+      mt.value = mt.dataset.touched ? mt.value : "5";
+      atr.value = atr.dataset.touched ? atr.value : "100";
+      fh.value = fh.dataset.touched ? fh.value : "0";
+      eod.value = eod.dataset.touched ? eod.value : "0";
+      document.querySelector('#sweep-signal-seg button[data-sig="arrows"]').classList.add("on");
+      document.querySelector('#sweep-signal-seg button[data-sig="darvas"]').classList.remove("on");
+    }
+    updateSweepUi();
+  }
+
+  function updateSweepUi() {
+    const s = sweepState();
+    document.getElementById("v-min-trades").textContent = String(s.minTrades);
+    document.getElementById("v-atr").textContent = s.atr;
+    document.getElementById("v-be").textContent = s.be;
+    document.getElementById("v-wide").textContent = s.wide ? "1" : "0";
+    document.getElementById("v-eod").textContent = s.eod ? "1" : "0";
+    document.getElementById("v-fh").textContent = s.fh ? "1" : "0";
+    document.getElementById("v-json").textContent = s.wantJson ? "1" : "0";
+
+    const gp = document.getElementById("grid-pills");
+    const { combos } = renderGridPills(gp, s.scan, s.wide);
+    const mult = s.scan ? 15 : 1;
+    document.getElementById("grid-stat").innerHTML =
+      `<strong>${combos}</strong> combos per symbol × <strong>${mult}</strong> symbols ≈ <strong>${combos * mult}</strong> backtest rows (default liquid basket when scan on).`;
+
+    const b = baseUrl();
+    const qFull = new URLSearchParams(buildSweepQS());
+    const qNoJson = new URLSearchParams(qFull);
+    qNoJson.delete("format");
+    const htmlOnly = `${b}/boom-backtest/?${qNoJson.toString()}`;
+    const jsonUrl = `${b}/boom-backtest/?${qNoJson.toString()}&format=json`;
+    document.getElementById("sweep-url").textContent = s.wantJson ? jsonUrl : htmlOnly;
+    document.getElementById("sweep-pdf").href = `${b}/boom-backtest.pdf?${qNoJson.toString()}`;
+
+    document.getElementById("sweep-open").onclick = () => window.open(s.wantJson ? jsonUrl : htmlOnly, "_blank", "noopener");
+    document.getElementById("sweep-copy").onclick = () => copyText(htmlOnly);
+    document.getElementById("sweep-copy-json").onclick = () => copyText(jsonUrl);
+
+    renderVexGrid();
+    renderCurlBlock();
+    quickLinks();
+  }
+
+  function vbFhOn() {
+    return document.querySelector("#vb-fh-seg button.on")?.dataset.fh === "1";
+  }
+  function vbChartOn() {
+    return document.querySelector("#vb-chart-seg button.on")?.dataset.ch === "1";
+  }
+
+  function buildVbBoomQS() {
+    const q = new URLSearchParams();
+    q.set("symbol", document.getElementById("vb-symbol").value.trim() || "SPY");
+    q.set("tf", document.getElementById("vb-tf").value.trim() || "1d");
+    q.set("period", document.getElementById("vb-period").value.trim() || "6mo");
+    q.set("sq_min", document.getElementById("vb-sqmin").value);
+    q.set("sq_max", document.getElementById("vb-sqmax").value);
+    q.set("sq_step", document.getElementById("vb-sqstep").value);
+    q.set("dv_min", document.getElementById("vb-dvmin").value);
+    q.set("dv_max", document.getElementById("vb-dvmax").value);
+    q.set("dv_step", document.getElementById("vb-dvstep").value);
+    q.set("rvol_n", document.getElementById("vb-rvoln").value);
+    q.set("rvol_lo", document.getElementById("vb-rvlo").value);
+    q.set("rvol_hi", document.getElementById("vb-rvhi").value);
+    q.set("min_vote", document.getElementById("vb-mv").value);
+    q.set("atr_mult", document.getElementById("vb-atr").value);
+    q.set("max_combos", document.getElementById("vb-mc").value);
+    q.set("sl_stop", document.getElementById("vb-sl").value);
+    q.set("hold", document.getElementById("vb-hold").value);
+    q.set("max_bars", document.getElementById("vb-mb").value);
+    q.set("be_off", document.getElementById("vb-be").value);
+    q.set("first_half", vbFhOn() ? "1" : "0");
+    if (vbChartOn()) q.set("chart", "1");
+    return q.toString();
+  }
+
+  function vexState() {
+    return {
+      scan: document.querySelector("#vex-scan-seg button.on")?.dataset.vscan === "1",
+      wide: document.querySelector("#vex-wide-seg button.on")?.dataset.vwide === "1",
+      sig: document.querySelector("#vex-sig-seg button.on")?.dataset.vsig || "darvas",
+      ex: document.querySelector("#vex-ex-seg button.on")?.dataset.vex || "ema13",
+      fh: document.querySelector("#vex-fh-seg button.on")?.dataset.vfh === "1",
+      chart: document.querySelector("#vex-chart-seg button.on")?.dataset.vch === "1",
+    };
+  }
+
+  function buildVexQS() {
+    const v = vexState();
+    const q = new URLSearchParams();
+    q.set("scan", v.scan ? "1" : "0");
+    q.set("wide", v.wide ? "1" : "0");
+    q.set("tf", document.getElementById("vex-tf").value.trim() || (v.scan ? "5m" : "1d"));
+    q.set("period", document.getElementById("vex-period").value.trim() || (v.scan ? "60d" : "6mo"));
+    q.set("symbol", document.getElementById("vex-sym").value.trim() || "SPY");
+    const sy = document.getElementById("vex-symbols").value.trim();
+    if (sy) q.set("symbols", sy);
+    q.set("signal", v.sig);
+    q.set("exit", v.ex);
+    q.set("atr_mult", document.getElementById("vex-atr").value);
+    q.set("max_combos", document.getElementById("vex-mc").value);
+    q.set("limit_top", document.getElementById("vex-lt").value);
+    q.set("min_trades", document.getElementById("vex-mt").value);
+    q.set("be_off", document.getElementById("vex-be").value);
+    q.set("max_bars", document.getElementById("vex-mb").value);
+    q.set("first_half", v.fh ? "1" : "0");
+    if (v.chart) q.set("chart", "1");
+    return q.toString();
+  }
+
+  function renderVexGrid() {
+    const v = vexState();
+    const el = document.getElementById("vex-grid-pills");
+    const { combos } = renderGridPills(el, v.scan, v.wide);
+    document.getElementById("vex-grid-stat").innerHTML =
+      `<strong>${combos}</strong> param combos per symbol before <code>max_combos</code> truncation · liquid scan ≈15 symbols.`;
+  }
+
+  function updateVbtUi() {
+    const b = baseUrl();
+    const q1 = buildVbBoomQS();
+    document.getElementById("vb-boom-url").textContent = `${b}/vectorbt-boom/?${q1}`;
+    document.getElementById("vb-boom-open").onclick = () => window.open(`${b}/vectorbt-boom/?${q1}`, "_blank", "noopener");
+    document.getElementById("vb-boom-copy").onclick = () => copyText(`${b}/vectorbt-boom/?${q1}`);
+
+    renderVexGrid();
+    const q2 = buildVexQS();
+    document.getElementById("vex-url").textContent = `${b}/vectorbt-expansion/?${q2}`;
+    document.getElementById("vex-open").onclick = () => window.open(`${b}/vectorbt-expansion/?${q2}`, "_blank", "noopener");
+    document.getElementById("vex-copy").onclick = () => copyText(`${b}/vectorbt-expansion/?${q2}`);
+
+    renderCurlBlock();
+    quickLinks();
+  }
+
+  function renderCurlBlock() {
+    const b = baseUrl();
+    const qsSweep = buildSweepQS();
+    const qNoJson = new URLSearchParams(qsSweep);
+    qNoJson.delete("format");
+    const sweepHtml = `${b}/boom-backtest/?${qNoJson.toString()}`;
+    const sweepJson = `${b}/boom-backtest/?${qNoJson.toString()}&format=json`;
+    const vb = `${b}/vectorbt-boom/?${buildVbBoomQS()}`;
+    const vex = `${b}/vectorbt-expansion/?${buildVexQS()}`;
+    const repoHint = "(run from repository root)";
+    const text = `# BOOM sweep (HTML)
+curl -sS "${sweepHtml}" | head -c 1200
+
+# BOOM manifest (JSON)
+curl -sS "${sweepJson}" | head -c 2000
+
+# vectorbt-boom (HTML)
+curl -sS "${vb}" | head -c 800
+
+# vectorbt-boom (JSON)
+curl -sS "${vb}&format=json" | head -c 2000
+
+# vectorbt-expansion
+curl -sS "${vex}" | head -c 800
+
+# Review bundle ${repoHint}
+chmod +x m4d-ds/scripts/review_ds_app.sh
+./m4d-ds/scripts/review_ds_app.sh
+
+# Pytest (m4d-ds/)
+export DJANGO_SETTINGS_MODULE=m4d_ds.settings
+python -m pytest ds_app/tests/ -q
+`;
+    document.getElementById("curl-text").value = text;
+  }
+
+  function quickLinks() {
+    const b = baseUrl();
+    const qNoJson = new URLSearchParams(buildSweepQS());
+    qNoJson.delete("format");
+    const paths = [
+      ["boom-backtest", `/boom-backtest/?${qNoJson.toString()}`],
+      ["boom-backtest JSON", `/boom-backtest/?${qNoJson.toString()}&format=json`],
+      ["boom PDF", `/boom-backtest.pdf?${qNoJson.toString()}`],
+      ["boom-visual", `/boom-visual/`],
+      ["vectorbt-boom", `/vectorbt-boom/?${buildVbBoomQS()}`],
+      ["vectorbt-expansion", `/vectorbt-expansion/?${buildVexQS()}`],
+      ["vectorbt smoke", `/vectorbt/`],
+    ];
+    document.getElementById("quick-links").innerHTML = paths
+      .map(
+        ([label, path]) =>
+          `<a class="link-btn primary" href="${b}${path}" target="_blank" rel="noopener">${label}</a>`
+      )
+      .join("");
+  }
+
+  function copyText(t) {
+    navigator.clipboard.writeText(t).then(() => {
+      const toast = document.getElementById("toast");
+      toast.classList.add("show");
+      setTimeout(() => toast.classList.remove("show"), 1600);
+    });
+  }
+
+  /* Tabs */
+  document.querySelectorAll('.tabs [role="tab"]').forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll('.tabs [role="tab"]').forEach((b) => {
+        b.setAttribute("aria-selected", "false");
+      });
+      btn.setAttribute("aria-selected", "true");
+      document.querySelectorAll(".panel").forEach((p) => {
+        p.classList.remove("active");
+        p.hidden = true;
+      });
+      const id = btn.getAttribute("aria-controls");
+      const panel = document.getElementById(id);
+      panel.classList.add("active");
+      panel.hidden = false;
+    });
+  });
+
+  /* Segmented controls */
+  function bindSeg(containerSelector, attr, callback) {
+    document.querySelectorAll(containerSelector + " button").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(containerSelector + " button").forEach((b) => b.classList.remove("on"));
+        btn.classList.add("on");
+        if (callback) callback();
+      });
+    });
+  }
+
+  document.querySelectorAll("#sweep-scan-seg button").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (btn.classList.contains("on")) return;
+      document.querySelectorAll("#sweep-scan-seg button").forEach((b) => b.classList.remove("on"));
+      btn.classList.add("on");
+      syncSweepDefaultsFromScan();
+    });
+  });
+  bindSeg("#sweep-signal-seg", null, () => {
+    document.getElementById("sweep-signal-seg").dataset.userPick = "1";
+    updateSweepUi();
+  });
+  bindSeg("#sweep-exit-seg", null, updateSweepUi);
+  bindSeg("#vb-fh-seg", null, updateVbtUi);
+  bindSeg("#vb-chart-seg", null, updateVbtUi);
+  bindSeg("#vex-scan-seg", null, () => {
+    const scan = document.querySelector("#vex-scan-seg button.on")?.dataset.vscan === "1";
+    if (!document.getElementById("vex-tf").dataset.touched) {
+      document.getElementById("vex-tf").value = scan ? "5m" : "1d";
+      document.getElementById("vex-period").value = scan ? "60d" : "6mo";
+    }
+    if (!document.getElementById("vex-mt").dataset.touched) {
+      document.getElementById("vex-mt").value = scan ? "1" : "5";
+    }
+    if (!document.getElementById("vex-atr").dataset.touched) {
+      document.getElementById("vex-atr").value = scan ? "1.05" : "1.0";
+    }
+    updateVbtUi();
+  });
+  bindSeg("#vex-wide-seg", null, updateVbtUi);
+  bindSeg("#vex-sig-seg", null, updateVbtUi);
+  bindSeg("#vex-ex-seg", null, updateVbtUi);
+  bindSeg("#vex-fh-seg", null, updateVbtUi);
+  bindSeg("#vex-chart-seg", null, updateVbtUi);
+
+  [
+    "sl-min-trades",
+    "sl-atr",
+    "sl-be",
+    "sl-wide",
+    "sl-eod",
+    "sl-fh",
+    "sl-json",
+  ].forEach((id) => {
+    document.getElementById(id).addEventListener("input", updateSweepUi);
+  });
+  ["sweep-tf", "sweep-period", "sweep-symbols"].forEach((id) => {
+    const el = document.getElementById(id);
+    el.addEventListener("input", () => {
+      el.dataset.touched = "1";
+      updateSweepUi();
+    });
+  });
+  document.getElementById("sl-min-trades").addEventListener("change", () => {
+    document.getElementById("sl-min-trades").dataset.touched = "1";
+  });
+  document.getElementById("sl-atr").addEventListener("change", () => {
+    document.getElementById("sl-atr").dataset.touched = "1";
+  });
+
+  const vbInputs = document.querySelectorAll(
+    "#panel-vbt input, #panel-vbt .seg button"
+  );
+  vbInputs.forEach((el) => el.addEventListener("input", updateVbtUi));
+  vbInputs.forEach((el) => el.addEventListener("click", updateVbtUi));
+
+  document.getElementById("curl-host").addEventListener("input", () => {
+    localStorage.setItem(LS_HOST, document.getElementById("curl-host").value);
+    updateSweepUi();
+    updateVbtUi();
+  });
+
+  document.getElementById("curl-copy").addEventListener("click", () => {
+    copyText(document.getElementById("curl-text").value);
+  });
+
+  /* Init */
+  const saved = localStorage.getItem(LS_HOST);
+  if (saved) document.getElementById("curl-host").value = saved;
+  if (!document.getElementById("curl-host").value) {
+    document.getElementById("curl-host").value = `${location.protocol}//${location.host}`;
+  }
+  syncSweepDefaultsFromScan();
+  updateVbtUi();
+})();
+  </script>
+</body>
+</html>

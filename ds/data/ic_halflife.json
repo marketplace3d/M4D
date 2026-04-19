@@ -1,0 +1,310 @@
+{
+  "generated_at": "2026-04-19T07:25:27",
+  "step_days": 7,
+  "imminent_threshold_days": 7,
+  "short_threshold_days": 21,
+  "imminent_alerts": [
+    "DON_BO",
+    "BB_BREAK",
+    "KC_BREAK",
+    "SQZPOP",
+    "CONSOL_BO",
+    "RANGE_BO",
+    "SUPERTREND",
+    "GOLDEN",
+    "PULLBACK",
+    "RSI_STRONG",
+    "CONSEC_BULL",
+    "CMF_POS"
+  ],
+  "short_alerts": [],
+  "stable": [
+    "ATR_EXP",
+    "VOL_BO",
+    "NEW_HIGH",
+    "EMA_CROSS",
+    "EMA_STACK",
+    "MACD_CROSS",
+    "ADX_TREND",
+    "PSAR",
+    "TREND_SMA",
+    "RSI_CROSS",
+    "ROC_MOM",
+    "VOL_SURGE",
+    "OBV_TREND",
+    "STOCH_CROSS",
+    "MFI_CROSS"
+  ],
+  "signals": {
+    "DON_BO": {
+      "status": "IMMINENT",
+      "half_life_days": 0.0,
+      "fit_type": "LIN",
+      "r2": 0.497,
+      "expiry_estimate": "2026-04-19",
+      "latest_ic": -0.03661,
+      "ic_trend": "RETIRE",
+      "n_windows": 10
+    },
+    "BB_BREAK": {
+      "status": "IMMINENT",
+      "half_life_days": 0.0,
+      "fit_type": "LIN",
+      "r2": 0.215,
+      "expiry_estimate": "2026-04-19",
+      "latest_ic": -0.001,
+      "ic_trend": "RETIRE",
+      "n_windows": 10
+    },
+    "KC_BREAK": {
+      "status": "IMMINENT",
+      "half_life_days": 0.0,
+      "fit_type": "LIN",
+      "r2": 0.017,
+      "expiry_estimate": "2026-04-19",
+      "latest_ic": -0.00417,
+      "ic_trend": "RETIRE",
+      "n_windows": 10
+    },
+    "SQZPOP": {
+      "status": "IMMINENT",
+      "half_life_days": 0.0,
+      "fit_type": "LIN",
+      "r2": 0.374,
+      "expiry_estimate": "2026-04-19",
+      "latest_ic": -0.01528,
+      "ic_trend": "RETIRE",
+      "n_windows": 10
+    },
+    "ATR_EXP": {
+      "status": "STABLE",
+      "half_life_days": null,
+      "fit_type": "STABLE",
+      "r2": 1.0,
+      "expiry_estimate": null,
+      "latest_ic": 0.00883,
+      "ic_trend": "HEALTHY",
+      "n_windows": 10
+    },
+    "VOL_BO": {
+      "status": "STABLE",
+      "half_life_days": null,
+      "fit_type": "LIN",
+      "r2": 0.0,
+      "expiry_estimate": null,
+      "latest_ic": 0.00339,
+      "ic_trend": "DECLINING",
+      "n_windows": 10
+    },
+    "CONSOL_BO": {
+      "status": "IMMINENT",
+      "half_life_days": 0.0,
+      "fit_type": "LIN",
+      "r2": 0.015,
+      "expiry_estimate": "2026-04-19",
+      "latest_ic": -0.00381,
+      "ic_trend": "RETIRE",
+      "n_windows": 10
+    },
+    "NEW_HIGH": {
+      "status": "STABLE",
+      "half_life_days": null,
+      "fit_type": "STABLE",
+      "r2": 1.0,
+      "expiry_estimate": null,
+      "latest_ic": -0.02078,
+      "ic_trend": "FLAT",
+      "n_windows": 10
+    },
+    "RANGE_BO": {
+      "status": "IMMINENT",
+      "half_life_days": 0.0,
+      "fit_type": "LIN",
+      "r2": 0.598,
+      "expiry_estimate": "2026-04-19",
+      "latest_ic": -0.01942,
+      "ic_trend": "RETIRE",
+      "n_windows": 10
+    },
+    "EMA_CROSS": {
+      "status": "STABLE",
+      "half_life_days": null,
+      "fit_type": "STABLE",
+      "r2": 1.0,
+      "expiry_estimate": null,
+      "latest_ic": -0.00368,
+      "ic_trend": "FLAT",
+      "n_windows": 10
+    },
+    "EMA_STACK": {
+      "status": "STABLE",
+      "half_life_days": null,
+      "fit_type": "STABLE",
+      "r2": 1.0,
+      "expiry_estimate": null,
+      "latest_ic": 0.0023,
+      "ic_trend": "FLAT",
+      "n_windows": 10
+    },
+    "MACD_CROSS": {
+      "status": "STABLE",
+      "half_life_days": null,
+      "fit_type": "STABLE",
+      "r2": 1.0,
+      "expiry_estimate": null,
+      "latest_ic": 0.01608,
+      "ic_trend": "HEALTHY",
+      "n_windows": 10
+    },
+    "SUPERTREND": {
+      "status": "IMMINENT",
+      "half_life_days": 0.0,
+      "fit_type": "LIN",
+      "r2": 0.488,
+      "expiry_estimate": "2026-04-19",
+      "latest_ic": -0.02372,
+      "ic_trend": "RETIRE",
+      "n_windows": 10
+    },
+    "ADX_TREND": {
+      "status": "STABLE",
+      "half_life_days": null,
+      "fit_type": "STABLE",
+      "r2": 1.0,
+      "expiry_estimate": null,
+      "latest_ic": 0.01803,
+      "ic_trend": "HEALTHY",
+      "n_windows": 10
+    },
+    "GOLDEN": {
+      "status": "IMMINENT",
+      "half_life_days": 0.0,
+      "fit_type": "LIN",
+      "r2": 0.285,
+      "expiry_estimate": "2026-04-19",
+      "latest_ic": -0.08859,
+      "ic_trend": "RETIRE",
+      "n_windows": 10
+    },
+    "PSAR": {
+      "status": "STABLE",
+      "half_life_days": null,
+      "fit_type": "STABLE",
+      "r2": 1.0,
+      "expiry_estimate": null,
+      "latest_ic": 0.01051,
+      "ic_trend": "HEALTHY",
+      "n_windows": 10
+    },
+    "PULLBACK": {
+      "status": "IMMINENT",
+      "half_life_days": 0.0,
+      "fit_type": "LIN",
+      "r2": 0.055,
+      "expiry_estimate": "2026-04-19",
+      "latest_ic": -0.0119,
+      "ic_trend": "RETIRE",
+      "n_windows": 10
+    },
+    "TREND_SMA": {
+      "status": "STABLE",
+      "half_life_days": null,
+      "fit_type": "STABLE",
+      "r2": 1.0,
+      "expiry_estimate": null,
+      "latest_ic": 0.00554,
+      "ic_trend": "HEALTHY",
+      "n_windows": 10
+    },
+    "RSI_CROSS": {
+      "status": "STABLE",
+      "half_life_days": null,
+      "fit_type": "LIN",
+      "r2": 0.0,
+      "expiry_estimate": null,
+      "latest_ic": -0.00229,
+      "ic_trend": "RETIRE",
+      "n_windows": 10
+    },
+    "RSI_STRONG": {
+      "status": "IMMINENT",
+      "half_life_days": 0.0,
+      "fit_type": "LIN",
+      "r2": 0.226,
+      "expiry_estimate": "2026-04-19",
+      "latest_ic": -0.00848,
+      "ic_trend": "DECLINING",
+      "n_windows": 10
+    },
+    "ROC_MOM": {
+      "status": "STABLE",
+      "half_life_days": null,
+      "fit_type": "STABLE",
+      "r2": 1.0,
+      "expiry_estimate": null,
+      "latest_ic": 0.01596,
+      "ic_trend": "HEALTHY",
+      "n_windows": 10
+    },
+    "VOL_SURGE": {
+      "status": "STABLE",
+      "half_life_days": null,
+      "fit_type": "STABLE",
+      "r2": 1.0,
+      "expiry_estimate": null,
+      "latest_ic": 0.00776,
+      "ic_trend": "HEALTHY",
+      "n_windows": 10
+    },
+    "CONSEC_BULL": {
+      "status": "IMMINENT",
+      "half_life_days": 0.0,
+      "fit_type": "LIN",
+      "r2": 0.086,
+      "expiry_estimate": "2026-04-19",
+      "latest_ic": -0.01183,
+      "ic_trend": "RETIRE",
+      "n_windows": 10
+    },
+    "OBV_TREND": {
+      "status": "STABLE",
+      "half_life_days": null,
+      "fit_type": "STABLE",
+      "r2": 1.0,
+      "expiry_estimate": null,
+      "latest_ic": -0.00766,
+      "ic_trend": "FLAT",
+      "n_windows": 10
+    },
+    "STOCH_CROSS": {
+      "status": "STABLE",
+      "half_life_days": null,
+      "fit_type": "LIN",
+      "r2": 0.0,
+      "expiry_estimate": null,
+      "latest_ic": 0.01606,
+      "ic_trend": "RETIRE",
+      "n_windows": 10
+    },
+    "MFI_CROSS": {
+      "status": "STABLE",
+      "half_life_days": null,
+      "fit_type": "STABLE",
+      "r2": 1.0,
+      "expiry_estimate": null,
+      "latest_ic": 0.0005,
+      "ic_trend": "FLAT",
+      "n_windows": 10
+    },
+    "CMF_POS": {
+      "status": "IMMINENT",
+      "half_life_days": 0.0,
+      "fit_type": "LIN",
+      "r2": 0.289,
+      "expiry_estimate": "2026-04-19",
+      "latest_ic": -0.01058,
+      "ic_trend": "RETIRE",
+      "n_windows": 10
+    }
+  }
+}

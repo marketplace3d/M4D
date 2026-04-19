@@ -1,0 +1,126 @@
+
+<style>
+  .stage { cursor:pointer; }
+  .stage:hover > rect { stroke-width:1.5 !important; }
+  .gate { cursor:pointer; }
+  .gate:hover > polygon { stroke-width:1.5 !important; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+  .live { animation: pulse 2s ease-in-out infinite; }
+</style>
+<svg width="100%" viewBox="0 0 680 860">
+<defs>
+  <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </marker>
+</defs>
+
+<!-- ═══ STAGE 1: FEATURE GENERATION ═══ -->
+<g class="stage c-gray" onclick="sendPrompt('Build the exhaustive feature generation engine: every transformation applied to every raw data series. Include: time-series operators (returns over N periods, rolling z-score, rolling percentile rank, autocorrelation, Hurst exponent), cross-sectional operators (rank, demean, neutralise by sector/beta), interaction terms (feature A × feature B), lagged features (t-1 through t-252), and nonlinear transforms (log, sqrt, tanh). What is the full taxonomy of operators? How do you generate 10 million candidate features systematically?')">
+  <rect x="30" y="20" width="620" height="70" rx="8" stroke-width="0.5"/>
+  <text class="th" x="340" y="45" text-anchor="middle" dominant-baseline="central">stage 1 — exhaustive feature generation</text>
+  <text class="ts" x="340" y="65" text-anchor="middle" dominant-baseline="central">every operator × every data series: returns, z-score, rank, lag, cross-section, interaction, nonlinear</text>
+  <text class="ts" x="340" y="81" text-anchor="middle" dominant-baseline="central">target output: O(10M) candidate features per universe</text>
+</g>
+
+<!-- sub-boxes row 1: 3 boxes w=186, gap=16, start=30 -->
+<g class="stage c-gray" onclick="sendPrompt('Time-series feature operators in detail: rolling returns (1d,5d,21d,63d,126d,252d), rolling volatility (realised, Parkinson, Garman-Klass), momentum z-score, mean-reversion z-score, RSI variants, Hurst exponent (trending vs mean-reverting classification), autocorrelation at multiple lags, ARMA residuals as features. Give code for a vectorised pandas/polars implementation.')">
+  <rect x="30" y="102" width="186" height="52" rx="6" stroke-width="0.5"/>
+  <text class="th" x="123" y="122" text-anchor="middle" dominant-baseline="central">time-series ops</text>
+  <text class="ts" x="123" y="140" text-anchor="middle" dominant-baseline="central">lag, roll, momentum, vol</text>
+</g>
+<g class="stage c-gray" onclick="sendPrompt('Cross-sectional feature operators: rank normalisation within universe, demeaning by sector, beta neutralisation, market-cap weighting adjustments, relative strength vs benchmark, cross-asset spread features. Why does cross-sectional normalisation matter for signal construction? Give the mathematical formulation and code.')">
+  <rect x="232" y="102" width="186" height="52" rx="6" stroke-width="0.5"/>
+  <text class="th" x="325" y="122" text-anchor="middle" dominant-baseline="central">cross-sectional ops</text>
+  <text class="ts" x="325" y="140" text-anchor="middle" dominant-baseline="central">rank, demean, neutralise</text>
+</g>
+<g class="stage c-gray" onclick="sendPrompt('Interaction and nonlinear features: pairwise feature products, polynomial expansions, ratio features, conditional features (signal only active when VIX > threshold), regime-tagged features, and learned nonlinear combinations via shallow neural nets or GBMs used as feature transformers not predictors. How do you control combinatorial explosion?')">
+  <rect x="434" y="102" width="186" height="52" rx="6" stroke-width="0.5"/>
+  <text class="th" x="527" y="122" text-anchor="middle" dominant-baseline="central">interaction + nonlinear</text>
+  <text class="ts" x="527" y="140" text-anchor="middle" dominant-baseline="central">products, ratios, conditionals</text>
+</g>
+
+<!-- arrow -->
+<line x1="340" y1="154" x2="340" y2="184" class="arr" marker-end="url(#arrow)"/>
+
+<!-- ═══ STAGE 2: DATA PARTITION ═══ -->
+<g class="stage c-purple" onclick="sendPrompt('Design the strict temporal data partition for signal discovery. The entire dataset is split once, irrevocably, before any research begins: 60% in-sample for discovery, 20% validation for hyperparameter selection, 20% holdout that is NEVER TOUCHED until final validation. Explain why this partition must be done before any feature is examined, why researchers must be physically prevented from seeing holdout data, and how you enforce this institutionally and technically.')">
+  <rect x="30" y="186" width="620" height="70" rx="8" stroke-width="0.5"/>
+  <text class="th" x="340" y="211" text-anchor="middle" dominant-baseline="central">stage 2 — irrevocable data partition</text>
+  <text class="ts" x="340" y="231" text-anchor="middle" dominant-baseline="central">60% discovery · 20% validation · 20% holdout — split ONCE before research begins, never revisited</text>
+  <text class="ts" x="340" y="247" text-anchor="middle" dominant-baseline="central">holdout is physically locked — no researcher sees it until final blessing</text>
+</g>
+
+<line x1="340" y1="256" x2="340" y2="286" class="arr" marker-end="url(#arrow)"/>
+
+<!-- ═══ STAGE 3: UNIVARIATE SCREENING ═══ -->
+<g class="stage c-blue" onclick="sendPrompt('Build the univariate signal screening layer: for each of 10M candidate features, compute IC (information coefficient = rank correlation with forward returns), ICIR (IC / std of IC), t-statistic on IC, and a fast directional Sharpe. This runs on the IN-SAMPLE partition only. What are the minimum thresholds to pass screening? What is the computational architecture — how do you run 10M correlations efficiently? GPU-accelerated? Distributed Spark? Give the implementation.')">
+  <rect x="30" y="288" width="620" height="70" rx="8" stroke-width="0.5"/>
+  <text class="th" x="340" y="313" text-anchor="middle" dominant-baseline="central">stage 3 — univariate IC screening (in-sample only)</text>
+  <text class="ts" x="340" y="333" text-anchor="middle" dominant-baseline="central">compute IC, ICIR, t-stat for every feature vs forward returns — fast parallel pass</text>
+  <text class="ts" x="340" y="349" text-anchor="middle" dominant-baseline="central">retain top ~1% by ICIR: O(10M) → O(100K) candidates</text>
+</g>
+
+<line x1="340" y1="358" x2="340" y2="388" class="arr" marker-end="url(#arrow)"/>
+
+<!-- ═══ STAGE 4: MULTIPLE HYPOTHESIS CORRECTION ═══ -->
+<g class="stage c-purple" onclick="sendPrompt('This is the most important stage and where most quant funds fail. Build the full multiple hypothesis testing correction layer. With 100K candidate signals tested on the same dataset: (1) Bonferroni correction: divide alpha by number of tests — extremely conservative but guarantees family-wise error rate. (2) Benjamini-Hochberg FDR correction: controls the expected proportion of false discoveries among rejected hypotheses — less conservative, preferred for large-scale discovery. (3) Storey q-value method: estimates the proportion of true nulls (pi_0) for adaptive FDR. Show the mathematics, the implementation in Python (statsmodels, or from scratch), and the practical threshold choices. What adjusted p-value / q-value threshold do you use?')">
+  <rect x="30" y="390" width="620" height="84" rx="8" stroke-width="0.5"/>
+  <text class="th" x="340" y="414" text-anchor="middle" dominant-baseline="central">stage 4 — multiple hypothesis testing correction</text>
+  <text class="ts" x="340" y="434" text-anchor="middle" dominant-baseline="central">Bonferroni (family-wise) · Benjamini-Hochberg FDR · Storey q-value</text>
+  <text class="ts" x="340" y="452" text-anchor="middle" dominant-baseline="central">testing 100K signals on same data → ~5K false positives at p=0.05 uncorrected</text>
+  <text class="ts" x="340" y="468" text-anchor="middle" dominant-baseline="central">FDR correction reduces survivors to genuinely anomalous candidates</text>
+</g>
+
+<!-- KILL gate -->
+<g class="gate c-red" onclick="sendPrompt('What happens to signals that fail FDR correction? They are not discarded permanently — they are logged with their statistics and archived. A signal that fails today may pass in the future as more data accumulates. Build the signal morgue: the database of failed candidates with their full statistical history, so that when new data arrives the screening can be re-run without regenerating features from scratch.')">
+  <polygon points="620,480 650,498 620,516 590,498" stroke-width="0.5"/>
+  <text class="ts" x="620" y="502" text-anchor="middle" dominant-baseline="central">fail</text>
+</g>
+<line x1="620" y1="474" x2="620" y2="480" class="arr" marker-end="url(#arrow)"/>
+<text class="ts" x="648" y="535" text-anchor="middle">→ signal morgue</text>
+
+<line x1="340" y1="474" x2="340" y2="504" class="arr" marker-end="url(#arrow)"/>
+
+<!-- ═══ STAGE 5: MDL + SIGNAL VALIDATION ═══ -->
+<g class="stage c-teal" onclick="sendPrompt('Minimum Description Length signal validation: a signal is only accepted if it cannot be explained by a simpler model. MDL asks: what is the total bit-length needed to describe (1) the model and (2) the residuals? A shorter total description = a better model. Apply this to filter signals that appear predictive but are just noisy approximations of known factors (like market beta or sector return). Also cover: the Hansen-Timmermann test for predictive ability, White Reality Check (bootstrap-based test for data snooping), and the SPA test (Superior Predictive Ability). Give mathematical formulation of each.')">
+  <rect x="30" y="506" width="620" height="70" rx="8" stroke-width="0.5"/>
+  <text class="th" x="340" y="530" text-anchor="middle" dominant-baseline="central">stage 5 — MDL validation + data-snooping tests</text>
+  <text class="ts" x="340" y="550" text-anchor="middle" dominant-baseline="central">minimum description length · Hansen-Timmermann · White Reality Check · SPA test</text>
+  <text class="ts" x="340" y="566" text-anchor="middle" dominant-baseline="central">reject signals explainable by simpler models or known factors</text>
+</g>
+
+<line x1="340" y1="576" x2="340" y2="606" class="arr" marker-end="url(#arrow)"/>
+
+<!-- ═══ STAGE 6: DECORRELATION FILTER ═══ -->
+<g class="stage c-amber" onclick="sendPrompt('Build the signal decorrelation and clustering layer: after FDR + MDL filtering, surviving signals are clustered by their pairwise IC correlation. Signals with IC correlation > 0.7 are grouped — only the highest ICIR representative from each cluster is promoted to avoid redundancy. Show: hierarchical clustering on IC correlation matrix, elbow method for cluster count, within-cluster redundancy scoring. Why is this critical? Because 50 correlated signals add almost zero marginal information but consume 50x the portfolio capacity.')">
+  <rect x="30" y="608" width="620" height="70" rx="8" stroke-width="0.5"/>
+  <text class="th" x="340" y="633" text-anchor="middle" dominant-baseline="central">stage 6 — decorrelation + cluster deduplication</text>
+  <text class="ts" x="340" y="653" text-anchor="middle" dominant-baseline="central">cluster signals by IC correlation · keep best ICIR per cluster · prune redundancy</text>
+  <text class="ts" x="340" y="669" text-anchor="middle" dominant-baseline="central">50 correlated signals ≠ 50× edge — decorrelation finds true independent information</text>
+</g>
+
+<line x1="340" y1="678" x2="340" y2="708" class="arr" marker-end="url(#arrow)"/>
+
+<!-- ═══ STAGE 7: OUT-OF-SAMPLE + HALF-LIFE ═══ -->
+<g class="stage c-coral" onclick="sendPrompt('The final two validation stages before a signal enters the library: (1) Out-of-sample validation on the HELD-OUT 20%: compute IC, ICIR, and Sharpe on data the signal has never seen. Require that OOS ICIR >= 50% of IS ICIR — signals that were purely overfit collapse here. (2) Signal half-life measurement: fit an exponential decay to the rolling 252-day ICIR time series. Half-life < 60 days = short-term signal requiring high-frequency execution. Half-life > 500 days = structural signal safe for lower-frequency strategies. How does half-life determine position sizing, execution style, and rebalance frequency?')">
+  <rect x="30" y="710" width="620" height="84" rx="8" stroke-width="0.5"/>
+  <text class="th" x="340" y="734" text-anchor="middle" dominant-baseline="central">stage 7 — out-of-sample validation + half-life</text>
+  <text class="ts" x="340" y="754" text-anchor="middle" dominant-baseline="central">OOS ICIR must be ≥ 50% of IS ICIR — overfit signals collapse here</text>
+  <text class="ts" x="340" y="772" text-anchor="middle" dominant-baseline="central">fit exponential decay to rolling ICIR: half-life determines execution style + rebalance frequency</text>
+  <text class="ts" x="340" y="788" text-anchor="middle" dominant-baseline="central">half-life &lt; 60d = high-freq · 60–500d = daily · &gt;500d = structural</text>
+</g>
+
+<line x1="340" y1="794" x2="340" y2="824" class="arr" marker-end="url(#arrow)"/>
+
+<!-- ═══ OUTPUT: SIGNAL LIBRARY ═══ -->
+<g class="stage c-green" onclick="sendPrompt('A signal passes all seven stages and enters the live signal library. What metadata is stored with each signal? Design the signal library schema: signal_id, discovery_date, data_sources, feature_transform_chain, IS_ICIR, OOS_ICIR, half_life_days, capacity_estimate_usd, regime_tags, correlation_to_library, current_weight, last_validation_date, decay_alert_threshold. How does the library feed the ensemble layer? What triggers a signal review or retirement?')">
+  <rect x="30" y="826" width="620" height="14" rx="4" stroke-width="0.5"/>
+</g>
+<g class="c-green">
+  <rect x="30" y="826" width="620" height="14" rx="4" stroke-width="0"/>
+</g>
+<rect x="30" y="826" width="620" height="14" rx="4" fill="none" stroke="var(--b)" stroke-width="0.5"/>
+<text class="th" x="340" y="820" text-anchor="middle" dominant-baseline="central">→ signal library (promoted, versioned, monitored)</text>
+
+<circle cx="50" cy="833" r="5" fill="#639922" class="live"/>
+</svg>

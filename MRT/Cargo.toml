@@ -1,0 +1,3 @@
+[workspace]
+members = ["mrt-api", "mrt-processor"]
+resolver = "2"

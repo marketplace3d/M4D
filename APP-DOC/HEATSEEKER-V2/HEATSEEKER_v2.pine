@@ -1,0 +1,524 @@
+// ============================================================
+// HEATSEEKER COMPOSITE ALGO v2.0
+// All 20 Algo Inputs + Direction / Alignment / Target Engine
+// Iter-Opt: Add ONE layer per session, score 30 signals
+// ============================================================
+//@version=5
+indicator("HEATSEEKER v2 | Target + Direction + Alignment", 
+     shorttitle="HEATSEEK v2", overlay=true, max_lines_count=500, max_labels_count=200)
+
+// ============================================================
+// INPUTS
+// ============================================================
+grp_core    = "── CORE FILTERS ──"
+grp_levels  = "── KEY LEVELS ──"
+grp_vol     = "── VOLUME ENGINE ──"
+grp_trend   = "── TREND ENGINE ──"
+grp_energy  = "── ENERGY ENGINE ──"
+grp_decay   = "── DECAY / REGIME ──"
+grp_target  = "── TARGET ENGINE ──"
+grp_display = "── DISPLAY ──"
+
+// Core
+i_htf1      = input.timeframe("D",   "HTF 1 (Structure)",    group=grp_core)
+i_htf2      = input.timeframe("240", "HTF 2 (4H)",           group=grp_core)
+i_htf3      = input.timeframe("60",  "HTF 3 (1H)",           group=grp_core)
+i_adx_min   = input.int(25,          "ADX Min Threshold",    group=grp_core, minval=10, maxval=50)
+i_rvol_min  = input.float(1.5,       "RVOL Min Threshold",   group=grp_core, step=0.1)
+
+// Levels
+i_pdh_on    = input.bool(true,  "Show PDH/PDL",              group=grp_levels)
+i_or_on     = input.bool(true,  "Show OR (Opening Range)",   group=grp_levels)
+i_or_bars   = input.int(12,     "OR Duration (bars)",        group=grp_levels, minval=1, maxval=60)
+
+// Volume
+i_cvd_len   = input.int(14,     "CVD Lookback",              group=grp_vol)
+i_vwap_dev  = input.float(2.0,  "VWAP Std Dev Bands",        group=grp_vol)
+i_imb_ratio = input.float(1.5,  "Imbalance Ratio Threshold", group=grp_vol)
+
+// Trend
+i_ema_fast  = input.int(21,     "EMA Fast",                  group=grp_trend)
+i_ema_slow  = input.int(55,     "EMA Slow",                  group=grp_trend)
+i_st_factor = input.float(3.0,  "SuperTrend Factor",         group=grp_trend)
+i_st_len    = input.int(10,     "SuperTrend Length",         group=grp_trend)
+i_hurst_len = input.int(100,    "Hurst Exponent Length",     group=grp_energy)
+
+// Energy / Regime
+i_atr_len   = input.int(14,     "ATR Length",                group=grp_energy)
+i_vol_pct   = input.int(100,    "Vol Percentile Lookback",   group=grp_decay)
+i_decay_len = input.int(5,      "Retouch Decay Bars",        group=grp_decay, minval=1, maxval=20)
+i_idr_std   = input.float(1.5,  "IDR Std Dev Filter",        group=grp_decay)
+i_tod_start = input.int(930,    "Power Hour Start (HHMM)",   group=grp_decay)
+i_tod_end   = input.int(1100,   "Power Hour End (HHMM)",     group=grp_decay)
+
+// Target engine
+i_tgt_mult  = input.float(1.5,  "Target ATR Multiplier",     group=grp_target, step=0.25)
+i_ext_mult  = input.float(2.5,  "Extended Target Multiplier",group=grp_target, step=0.25)
+i_stop_mult = input.float(0.75, "Stop ATR Multiplier",       group=grp_target, step=0.25)
+
+// Display
+i_show_score = input.bool(true, "Show Composite Score",      group=grp_display)
+i_show_tgt   = input.bool(true, "Show Target Labels",        group=grp_display)
+i_show_align = input.bool(true, "Show Alignment Table",      group=grp_display)
+i_min_score  = input.int(55,    "Min Score to Signal",       group=grp_display, minval=30, maxval=95)
+
+// ============================================================
+// SECTION 1: KEY LEVELS — PDH / PDL / Opening Range
+// ============================================================
+is_new_day  = ta.change(time("D")) != 0
+pdh         = ta.valuewhen(is_new_day, high[1],  0)
+pdl         = ta.valuewhen(is_new_day, low[1],   0)
+pdc         = ta.valuewhen(is_new_day, close[1], 0)
+
+var float or_high = na
+var float or_low  = na
+var int   or_bar  = 0
+
+if is_new_day
+    or_high := na
+    or_low  := na
+    or_bar  := 0
+
+if or_bar < i_or_bars
+    or_high := na(or_high) ? high : math.max(or_high, high)
+    or_low  := na(or_low)  ? low  : math.min(or_low,  low)
+    or_bar  += 1
+
+plot(i_pdh_on ? pdh : na, "PDH", color=color.new(color.orange,0), linewidth=1, style=plot.style_circles)
+plot(i_pdh_on ? pdl : na, "PDL", color=color.new(color.red,   0), linewidth=1, style=plot.style_circles)
+plot(i_or_on  ? or_high : na, "OR High", color=color.new(color.blue,  20), linewidth=1)
+plot(i_or_on  ? or_low  : na, "OR Low",  color=color.new(color.purple,20), linewidth=1)
+
+// ============================================================
+// SECTION 2: ATR / VOLATILITY ENGINE
+// ============================================================
+atr         = ta.atr(i_atr_len)
+atr100      = ta.highest(atr, i_vol_pct)
+atr100_lo   = ta.lowest(atr,  i_vol_pct)
+vol_pct_rank = (atr - atr100_lo) / math.max(atr100 - atr100_lo, 0.00001) * 100
+
+// IDR filter: current H-L vs std of daily ranges
+daily_range = ta.ema(high - low, 20)
+idr_std_val = ta.stdev(high - low, 20)
+idr_z       = (high - low - daily_range) / math.max(idr_std_val, 0.00001)
+idr_ok      = idr_z > -i_idr_std   // not too compressed
+
+// 5-day range expansion filter (#20)
+range5      = ta.highest(high, 5) - ta.lowest(low, 5)
+range5_avg  = ta.ema(range5, 20)
+range_exp   = range5 / math.max(range5_avg, 0.00001) > 1.0
+
+// ============================================================
+// SECTION 3: CVD (Cumulative Volume Delta) ENGINE
+// ============================================================
+up_vol   = volume * (close > open ? 1.0 : close == open ? 0.5 : 0.0)
+dn_vol   = volume * (close < open ? 1.0 : close == open ? 0.5 : 0.0)
+delta    = up_vol - dn_vol
+cvd      = ta.cum(delta)
+cvd_roc  = ta.roc(cvd, i_cvd_len)
+
+// CVD divergence at key levels — proxy: price up but CVD flat/down
+cvd_bull_div = close > close[i_cvd_len] and cvd < cvd[i_cvd_len]  // distribution
+cvd_bear_div = close < close[i_cvd_len] and cvd > cvd[i_cvd_len]  // absorption
+cvd_strength = math.abs(cvd_roc) / 100
+
+// Imbalance ratio (up/dn vol proxy) — #10
+imb_ratio  = up_vol / math.max(dn_vol, 1)
+imb_bull   = imb_ratio > i_imb_ratio
+imb_bear   = (1 / math.max(imb_ratio, 0.001)) > i_imb_ratio
+
+// ============================================================
+// SECTION 4: VWAP + DEVIATION BANDS (#9)
+// ============================================================
+[vwap_val, vwap_upper, vwap_lower] = ta.vwap(hlc3, false, 1)
+
+vwap_dev1_upper = vwap_val + i_vwap_dev * ta.stdev(hlc3 - vwap_val, 20)
+vwap_dev1_lower = vwap_val - i_vwap_dev * ta.stdev(hlc3 - vwap_val, 20)
+
+plot(vwap_val,         "VWAP",       color=color.new(color.yellow,0), linewidth=1)
+plot(vwap_dev1_upper,  "VWAP +2σ",  color=color.new(color.yellow,60), linewidth=1, style=plot.style_stepline)
+plot(vwap_dev1_lower,  "VWAP -2σ",  color=color.new(color.yellow,60), linewidth=1, style=plot.style_stepline)
+
+vwap_above    = close > vwap_val
+vwap_accepted = math.abs(close - vwap_val) < atr * 0.5   // price near VWAP = acceptance zone
+vwap_extended = close > vwap_dev1_upper or close < vwap_dev1_lower
+
+// ============================================================
+// SECTION 5: EMA SLOPE + ACCELERATION (#14)
+// ============================================================
+ema_fast_val  = ta.ema(close, i_ema_fast)
+ema_slow_val  = ta.ema(close, i_ema_slow)
+
+ema_slope_fast = (ema_fast_val - ema_fast_val[3]) / atr
+ema_slope_slow = (ema_slow_val - ema_slow_val[3]) / atr
+ema_slope_delta = ema_slope_fast - ema_slope_slow   // acceleration
+
+ema_bull = ema_fast_val > ema_slow_val and ema_slope_delta > 0
+ema_bear = ema_fast_val < ema_slow_val and ema_slope_delta < 0
+
+plot(ema_fast_val, "EMA21", color=color.new(color.lime,30),  linewidth=1)
+plot(ema_slow_val, "EMA55", color=color.new(color.orange,30),linewidth=1)
+
+// ============================================================
+// SECTION 6: SUPERTREND (#11)
+// ============================================================
+[st_val, st_dir] = ta.supertrend(i_st_factor, i_st_len)
+st_bull = st_dir < 0
+st_bear = st_dir > 0
+
+plot(st_bull ? st_val : na, "ST Bull", color=color.new(color.lime,   10), linewidth=2)
+plot(st_bear ? st_val : na, "ST Bear", color=color.new(color.red,    10), linewidth=2)
+
+// ============================================================
+// SECTION 7: ADX + DI (#7)
+// ============================================================
+[di_plus, di_minus, adx_val] = ta.dmi(14, 14)
+adx_ok   = adx_val > i_adx_min
+di_bull  = di_plus > di_minus and adx_ok
+di_bear  = di_minus > di_plus and adx_ok
+
+// ============================================================
+// SECTION 8: RSI MOMENTUM EXHAUSTION (#19)
+// ============================================================
+rsi_val      = ta.rsi(close, 14)
+rsi_exhaust  = rsi_val > 80 or rsi_val < 20
+rsi_bull_zone = rsi_val > 50 and rsi_val < 80
+rsi_bear_zone = rsi_val < 50 and rsi_val > 20
+
+// ============================================================
+// SECTION 9: MACD HISTOGRAM DIVERGENCE (#18)
+// ============================================================
+[macd_l, macd_sig, macd_hist] = ta.macd(close, 12, 26, 9)
+macd_bull_hid_div = close > close[5] and macd_hist < macd_hist[5] and macd_hist > 0
+macd_bear_hid_div = close < close[5] and macd_hist > macd_hist[5] and macd_hist < 0
+macd_reg_bull_div = close < close[5] and macd_hist > macd_hist[5]
+macd_reg_bear_div = close > close[5] and macd_hist < macd_hist[5]
+macd_bull = macd_hist > 0 and macd_hist > macd_hist[1]
+macd_bear = macd_hist < 0 and macd_hist < macd_hist[1]
+
+// ============================================================
+// SECTION 10: RVOL (#12)
+// ============================================================
+avg_vol     = ta.sma(volume, 20)
+rvol        = volume / math.max(avg_vol, 1)
+rvol_high   = rvol > i_rvol_min
+rvol_score  = math.min(rvol / i_rvol_min, 3.0)  // cap at 3x
+
+// ============================================================
+// SECTION 11: HURST EXPONENT PROXY (#13)
+// Simplified: R/S analysis over rolling window
+// ============================================================
+hurst_n     = i_hurst_len
+log_ret     = math.log(close / close[1])
+rs_range    = ta.highest(log_ret, hurst_n) - ta.lowest(log_ret, hurst_n)
+rs_std      = ta.stdev(log_ret, hurst_n)
+rs_ratio    = rs_range / math.max(rs_std, 0.00001)
+hurst_est   = math.log(rs_ratio) / math.log(hurst_n)
+trending_regime = hurst_est > 0.55
+
+// ============================================================
+// SECTION 12: HTF STRUCTURE — BOS/CHOCH (Multi-TF) (#1)
+// Using request.security for HTF swing highs/lows as proxy
+// ============================================================
+htf1_close  = request.security(syminfo.tickerid, i_htf1,  close)
+htf2_close  = request.security(syminfo.tickerid, i_htf2,  close)
+htf3_close  = request.security(syminfo.tickerid, i_htf3,  close)
+
+htf1_high   = request.security(syminfo.tickerid, i_htf1,  ta.highest(high, 5))
+htf1_low    = request.security(syminfo.tickerid, i_htf1,  ta.lowest(low,   5))
+htf2_high   = request.security(syminfo.tickerid, i_htf2,  ta.highest(high, 5))
+htf2_low    = request.security(syminfo.tickerid, i_htf2,  ta.lowest(low,   5))
+htf3_high   = request.security(syminfo.tickerid, i_htf3,  ta.highest(high, 5))
+htf3_low    = request.security(syminfo.tickerid, i_htf3,  ta.lowest(low,   5))
+
+// BOS proxy: current close vs HTF swing high/low
+htf1_bull   = htf1_close > htf1_high[1]
+htf2_bull   = htf2_close > htf2_high[1]
+htf3_bull   = htf3_close > htf3_high[1]
+htf1_bear   = htf1_close < htf1_low[1]
+htf2_bear   = htf2_close < htf2_low[1]
+htf3_bear   = htf3_close < htf3_low[1]
+
+mtf_bull_count = (htf1_bull ? 1 : 0) + (htf2_bull ? 1 : 0) + (htf3_bull ? 1 : 0)
+mtf_bear_count = (htf1_bear ? 1 : 0) + (htf2_bear ? 1 : 0) + (htf3_bear ? 1 : 0)
+mtf_aligned_bull = mtf_bull_count >= 2
+mtf_aligned_bear = mtf_bear_count >= 2
+mtf_full_bull    = mtf_bull_count == 3
+mtf_full_bear    = mtf_bear_count == 3
+
+// ============================================================
+// SECTION 13: VOLUME PROFILE POC PROXY (#2)
+// Session VPOC via highest-volume price bucket approximation
+// ============================================================
+// Pine v5 doesn't support full VRVP natively; approximate via 
+// highest-volume bar close in lookback window
+var float vpoc = na
+vol_hi_bar   = ta.valuewhen(volume == ta.highest(volume, 20), close, 0)
+vpoc         := vol_hi_bar
+vpoc_accepted = math.abs(close - vpoc) < atr * 0.75
+
+// ============================================================
+// SECTION 14: TIME-OF-DAY POWER HOUR (#8 + #17)
+// ============================================================
+hhmm         = hour * 100 + minute
+is_power_hour = hhmm >= i_tod_start and hhmm <= i_tod_end
+is_late_sess  = hhmm > 1500
+tod_boost     = is_power_hour ? 1.25 : is_late_sess ? 0.75 : 1.0
+
+// ============================================================
+// SECTION 15: LIQUIDITY SWEEP DETECTION (#5)
+// Wick > ATR threshold + immediate reversal
+// ============================================================
+wick_up      = high - math.max(open, close)
+wick_dn      = math.min(open, close) - low
+sweep_bull   = wick_dn > atr * 0.6 and close > (low + (high - low) * 0.6)
+sweep_bear   = wick_up > atr * 0.6 and close < (low + (high - low) * 0.4)
+sweep_bull_cvd = sweep_bull and cvd > cvd[1]
+sweep_bear_cvd = sweep_bear and cvd < cvd[1]
+
+// ============================================================
+// SECTION 16: FVG DETECTION (#4)
+// Fair Value Gap — 3-bar imbalance
+// ============================================================
+fvg_bull     = low > high[2] and close[1] > high[2]    // gap up
+fvg_bear     = high < low[2] and close[1] < low[2]     // gap down
+fvg_with_vol = (fvg_bull or fvg_bear) and rvol_high
+
+// ============================================================
+// SECTION 17: RETOUCH DECAY COUNTER (#15)
+// ============================================================
+var int touch_count = 0
+at_level = vpoc_accepted or math.abs(close - pdh) < atr * 0.5 or math.abs(close - pdl) < atr * 0.5
+if at_level
+    touch_count += 1
+if is_new_day
+    touch_count := 0
+decay_penalty = math.min(touch_count / 5.0, 1.0)  // 0–1 penalty; full at 5+ touches
+
+// ============================================================
+// ████████████████████████████████████████████████████████████
+// COMPOSITE HEATSEEK SCORE ENGINE
+// 0–100 scale, weighted by category
+// ████████████████████████████████████████████████████████████
+// ============================================================
+
+// DIRECTION VOTES (binary 0/1 each)
+bull_vote_1  = mtf_aligned_bull   ? 1 : 0   // MTF structure
+bull_vote_2  = vwap_above         ? 1 : 0   // VWAP position
+bull_vote_3  = ema_bull           ? 1 : 0   // EMA slope
+bull_vote_4  = st_bull            ? 1 : 0   // SuperTrend
+bull_vote_5  = di_bull            ? 1 : 0   // ADX/DI
+bull_vote_6  = macd_bull          ? 1 : 0   // MACD
+bull_vote_7  = rsi_bull_zone      ? 1 : 0   // RSI zone
+bull_vote_8  = cvd_roc > 0        ? 1 : 0   // CVD direction
+bull_vote_9  = imb_bull           ? 1 : 0   // Imbalance
+bull_vote_10 = sweep_bull_cvd     ? 1 : 0   // Liquidity sweep
+
+bear_vote_1  = mtf_aligned_bear   ? 1 : 0
+bear_vote_2  = not vwap_above     ? 1 : 0
+bear_vote_3  = ema_bear           ? 1 : 0
+bear_vote_4  = st_bear            ? 1 : 0
+bear_vote_5  = di_bear            ? 1 : 0
+bear_vote_6  = macd_bear          ? 1 : 0
+bear_vote_7  = rsi_bear_zone      ? 1 : 0
+bear_vote_8  = cvd_roc < 0        ? 1 : 0
+bear_vote_9  = imb_bear           ? 1 : 0
+bear_vote_10 = sweep_bear_cvd     ? 1 : 0
+
+bull_votes = bull_vote_1 + bull_vote_2 + bull_vote_3 + bull_vote_4 + bull_vote_5 +
+             bull_vote_6 + bull_vote_7 + bull_vote_8 + bull_vote_9 + bull_vote_10
+
+bear_votes = bear_vote_1 + bear_vote_2 + bear_vote_3 + bear_vote_4 + bear_vote_5 +
+             bear_vote_6 + bear_vote_7 + bear_vote_8 + bear_vote_9 + bear_vote_10
+
+dir_bias_raw = bull_votes - bear_votes  // -10 to +10
+
+// ENERGY SCORE (0–40 pts)
+energy_pts  = 0.0
+energy_pts += rvol_score * 6                  // RVOL contribution (0–18)
+energy_pts += vol_pct_rank / 100.0 * 8        // Vol percentile (0–8)
+energy_pts += cvd_strength * 5                // CVD strength (0–5)
+energy_pts += trending_regime ? 5 : 0         // Hurst trending
+energy_pts += fvg_with_vol ? 4 : 0           // FVG + vol
+energy_pts  = math.min(energy_pts, 40)
+
+// CONFLUENCE SCORE (0–35 pts)
+conf_pts    = 0.0
+conf_pts   += mtf_bull_count * 5              // MTF alignment 0–15
+conf_pts   += mtf_bear_count * 5
+conf_pts   -= math.min(math.abs(dir_bias_raw) < 3 ? 5 : 0, 5)  // penalty if no clear bias
+conf_pts   += vpoc_accepted ? 5 : 0          // at VPOC
+conf_pts   += (math.abs(close - pdh) < atr or math.abs(close - pdl) < atr) ? 5 : 0  // PDH/PDL
+conf_pts   += adx_ok ? 5 : 0                 // ADX confirms
+conf_pts   += range_exp ? 5 : 0              // range expansion
+conf_pts    = math.max(0, math.min(conf_pts, 35))
+
+// QUALITY MODIFIERS
+qual_mult   = 1.0
+qual_mult  *= tod_boost                        // time of day
+qual_mult  *= (1.0 - decay_penalty * 0.3)     // retouch decay
+qual_mult  *= rsi_exhaust ? 0.5 : 1.0         // RSI exhaustion penalty
+qual_mult  *= mtf_full_bull or mtf_full_bear ? 1.2 : 1.0  // 3/3 TF bonus
+qual_mult  *= idr_ok ? 1.0 : 0.7             // IDR filter
+
+// RAW COMPOSITE (0–100 before direction)
+dir_score   = math.abs(dir_bias_raw) / 10.0 * 25   // 0–25 pts from vote margin
+raw_score   = (energy_pts + conf_pts + dir_score) * qual_mult
+composite   = math.min(math.max(raw_score, 0), 100)
+
+// DIRECTION SIGNAL
+is_bull_sig  = composite >= i_min_score and dir_bias_raw > 2 and not rsi_exhaust
+is_bear_sig  = composite >= i_min_score and dir_bias_raw < -2 and not rsi_exhaust
+
+// ============================================================
+// TARGET PROJECTION ENGINE
+// ============================================================
+tgt1_bull    = close + atr * i_tgt_mult
+tgt2_bull    = close + atr * i_ext_mult
+stop_bull    = close - atr * i_stop_mult
+tgt1_bear    = close - atr * i_tgt_mult
+tgt2_bear    = close - atr * i_ext_mult
+stop_bear    = close + atr * i_stop_mult
+
+rr_ratio     = i_tgt_mult / i_stop_mult
+
+// ============================================================
+// PLOTS: SIGNALS + TARGETS
+// ============================================================
+plotshape(is_bull_sig and not is_bull_sig[1], "BULL SIGNAL", 
+     shape.triangleup, location.belowbar, color.new(color.lime, 0), size=size.small)
+plotshape(is_bear_sig and not is_bear_sig[1], "BEAR SIGNAL", 
+     shape.triangledown, location.abovebar, color.new(color.red, 0), size=size.small)
+
+if i_show_tgt and is_bull_sig and not is_bull_sig[1]
+    label.new(bar_index, tgt1_bull, 
+         "T1: " + str.tostring(math.round(tgt1_bull, 2)) + "\nR:R " + str.tostring(math.round(rr_ratio, 1)) + "R",
+         color=color.new(color.lime, 20), textcolor=color.white, style=label.style_label_left, size=size.small)
+    label.new(bar_index, tgt2_bull,
+         "T2: " + str.tostring(math.round(tgt2_bull, 2)),
+         color=color.new(color.green, 20), textcolor=color.white, style=label.style_label_left, size=size.small)
+    label.new(bar_index, stop_bull,
+         "STP: " + str.tostring(math.round(stop_bull, 2)),
+         color=color.new(color.red, 20), textcolor=color.white, style=label.style_label_left, size=size.small)
+
+if i_show_tgt and is_bear_sig and not is_bear_sig[1]
+    label.new(bar_index, tgt1_bear,
+         "T1: " + str.tostring(math.round(tgt1_bear, 2)) + "\nR:R " + str.tostring(math.round(rr_ratio, 1)) + "R",
+         color=color.new(color.red, 20), textcolor=color.white, style=label.style_label_right, size=size.small)
+    label.new(bar_index, tgt2_bear,
+         "T2: " + str.tostring(math.round(tgt2_bear, 2)),
+         color=color.new(color.maroon, 20), textcolor=color.white, style=label.style_label_right, size=size.small)
+    label.new(bar_index, stop_bear,
+         "STP: " + str.tostring(math.round(stop_bear, 2)),
+         color=color.new(color.orange, 20), textcolor=color.white, style=label.style_label_right, size=size.small)
+
+// ============================================================
+// ALIGNMENT TABLE
+// ============================================================
+var table align_tbl = table.new(position.top_right, 3, 18,
+     bgcolor=color.new(color.black, 20), border_color=color.gray, border_width=1, frame_width=1)
+
+score_color = composite >= 75 ? color.lime : composite >= i_min_score ? color.yellow : color.red
+dir_str     = dir_bias_raw > 2 ? "▲ BULL" : dir_bias_raw < -2 ? "▼ BEAR" : "── NEUT"
+dir_col     = dir_bias_raw > 2 ? color.lime : dir_bias_raw < -2 ? color.red : color.gray
+
+if i_show_align and barstate.islast
+    table.cell(align_tbl, 0, 0, "INDICATOR",  text_color=color.white, bgcolor=color.new(color.navy,0),  text_size=size.small)
+    table.cell(align_tbl, 1, 0, "STATUS",     text_color=color.white, bgcolor=color.new(color.navy,0),  text_size=size.small)
+    table.cell(align_tbl, 2, 0, "PTS",        text_color=color.white, bgcolor=color.new(color.navy,0),  text_size=size.small)
+
+    table.cell(align_tbl, 0, 1, "HEATSEEK", text_color=color.white, text_size=size.small)
+    table.cell(align_tbl, 1, 1, dir_str,    text_color=dir_col,     text_size=size.small)
+    table.cell(align_tbl, 2, 1, str.tostring(math.round(composite)), text_color=score_color, text_size=size.small)
+
+    table.cell(align_tbl, 0, 2, "MTF Struct", text_color=color.white, text_size=size.tiny)
+    table.cell(align_tbl, 1, 2, str.tostring(mtf_bull_count) + "B/" + str.tostring(mtf_bear_count) + "Br",
+         text_color = mtf_aligned_bull ? color.lime : mtf_aligned_bear ? color.red : color.gray, text_size=size.tiny)
+    table.cell(align_tbl, 2, 2, str.tostring(mtf_bull_count * 5), text_color=color.white, text_size=size.tiny)
+
+    table.cell(align_tbl, 0, 3, "SuperTrend", text_color=color.white, text_size=size.tiny)
+    table.cell(align_tbl, 1, 3, st_bull ? "▲ BULL" : "▼ BEAR",
+         text_color = st_bull ? color.lime : color.red, text_size=size.tiny)
+    table.cell(align_tbl, 2, 3, "5", text_color=color.white, text_size=size.tiny)
+
+    table.cell(align_tbl, 0, 4, "ADX/DI", text_color=color.white, text_size=size.tiny)
+    table.cell(align_tbl, 1, 4, adx_ok ? (di_bull ? "▲" : "▼") + str.tostring(math.round(adx_val)) : "WEAK " + str.tostring(math.round(adx_val)),
+         text_color = adx_ok ? (di_bull ? color.lime : color.red) : color.gray, text_size=size.tiny)
+    table.cell(align_tbl, 2, 4, adx_ok ? "5" : "0", text_color=color.white, text_size=size.tiny)
+
+    table.cell(align_tbl, 0, 5, "EMA 21/55", text_color=color.white, text_size=size.tiny)
+    table.cell(align_tbl, 1, 5, ema_bull ? "▲ BULL" : ema_bear ? "▼ BEAR" : "CROSS",
+         text_color = ema_bull ? color.lime : ema_bear ? color.red : color.gray, text_size=size.tiny)
+    table.cell(align_tbl, 2, 5, "5", text_color=color.white, text_size=size.tiny)
+
+    table.cell(align_tbl, 0, 6, "CVD", text_color=color.white, text_size=size.tiny)
+    table.cell(align_tbl, 1, 6, cvd_roc > 0 ? "▲ ACCUM" : "▼ DIST",
+         text_color = cvd_roc > 0 ? color.lime : color.red, text_size=size.tiny)
+    table.cell(align_tbl, 2, 6, str.tostring(math.round(cvd_strength * 5, 1)), text_color=color.white, text_size=size.tiny)
+
+    table.cell(align_tbl, 0, 7, "RVOL", text_color=color.white, text_size=size.tiny)
+    table.cell(align_tbl, 1, 7, str.tostring(math.round(rvol, 2)) + "x",
+         text_color = rvol_high ? color.lime : color.gray, text_size=size.tiny)
+    table.cell(align_tbl, 2, 7, str.tostring(math.round(rvol_score * 6, 1)), text_color=color.white, text_size=size.tiny)
+
+    table.cell(align_tbl, 0, 8, "VWAP", text_color=color.white, text_size=size.tiny)
+    table.cell(align_tbl, 1, 8, vwap_extended ? "EXTENDED" : vwap_above ? "▲ ABOVE" : "▼ BELOW",
+         text_color = vwap_extended ? color.orange : vwap_above ? color.lime : color.red, text_size=size.tiny)
+    table.cell(align_tbl, 2, 8, "5", text_color=color.white, text_size=size.tiny)
+
+    table.cell(align_tbl, 0, 9, "RSI", text_color=color.white, text_size=size.tiny)
+    table.cell(align_tbl, 1, 9, rsi_exhaust ? "EXHAUST " + str.tostring(math.round(rsi_val)) : str.tostring(math.round(rsi_val)),
+         text_color = rsi_exhaust ? color.orange : rsi_bull_zone ? color.lime : color.red, text_size=size.tiny)
+    table.cell(align_tbl, 2, 9, rsi_exhaust ? "-5" : "5", text_color=color.white, text_size=size.tiny)
+
+    table.cell(align_tbl, 0, 10, "MACD", text_color=color.white, text_size=size.tiny)
+    table.cell(align_tbl, 1, 10, macd_bull_hid_div ? "▲ HID DIV" : macd_bear_hid_div ? "▼ HID DIV" :
+         macd_bull ? "▲ BULL" : "▼ BEAR",
+         text_color = macd_bull ? color.lime : color.red, text_size=size.tiny)
+    table.cell(align_tbl, 2, 10, "5", text_color=color.white, text_size=size.tiny)
+
+    table.cell(align_tbl, 0, 11, "Hurst", text_color=color.white, text_size=size.tiny)
+    table.cell(align_tbl, 1, 11, trending_regime ? "TREND " + str.tostring(math.round(hurst_est, 2)) : "CHOP " + str.tostring(math.round(hurst_est, 2)),
+         text_color = trending_regime ? color.lime : color.gray, text_size=size.tiny)
+    table.cell(align_tbl, 2, 11, trending_regime ? "5" : "0", text_color=color.white, text_size=size.tiny)
+
+    table.cell(align_tbl, 0, 12, "Vol %ile", text_color=color.white, text_size=size.tiny)
+    table.cell(align_tbl, 1, 12, str.tostring(math.round(vol_pct_rank)) + "%",
+         text_color = vol_pct_rank > 70 ? color.lime : vol_pct_rank < 30 ? color.gray : color.yellow, text_size=size.tiny)
+    table.cell(align_tbl, 2, 12, str.tostring(math.round(vol_pct_rank / 100 * 8, 1)), text_color=color.white, text_size=size.tiny)
+
+    table.cell(align_tbl, 0, 13, "FVG", text_color=color.white, text_size=size.tiny)
+    table.cell(align_tbl, 1, 13, fvg_with_vol ? (fvg_bull ? "▲ BULL+VOL" : "▼ BEAR+VOL") : fvg_bull ? "▲ FVG" : fvg_bear ? "▼ FVG" : "NONE",
+         text_color = fvg_with_vol ? color.lime : (fvg_bull or fvg_bear) ? color.yellow : color.gray, text_size=size.tiny)
+    table.cell(align_tbl, 2, 13, fvg_with_vol ? "4" : "0", text_color=color.white, text_size=size.tiny)
+
+    table.cell(align_tbl, 0, 14, "Sweep", text_color=color.white, text_size=size.tiny)
+    table.cell(align_tbl, 1, 14, sweep_bull_cvd ? "▲ SWEEP+CVD" : sweep_bear_cvd ? "▼ SWEEP+CVD" : "NONE",
+         text_color = sweep_bull_cvd ? color.lime : sweep_bear_cvd ? color.red : color.gray, text_size=size.tiny)
+    table.cell(align_tbl, 2, 14, (sweep_bull_cvd or sweep_bear_cvd) ? "5" : "0", text_color=color.white, text_size=size.tiny)
+
+    table.cell(align_tbl, 0, 15, "Time", text_color=color.white, text_size=size.tiny)
+    table.cell(align_tbl, 1, 15, is_power_hour ? "PWR HOUR" : is_late_sess ? "LATE" : "NORMAL",
+         text_color = is_power_hour ? color.lime : is_late_sess ? color.orange : color.white, text_size=size.tiny)
+    table.cell(align_tbl, 2, 15, is_power_hour ? "1.25x" : is_late_sess ? "0.75x" : "1.0x", text_color=color.white, text_size=size.tiny)
+
+    table.cell(align_tbl, 0, 16, "Target T1", text_color=color.white, text_size=size.tiny)
+    table.cell(align_tbl, 1, 16, is_bull_sig ? str.tostring(math.round(tgt1_bull, 2)) : is_bear_sig ? str.tostring(math.round(tgt1_bear, 2)) : "—",
+         text_color = is_bull_sig ? color.lime : is_bear_sig ? color.red : color.gray, text_size=size.tiny)
+    table.cell(align_tbl, 2, 16, str.tostring(i_tgt_mult) + "R", text_color=color.white, text_size=size.tiny)
+
+    table.cell(align_tbl, 0, 17, "Decay Penalty",text_color=color.white, text_size=size.tiny)
+    table.cell(align_tbl, 1, 17, str.tostring(touch_count) + " touches",
+         text_color = touch_count > 3 ? color.orange : color.white, text_size=size.tiny)
+    table.cell(align_tbl, 2, 17, "-" + str.tostring(math.round(decay_penalty * 30)) + "%", text_color=color.white, text_size=size.tiny)
+
+// ============================================================
+// SCORE BAR (subplot — use as separate pane indicator)
+// ============================================================
+// To use as a separate pane, set overlay=false and add:
+// plot(composite, "HEATSEEK Score", color=score_color, linewidth=2)
+// hline(i_min_score, "Signal Threshold", color=color.yellow, linestyle=hline.style_dashed)
+// hline(75, "High Conviction", color=color.lime, linestyle=hline.style_dotted)
+// ============================================================
+// END HEATSEEKER v2.0
+// ============================================================

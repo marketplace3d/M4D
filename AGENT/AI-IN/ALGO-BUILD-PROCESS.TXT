@@ -1,0 +1,182 @@
+BOOM Jedi Master — AI builder instructions (target architecture + repo truth)
+===============================================================================
+
+UPDATED: ground this file in M4D code. Spec below is a **research automation target**;
+today’s production paths are Django + `boom_backtest.py` (Sword) + `boom_vectorbt.py` (Sabre).
+
+Architecture diagram (SVG): agent/AI-IN/boom_jedi_architecture.svg
+
+Canonical human/process docs (read first):
+  spec-kit/docs/ALGO_DEV_MACHINE_OPT.md     — gates, OOS, automation, council axiom
+  spec-kit/docs/BOOM_OPT_HUMAN_COUNCIL.md  — Sword/Sabre names, param tables
+  spec-kit/docs/BOOM_BACKTEST_ITER_OPT.md   — URLs, JSON, grids, execution constants
+
+Vocabulary: “VectorDB” in chat = vectorbt (library), not a vector database.
+
+CORE SPLIT (non‑negotiable in this repo)
+----------------------------------------
+  Sword of Record  → backtesting.py : /boom-backtest/, /boom-visual/, PDF
+                     Models: flat_eod, break-even lift, full exit stack.
+
+  Sabre Screen     → vectorbt : /vectorbt-boom/, /vectorbt-expansion/
+                     Same Darvas/arrows *entries* via shared `_boom_features`;
+                     exits = ema13 or holdbars + sl_stop from stop_loss_pct;
+                     NOT modeled: flat_eod, break-even stop lift.
+
+Any council phase that scores **EOD × BE × fees realism** must run on **Sword** or a
+new wrapper that ports those rules into vectorbt — do not pretend Sabre rows are
+identical to Sword rows.
+
+---
+
+## Mission (unchanged intent)
+
+Build one squeeze BOOM algo. Run it through three optimisation “councils” (conceptually
+27 agents). Gate winners against thresholds. **Recurse with documented widening only
+after OOS/holdout is defined** — see ALGO_DEV_MACHINE_OPT.md. Fake metrics = removal
+from council (re-run).
+
+---
+
+## Phase 0 — master signal (target: `BoomMasterAlgo`)
+
+**Today:** canonical entries already live in `ds_app/boom_backtest.py` — `_boom_features`
+(BB/KC squeeze, release, RVOL, trend vote, Darvas or arrows path, ATR gate, first-half).
+
+**Target module:** consolidate a single boolean entry `pd.Series` API (e.g. in
+`boom_vectorbt.py` or a thin `boom_master_signal.py`) that **only** calls shared
+boom_backtest helpers — no duplicate squeeze math.
+
+It must:
+
+1. Use existing squeeze = BB inside Keltner (same definitions as `_boom_features`).
+2. Compute `boom_vote` (+ squeeze, release, RVOL, trend) and `boom_score` blend.
+3. Apply ATR gate and first-half filter (09:30–<12:45 ET intraday; daily bars exempt).
+4. Emit one boolean entry series per (symbol, param set). Councils tune **parameters**,
+   not divergent signal definitions.
+
+---
+
+## Phase 1 — Council I: boom energy (9 axes)
+
+Each agent owns one **parameter axis** (conceptually). Implementation options:
+  (a) repeated `run_boom_darvas_vectorbt_grid` with one axis varied, or
+  (b) full Cartesian slices — either way log top‑3 with **full URL repro**.
+
+**Reality edits vs older spec:**
+
+| Agent     | Axis (concept) | NOTE |
+|-----------|----------------|------|
+| SQ·ATR    | squeeze_len × atr_mult | OK on Sabre. |
+| RVOL·BB   | rvol_mult × sq | OK. |
+| Vote·Kelt | min_vote × sq | min_vote lives in BoomParams; OK on expansion. |
+| EMA·Sig   | exit_ema × signal | **Sabre:** exit is **fixed EMA13** in Darvas grid; expansion allows `exit=holdbars` vs `ema13`, not multi-span EMA grid without code change. For EMA∈{9,13,21} need **new code** or score on **Sword** only. |
+| Gate·FH   | atr_mult × first_half | OK. |
+| Darvas·BE | darvas_lb × be_offset | **be_offset** affects **Sword** strategy; **Sabre ignores BE lift** — run this agent on `/boom-backtest/` or extend vectorbt. |
+| EOD·SL    | eod × sl_stop | **eod** is **Sword-only**; Sabre has `sl_stop` only. Split agent into two sub-runs. |
+| Spread    | fees | vectorbt fees exist; align with Sword constants (see BOOM_BACKTEST_ITER_OPT). |
+| PCA·PC1   | PCA on score matrix | **sklearn** not in `m4d-ds/requirements.txt` today — add `scikit-learn` if implementing, or numpy SVD stub. |
+
+Elimination rule (example): agents below `Sharpe < 0.5` on agreed window → FAIL — but
+**intraday Sharpe on 60d is noisy**; prefer **BOOM composite + min_trades** from
+BOOM_BACKTEST_ITER_OPT as co-gate.
+
+---
+
+## Phase 2 — Council II: top strategies (9 metrics)
+
+Runs full expansion (or Cartesian of Phase I survivors). Metrics from **vectorbt**
+portfolio stats **or** Sword `run_boom_expansion_grid` rows — **do not mix without alignment**.
+
+| Agent      | Metric | Comment |
+|------------|--------|---------|
+| Sharpe     | sharpe_ratio | Sabre: vectorbt `sharpe_ratio()`. |
+| MaxDD      | max drawdown % | OK. |
+| WinRate    | win_rate_pct | OK. |
+| Return     | total return % | OK. |
+| Trades     | count | align with `min_trades` URL default. |
+| Score·Rnk  | boom composite | Same formula as sweep — documented in iter-opt doc. |
+| VBT·Exp    | cross-symbol variance | OK relative check. |
+| Grid·Opt   | neighbour Δsharpe | sensitivity — OK. |
+| PCA·PC2    | PCA on metric matrix | requires sklearn / SVD. |
+
+Failing **3+** thresholds → eliminate row — tunable policy.
+
+---
+
+## Phase 3 — Council III: short “live-like” window (9 checks)
+
+**Data window:** For **5m** bars, Yahoo is unreliable beyond ~**60d** — use
+`period=60d` (and optionally `1mo` only for a *stress* slice, not sole truth). Liquid
+`scan=1` basket = `BOOM_LIQUID_UNIVERSE_DEFAULT` (15 names unless `symbols=` override).
+
+| Check        | Note |
+|--------------|------|
+| Sharpe hold  | Compare Sabre vs Sword on **same** params where comparable. |
+| Regime       | Flag SPY trend/range — heuristic OK. |
+| Bench·SPY    | Relative performance — define benchmark rule. |
+| Universe     | breadth — count symbols with entries. |
+| Scan·15      | `combos_with_trades` style checks. |
+| Momentum     | EMA50 slope context. |
+| Stop·BE      | **Sword** for BE; Sabre for `sl_stop` only. |
+| Exit·EMA     | stuck trades — inspect Sword log. |
+| PCA·PC3      | final PCA — optional. |
+
+---
+
+## Phase 4 — winner gate (example thresholds)
+
+Treat as **tunable** — hard numeric gates on small samples create false negatives/positives.
+
+```text
+sharpe > 1.0              # may fail on 60d 5m even for decent edges
+max_dd_pct < 15.0
+trades >= 5
+win_rate_pct > 40.0
+pca_variance_explained > 0.40   # if PCA used
+live_sharpe > 0.5              # define “live” window explicitly
+symbols_with_entries >= 3
+```
+
+If no winner: **widen grid one step** *and* **declare new OOS segment** — do not only
+widen on the same path (see ALGO_DEV_MACHINE_OPT **G5**).
+
+---
+
+## Recursive opt loop (implementation sketch)
+
+```python
+iteration = 0
+max_iter = 20   # safety cap — “never stop” in prod = stop + widen + document, not infinite CPU
+while not winners and iteration < max_iter:
+    iteration += 1
+    c1 = run_council_1(params)
+    c2 = run_council_2(c1.survivors)
+    c3 = run_council_3(c2.survivors)
+    winners = gate(c3)
+    if not winners:
+        params = widen(params)
+        log(f"iter {iteration}: no winner — widened params, see OOS note")
+
+if not winners:
+    log("no winner after max_iter — publish diagnostics, do not fake metrics")
+```
+
+---
+
+## Builder rules (non‑negotiable)
+
+1. Iteration **cap** 20 (or configurable) — escalate to human if exhausted.
+2. Every agent logs **top‑3 + metrics + repro URL** (`/boom-visual/...`, `/vectorbt-expansion/?format=json&...`).
+3. PCA on **real** numeric matrix — no invented eigenvalues.
+4. Live validation: **real yfinance** in dev; **synthetic** only in CI (existing tests patch loaders).
+5. Eliminated agents log **metric + threshold**.
+6. Hallucinated metrics → **remove** from council table; re-run.
+7. **Future:** `boom_vectorbt_winners.json` (or manifest in `format=json` export) — not written by repo today; add with tests when implemented.
+8. Dashboard / “run cycle” UI described in original spec = **not in this repo** — treat as product backlog or MISSION embed.
+
+---
+
+## One-line builder mantra
+
+**Sword proves economics; Sabre sorts parameters; JSON + pytest remember; widening without OOS is self-deception.**

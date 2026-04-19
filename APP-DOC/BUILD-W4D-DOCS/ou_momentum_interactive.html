@@ -1,0 +1,186 @@
+
+<style>
+.ctrl{display:flex;align-items:center;gap:10px;margin:6px 0;font-size:12px;color:var(--color-text-secondary)}
+.ctrl label{min-width:130px}
+.ctrl input[type=range]{flex:1}
+.ctrl span{min-width:44px;text-align:right;font-weight:500;color:var(--color-text-primary)}
+.stat-row{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 4px}
+.stat-box{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:7px 12px;flex:1;min-width:90px}
+.stat-lbl{font-size:10px;color:var(--color-text-secondary);margin:0 0 1px;letter-spacing:.04em}
+.stat-val{font-size:16px;font-weight:500;margin:0}
+</style>
+
+<div class="stat-row">
+  <div class="stat-box"><p class="stat-lbl">HALF-LIFE</p><p class="stat-val" id="s-hl">—</p></div>
+  <div class="stat-box"><p class="stat-lbl">REGIME</p><p class="stat-val" id="s-reg">—</p></div>
+  <div class="stat-box"><p class="stat-lbl">ENTRY BAND (σ)</p><p class="stat-val" id="s-band">—</p></div>
+  <div class="stat-box"><p class="stat-lbl">STRATEGY</p><p class="stat-val" id="s-strat">—</p></div>
+</div>
+
+<div style="position:relative;width:100%;height:220px;margin:8px 0">
+  <canvas id="pc"></canvas>
+</div>
+
+<div class="ctrl"><label>Mean-reversion speed κ</label><input type="range" id="kappa" min="0.01" max="0.5" step="0.01" value="0.08"><span id="kv">0.08</span></div>
+<div class="ctrl"><label>Trend drift μ₁ (×10⁻³)</label><input type="range" id="drift" min="-3" max="3" step="0.1" value="0.8"><span id="dv">0.8</span></div>
+<div class="ctrl"><label>Volatility σ</label><input type="range" id="vol" min="0.005" max="0.04" step="0.001" value="0.015"><span id="vv">0.015</span></div>
+<div class="ctrl"><label>Entry threshold (σ-bands)</label><input type="range" id="thr" min="0.5" max="2.5" step="0.1" value="1.2"><span id="tv">1.2</span></div>
+
+<div style="position:relative;width:100%;height:140px;margin:8px 0 4px">
+  <canvas id="zc"></canvas>
+</div>
+
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+  <button style="font-size:12px;padding:5px 12px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);cursor:pointer;background:transparent;color:var(--color-text-primary)" onclick="resim()">Resimulate ↺</button>
+  <button style="font-size:12px;padding:5px 12px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);cursor:pointer;background:transparent;color:var(--color-text-primary)" onclick="sendPrompt('Derive the Ornstein-Uhlenbeck optimal stopping rule and show how it gives the exact entry and exit thresholds')">OU optimal stopping math ↗</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const isDark = matchMedia('(prefers-color-scheme: dark)').matches;
+const N = 252;
+let path, zscores, entries, exits, pChart, zChart;
+
+function randn() {
+  let u=0,v=0;
+  while(!u) u=Math.random();
+  while(!v) v=Math.random();
+  return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+}
+
+function simulate(kappa, drift, sigma) {
+  const mu = 100;
+  let p = [mu], z = [0];
+  const trend_component = [];
+  let trend = 0;
+  for(let i=1;i<N;i++){
+    const mr_force = kappa*(mu - p[i-1]);
+    trend += drift;
+    const shock = sigma * randn();
+    p.push(p[i-1] + mr_force + drift + shock);
+    const roll = p.slice(Math.max(0,i-20),i+1);
+    const m = roll.reduce((a,b)=>a+b,0)/roll.length;
+    const s = Math.sqrt(roll.reduce((a,b)=>a+(b-m)**2,0)/roll.length) || sigma*10;
+    z.push((p[i]-m)/s);
+  }
+  return {path:p, zscores:z};
+}
+
+function computeTrades(z, thr) {
+  const ens=[], exs=[];
+  let pos=0;
+  for(let i=1;i<z.length;i++){
+    if(pos===0){
+      if(z[i]<-thr){pos=-1;ens.push({x:i,y:z[i],type:'long'});}
+      else if(z[i]>thr){pos=1;ens.push({x:i,y:z[i],type:'short'});}
+    } else {
+      if((pos===-1&&z[i]>-0.1)||(pos===1&&z[i]<0.1)){
+        exs.push({x:i,y:z[i]});pos=0;
+      }
+    }
+  }
+  return {entries:ens,exits:exs};
+}
+
+function getColor(alpha=1){
+  return isDark
+    ? `rgba(180,210,244,${alpha})`
+    : `rgba(24,95,165,${alpha})`;
+}
+
+function buildCharts(){
+  const labels = Array.from({length:N},(_,i)=>i);
+  const isDark2 = isDark;
+  const gridC = isDark2?'rgba(255,255,255,.06)':'rgba(0,0,0,.05)';
+  const tickC = isDark2?'#888780':'#888780';
+
+  const pCtx = document.getElementById('pc').getContext('2d');
+  pChart = new Chart(pCtx,{
+    type:'line',
+    data:{labels, datasets:[
+      {label:'Price',data:[],borderColor:getColor(),borderWidth:1.2,pointRadius:0,tension:.3,fill:false},
+      {label:'Mean',data:[],borderColor:isDark2?'rgba(255,255,255,.25)':'rgba(0,0,0,.2)',borderWidth:1,pointRadius:0,borderDash:[4,3],fill:false},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{display:false},
+        y:{grid:{color:gridC},ticks:{color:tickC,font:{size:10}},border:{display:false}}
+      }
+    }
+  });
+
+  const zCtx = document.getElementById('zc').getContext('2d');
+  zChart = new Chart(zCtx,{
+    type:'line',
+    data:{labels, datasets:[
+      {label:'Z-score',data:[],borderColor:getColor(),borderWidth:1.2,pointRadius:0,tension:.3,fill:false},
+      {label:'Entry+',data:[],borderColor:'#E24B4A',borderWidth:1,pointRadius:0,borderDash:[3,3],fill:false},
+      {label:'Entry-',data:[],borderColor:'#1D9E75',borderWidth:1,pointRadius:0,borderDash:[3,3],fill:false},
+      {label:'Exit',data:[],borderColor:isDark2?'rgba(255,255,255,.3)':'rgba(0,0,0,.25)',borderWidth:1,pointRadius:0,borderDash:[2,4],fill:false},
+      {label:'Long entries',data:[],type:'scatter',pointRadius:5,pointBackgroundColor:'#1D9E75',pointBorderColor:'#1D9E75',showLine:false},
+      {label:'Short entries',data:[],type:'scatter',pointRadius:5,pointBackgroundColor:'#E24B4A',pointBorderColor:'#E24B4A',showLine:false},
+      {label:'Exits',data:[],type:'scatter',pointRadius:4,pointBackgroundColor:'#888780',pointBorderColor:'#888780',showLine:false},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{display:false},
+        y:{grid:{color:gridC},ticks:{color:tickC,font:{size:10}},border:{display:false}}
+      }
+    }
+  });
+}
+
+function update(){
+  const kappa = parseFloat(document.getElementById('kappa').value);
+  const drift = parseFloat(document.getElementById('drift').value)*1e-3;
+  const sigma  = parseFloat(document.getElementById('vol').value);
+  const thr    = parseFloat(document.getElementById('thr').value);
+
+  document.getElementById('kv').textContent=kappa.toFixed(2);
+  document.getElementById('dv').textContent=parseFloat(document.getElementById('drift').value).toFixed(1);
+  document.getElementById('vv').textContent=sigma.toFixed(3);
+  document.getElementById('tv').textContent=thr.toFixed(1);
+
+  const hl = (Math.log(2)/kappa).toFixed(1);
+  const hlNum = parseFloat(hl);
+  const regime = hlNum<15?'mean-rev':hlNum<40?'mixed':hlNum<80?'trending':'momentum';
+  const strat  = hlNum<15?'MR dominant':hlNum<40?'blend':hlNum<80?'trend lean':'MOM dominant';
+  const band   = (thr*(1 + kappa)).toFixed(2);
+
+  document.getElementById('s-hl').textContent  = hl+'d';
+  document.getElementById('s-reg').textContent = regime;
+  document.getElementById('s-band').textContent= '±'+thr.toFixed(1)+'σ';
+  document.getElementById('s-strat').textContent=strat;
+
+  const {path:p, zscores:z} = simulate(kappa, drift, sigma);
+  const mu_line = Array(N).fill(100);
+  const {entries:ens, exits:exs} = computeTrades(z, thr);
+
+  const thrUp  = Array(N).fill(thr);
+  const thrDn  = Array(N).fill(-thr);
+  const exitLn = Array(N).fill(0);
+
+  pChart.data.datasets[0].data = p;
+  pChart.data.datasets[1].data = mu_line;
+  pChart.update('none');
+
+  zChart.data.datasets[0].data = z;
+  zChart.data.datasets[1].data = thrUp;
+  zChart.data.datasets[2].data = thrDn;
+  zChart.data.datasets[3].data = exitLn;
+  zChart.data.datasets[4].data = ens.filter(e=>e.type==='long').map(e=>({x:e.x,y:e.y}));
+  zChart.data.datasets[5].data = ens.filter(e=>e.type==='short').map(e=>({x:e.x,y:e.y}));
+  zChart.data.datasets[6].data = exs.map(e=>({x:e.x,y:e.y}));
+  zChart.update('none');
+}
+
+function resim(){ update(); }
+
+buildCharts();
+update();
+['kappa','drift','vol','thr'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', update);
+});
+</script>

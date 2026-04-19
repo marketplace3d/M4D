@@ -1,0 +1,260 @@
+
+<style>
+:root { --gap: 14px; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-sans, sans-serif); background: transparent; }
+
+.wrapper {
+  padding: 1.5rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.phase-label {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-tertiary);
+  padding: 0 4px;
+  margin-top: 4px;
+  margin-bottom: 2px;
+}
+
+.row {
+  display: grid;
+  gap: 10px;
+}
+
+.row-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.row-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.row-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.row-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+.card {
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-md, 8px);
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  position: relative;
+}
+.card:hover {
+  border-color: var(--color-border-secondary);
+  background: var(--color-background-secondary);
+}
+
+.card-header {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  line-height: 1.3;
+  margin-bottom: 3px;
+}
+.card-sub {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  line-height: 1.4;
+}
+
+.badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-bottom: 5px;
+}
+
+.b-teal   { background: #E1F5EE; color: #0F6E56; }
+.b-amber  { background: #FAEEDA; color: #854F0B; }
+.b-purple { background: #EEEDFE; color: #534AB7; }
+.b-coral  { background: #FAECE7; color: #993C1D; }
+.b-blue   { background: #E6F1FB; color: #185FA5; }
+.b-gray   { background: #F1EFE8; color: #5F5E5A; }
+.b-green  { background: #EAF3DE; color: #3B6D11; }
+
+@media (prefers-color-scheme: dark) {
+  .b-teal   { background: #085041; color: #9FE1CB; }
+  .b-amber  { background: #633806; color: #FAC775; }
+  .b-purple { background: #3C3489; color: #AFA9EC; }
+  .b-coral  { background: #712B13; color: #F0997B; }
+  .b-blue   { background: #0C447C; color: #85B7EB; }
+  .b-gray   { background: #444441; color: #B4B2A9; }
+  .b-green  { background: #27500A; color: #C0DD97; }
+}
+
+.divider {
+  width: 100%;
+  height: 0.5px;
+  background: var(--color-border-tertiary);
+  margin: 6px 0;
+}
+
+.connector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-tertiary);
+  font-size: 16px;
+  height: 18px;
+}
+
+.highlight-card {
+  border-color: var(--color-border-secondary);
+  background: var(--color-background-secondary);
+}
+
+.tier-block {
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-lg, 12px);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tier-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  margin-bottom: 2px;
+}
+</style>
+
+<div class="wrapper">
+  <div class="phase-label">Phase 1 — Data & Signal Ingestion</div>
+  <div class="row row-4">
+    <div class="card" onclick="sendPrompt('What are the best TradingView indicators for ICT-based trading?')">
+      <div class="badge b-teal">TV</div>
+      <div class="card-header">Pine Script v5</div>
+      <div class="card-sub">ICT: OB · FVG · MSS · Premium/Discount · BOS</div>
+    </div>
+    <div class="card" onclick="sendPrompt('What MTF levels should I track for institutional trading?')">
+      <div class="badge b-blue">MTF</div>
+      <div class="card-header">Multi-TF Levels</div>
+      <div class="card-sub">D · W · M opens · Asia/London ranges · OR</div>
+    </div>
+    <div class="card" onclick="sendPrompt('What institutional levels matter most for price action?')">
+      <div class="badge b-purple">Inst</div>
+      <div class="card-header">Institutional Levels</div>
+      <div class="card-sub">PDH/PDL · Buyside/Sellside · Eq. Highs/Lows</div>
+    </div>
+    <div class="card" onclick="sendPrompt('What market data feeds are best for real-time trading?')">
+      <div class="badge b-gray">Feed</div>
+      <div class="card-header">Market Data</div>
+      <div class="card-sub">OHLCV · Volume · DOM · Options flow</div>
+    </div>
+  </div>
+
+  <div class="connector">↓</div>
+
+  <div class="phase-label">Phase 2 — Visual Co-Trader Layer (TradingView Overlay)</div>
+  <div class="tier-block highlight-card">
+    <div class="tier-title">Core Visual Engine — Pine Script</div>
+    <div class="row row-3">
+      <div class="card" onclick="sendPrompt('How do I code ICT Order Blocks with decay opacity in Pine Script?')">
+        <div class="badge b-coral">ICT</div>
+        <div class="card-header">OB + FVG Renderer</div>
+        <div class="card-sub">Low-opacity rects · decay by time/bars · overlap merge · bullish/bearish fill</div>
+      </div>
+      <div class="card" onclick="sendPrompt('How do I build a cognitive level map that shows all significant price levels in TradingView?')">
+        <div class="badge b-amber">Viz</div>
+        <div class="card-header">Level Confluence Map</div>
+        <div class="card-sub">All levels → heat overlay · opacity = confluence density · target projection rays</div>
+      </div>
+      <div class="card" onclick="sendPrompt('What is the best indicator alignment stack for ICT + Smart Money Concepts?')">
+        <div class="badge b-teal">Align</div>
+        <div class="card-header">Indicator Alignment</div>
+        <div class="card-sub">VWAP · RSI divs · Volume delta · EMA ribbon · ATR bands · Sweep confirm</div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="row row-4">
+      <div class="card" onclick="sendPrompt('How do I code Opening Range logic in Pine Script with session detection?')">
+        <div class="badge b-blue">Range</div>
+        <div class="card-header">Opening Range</div>
+        <div class="card-sub">NY · London · Asia session boxes · ORB extension levels</div>
+      </div>
+      <div class="card" onclick="sendPrompt('How do I project ICT target levels from an order block?')">
+        <div class="badge b-purple">Target</div>
+        <div class="card-header">Target Projection</div>
+        <div class="card-sub">Next draw on liquidity · FVG fill · 50% of range · EQ levels above/below</div>
+      </div>
+      <div class="card" onclick="sendPrompt('How do I code decaying rectangle overlays in Pine Script that fade over time?')">
+        <div class="badge b-coral">Decay</div>
+        <div class="card-header">Decay Logic</div>
+        <div class="card-sub">Alpha = f(bars since creation) · invalidated = full fade · touched = accent</div>
+      </div>
+      <div class="card" onclick="sendPrompt('How do I detect market structure shifts and breaks of structure in Pine Script?')">
+        <div class="badge b-green">MSS</div>
+        <div class="card-header">MSS / BOS Engine</div>
+        <div class="card-sub">HH/HL/LH/LL · displacement candle · CHoCH confirm</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector">↓</div>
+
+  <div class="phase-label">Phase 3 — AI Processing Stack</div>
+  <div class="row row-3">
+    <div class="card" onclick="sendPrompt('How do I use Claude API to analyze chart patterns and generate trade signals?')">
+      <div class="badge b-purple">Claude</div>
+      <div class="card-header">Claude (Sonnet/Opus)</div>
+      <div class="card-sub">High-IQ reasoning · context synthesis · trade narrative · risk logic</div>
+    </div>
+    <div class="card" onclick="sendPrompt('How do I run Gemma or Qwen locally with Ollama for real-time trading signal filtering?')">
+      <div class="badge b-teal">Local</div>
+      <div class="card-header">Gemma4 + Qwen</div>
+      <div class="card-sub">Local · low latency · pre-filter signals · sentiment parse · news NLP</div>
+    </div>
+    <div class="card" onclick="sendPrompt('How do I orchestrate multiple LLMs in a trading pipeline with Python?')">
+      <div class="badge b-amber">Orch</div>
+      <div class="card-header">LLM Orchestrator</div>
+      <div class="card-sub">Python · Ollama · Anthropic SDK · signal routing · confidence scoring</div>
+    </div>
+  </div>
+
+  <div class="connector">↓</div>
+
+  <div class="phase-label">Phase 4 — Execution Bridge (Algo Layer — Future)</div>
+  <div class="row row-4">
+    <div class="card" onclick="sendPrompt('How do I connect TradingView alerts to a broker via webhook?')">
+      <div class="badge b-gray">Alert</div>
+      <div class="card-header">TV Webhook</div>
+      <div class="card-sub">JSON alert payload · HMAC signing · retry logic</div>
+    </div>
+    <div class="card" onclick="sendPrompt('What Python framework is best for building a trading execution engine?')">
+      <div class="badge b-blue">Exec</div>
+      <div class="card-header">Execution Engine</div>
+      <div class="card-sub">FastAPI · async · position sizing · SL/TP logic</div>
+    </div>
+    <div class="card" onclick="sendPrompt('How do I connect to IBKR or Alpaca for automated trade execution?')">
+      <div class="badge b-teal">Broker</div>
+      <div class="card-header">Broker API</div>
+      <div class="card-sub">IBKR · Alpaca · Tradovate · FIX protocol</div>
+    </div>
+    <div class="card" onclick="sendPrompt('How do I log and monitor automated trades in real time?')">
+      <div class="badge b-amber">Monitor</div>
+      <div class="card-header">Risk + Monitor</div>
+      <div class="card-sub">Max DD · daily loss · P&L dashboard · Grafana/Streamlit</div>
+    </div>
+  </div>
+
+  <div class="connector">↓</div>
+
+  <div class="phase-label">Phase 5 — AI Hedge Fund Integration</div>
+  <div class="row row-2">
+    <div class="card" onclick="sendPrompt('What does an AI hedge fund strategy backtesting pipeline look like?')">
+      <div class="badge b-purple">Alpha</div>
+      <div class="card-header">Strategy Library + Backtest</div>
+      <div class="card-sub">Walk-forward · Monte Carlo · Sharpe/Calmar · regime tagging · edge validation before capital allocation</div>
+    </div>
+    <div class="card" onclick="sendPrompt('How do hedge funds structure systematic strategy portfolios?')">
+      <div class="badge b-coral">Fund</div>
+      <div class="card-header">Portfolio + Risk Allocation</div>
+      <div class="card-sub">Strategy diversification · correlation matrix · vol-weighted sizing · drawdown circuit breakers</div>
+    </div>
+  </div>
+</div>

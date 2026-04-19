@@ -1,0 +1,177 @@
+// HEATSEEKER v2 | TARGET LEVELS — SPX/Index Safe
+// All 4 target lines always visible. Volume=0 handled gracefully.
+// Score from non-volume signals (MTF, EMA, ST, ADX, MACD, RSI).
+// Heat: FIRE=#ff6b00 | GAS=#00d4ff | CALM=#60a5fa | STOP=#f97316
+//@version=5
+indicator("HEATSEEKER v2 | Targets [SPX+]", shorttitle="HEAT-TGT", overlay=true, max_labels_count=50)
+
+// ── INPUTS ────────────────────────────────────────────────────────────
+grp_e = "── ENGINE ──"
+grp_t = "── TARGETS ──"
+grp_d = "── DISPLAY ──"
+
+i_htf1      = input.timeframe("D",   "HTF 1 (Daily)",  group=grp_e)
+i_htf2      = input.timeframe("240", "HTF 2 (4H)",     group=grp_e)
+i_htf3      = input.timeframe("60",  "HTF 3 (1H)",     group=grp_e)
+i_ema_fast  = input.int(21,          "EMA Fast",        group=grp_e)
+i_ema_slow  = input.int(55,          "EMA Slow",        group=grp_e)
+i_st_factor = input.float(3.0,       "ST Factor",       group=grp_e, step=0.5)
+i_st_len    = input.int(10,          "ST Length",       group=grp_e)
+i_atr_len   = input.int(14,          "ATR Length",      group=grp_t)
+i_t1_mult   = input.float(1.5,       "T1 ATR Mult",     group=grp_t, step=0.25)
+i_t2_mult   = input.float(2.5,       "T2 ATR Mult",     group=grp_t, step=0.25)
+i_stp_mult  = input.float(0.75,      "Stop ATR Mult",   group=grp_t, step=0.25)
+i_min_score = input.int(0,           "Min Score to Plot (0=always)", group=grp_d, minval=0, maxval=90)
+i_show_lbl  = input.bool(true,       "Show Price Labels", group=grp_d)
+
+// ── COLORS ────────────────────────────────────────────────────────────
+C_FIRE  = color.new(#ff6b00, 0)
+C_GAS   = color.new(#00d4ff, 0)
+C_CALM  = color.new(#60a5fa, 0)
+C_STOP  = color.new(#f97316, 0)
+C_ENTRY = color.new(color.white, 55)
+
+// ── ATR ───────────────────────────────────────────────────────────────
+atr = ta.atr(i_atr_len)
+
+// ── VOLUME GUARD (SPX has no real volume) ────────────────────────────
+has_vol = not na(volume) and volume > 0
+
+// ── MTF STRUCTURE — EMA surrogates across 3 HTFs ─────────────────────
+htf1_ema = request.security(syminfo.tickerid, i_htf1, ta.ema(close, i_ema_fast), lookahead=barmerge.lookahead_off)
+htf2_ema = request.security(syminfo.tickerid, i_htf2, ta.ema(close, i_ema_fast), lookahead=barmerge.lookahead_off)
+htf3_ema = request.security(syminfo.tickerid, i_htf3, ta.ema(close, i_ema_fast), lookahead=barmerge.lookahead_off)
+
+mtf_b1 = close > htf1_ema ? 1 : 0
+mtf_b2 = close > htf2_ema ? 1 : 0
+mtf_b3 = close > htf3_ema ? 1 : 0
+mtf_bull_cnt = mtf_b1 + mtf_b2 + mtf_b3
+mtf_bear_cnt = (1 - mtf_b1) + (1 - mtf_b2) + (1 - mtf_b3)
+
+// ── LOCAL EMA ─────────────────────────────────────────────────────────
+ema_fast = ta.ema(close, i_ema_fast)
+ema_slow = ta.ema(close, i_ema_slow)
+ema_bull = ema_fast > ema_slow and close > ema_fast
+ema_bear = ema_fast < ema_slow and close < ema_fast
+
+// ── SUPERTREND ────────────────────────────────────────────────────────
+[_, st_dir] = ta.supertrend(i_st_factor, i_st_len)
+st_bull = st_dir < 0
+st_bear = st_dir > 0
+
+// ── ADX ───────────────────────────────────────────────────────────────
+[adx_val, dip, dim] = ta.dmi(14, 14)
+adx_bull = dip > dim and adx_val > 20
+adx_bear = dim > dip and adx_val > 20
+
+// ── MACD ──────────────────────────────────────────────────────────────
+[_, _, hist] = ta.macd(close, 12, 26, 9)
+macd_bull = hist > 0 and hist > hist[1]
+macd_bear = hist < 0 and hist < hist[1]
+
+// ── RSI ───────────────────────────────────────────────────────────────
+rsi_v = ta.rsi(close, 14)
+rsi_bull = rsi_v > 50 and rsi_v < 80
+rsi_bear = rsi_v < 50 and rsi_v > 20
+
+// ── CVD PROXY (safe for volume=0) ─────────────────────────────────────
+// On zero-vol indices: price direction over N bars = CVD surrogate
+safe_vol  = has_vol ? volume : 1.0
+up_vol    = safe_vol * (close > open ? 1.0 : close == open ? 0.5 : 0.0)
+dn_vol    = safe_vol * (close < open ? 1.0 : close == open ? 0.5 : 0.0)
+cvd_roc   = ta.roc(ta.cum(up_vol - dn_vol), 14)
+cvd_bull  = has_vol ? cvd_roc > 0 : close > close[3]
+cvd_bear  = has_vol ? cvd_roc < 0 : close < close[3]
+
+// ── IMBALANCE (volume-gated) ──────────────────────────────────────────
+imb_ratio = has_vol ? (up_vol / math.max(dn_vol, 0.001)) : 1.0
+imb_bull  = has_vol and imb_ratio > 1.5
+imb_bear  = has_vol and imb_ratio < 0.66
+
+// ── COMPOSITE SCORE ───────────────────────────────────────────────────
+// Volume-independent signals weighted 85/100, volume signals 15/100
+// Ensures SPX (no vol) still generates a meaningful score.
+var int bull_pts = 0
+var int bear_pts = 0
+
+bull_pts := 0
+bear_pts := 0
+
+// MTF (30 pts) — strongest non-vol signal
+bull_pts += mtf_bull_cnt == 3 ? 30 : mtf_bull_cnt == 2 ? 15 : 0
+bear_pts += mtf_bear_cnt == 3 ? 30 : mtf_bear_cnt == 2 ? 15 : 0
+
+// EMA local (15 pts)
+bull_pts += ema_bull ? 15 : 0
+bear_pts += ema_bear ? 15 : 0
+
+// SuperTrend (15 pts)
+bull_pts += st_bull ? 15 : 0
+bear_pts += st_bear ? 15 : 0
+
+// ADX (10 pts)
+bull_pts += adx_bull ? 10 : 0
+bear_pts += adx_bear ? 10 : 0
+
+// MACD (10 pts)
+bull_pts += macd_bull ? 10 : 0
+bear_pts += macd_bear ? 10 : 0
+
+// RSI (5 pts)
+bull_pts += rsi_bull ? 5 : 0
+bear_pts += rsi_bear ? 5 : 0
+
+// CVD proxy (10 pts — price-based fallback on index)
+bull_pts += cvd_bull ? 10 : 0
+bear_pts += cvd_bear ? 10 : 0
+
+// Imbalance (5 pts — zero on index, no penalty)
+bull_pts += imb_bull ? 5 : 0
+bear_pts += imb_bear ? 5 : 0
+
+score    = math.min(math.max(bull_pts, bear_pts), 90)
+is_bull  = bull_pts >= bear_pts
+dir      = is_bull ? 1 : -1
+
+// ── HEAT LEVEL ────────────────────────────────────────────────────────
+heat_col = score > 75 ? C_FIRE : score > 50 ? C_GAS : C_CALM
+
+// ── TARGET PRICES ─────────────────────────────────────────────────────
+do_plot  = score >= i_min_score
+
+entry_px = close
+t1_px    = entry_px + dir * atr * i_t1_mult
+t2_px    = entry_px + dir * atr * i_t2_mult
+stop_px  = entry_px - dir * atr * i_stp_mult
+
+// ── PLOTS ─────────────────────────────────────────────────────────────
+plot(do_plot ? t2_px    : na, "T2",    color=heat_col, linewidth=2, style=plot.style_linebr)
+plot(do_plot ? t1_px    : na, "T1",    color=heat_col, linewidth=2, style=plot.style_linebr)
+plot(do_plot ? entry_px : na, "Entry", color=C_ENTRY,  linewidth=1, style=plot.style_circles)
+plot(do_plot ? stop_px  : na, "Stop",  color=C_STOP,   linewidth=2, style=plot.style_linebr)
+
+// ── LABELS (last bar only) ────────────────────────────────────────────
+var label lbl_t2 = na
+var label lbl_t1 = na
+var label lbl_en = na
+var label lbl_st = na
+var label lbl_sc = na
+
+if barstate.islast and do_plot and i_show_lbl
+    label.delete(lbl_t2)
+    label.delete(lbl_t1)
+    label.delete(lbl_en)
+    label.delete(lbl_st)
+    label.delete(lbl_sc)
+
+    heat_txt = score > 75 ? "FIRE" : score > 50 ? "GAS" : "CALM"
+    dir_txt  = is_bull ? "BULL" : "BEAR"
+    vol_note = has_vol ? "" : " [no-vol idx]"
+
+    lbl_t2 := label.new(bar_index + 3, t2_px,    "T2  " + str.tostring(t2_px,    "#.##"),  color=color.new(heat_col, 75), textcolor=heat_col, style=label.style_label_left, size=size.small)
+    lbl_t1 := label.new(bar_index + 3, t1_px,    "T1  " + str.tostring(t1_px,    "#.##"),  color=color.new(heat_col, 75), textcolor=heat_col, style=label.style_label_left, size=size.small)
+    lbl_en := label.new(bar_index + 3, entry_px, "ENT " + str.tostring(entry_px, "#.##"),  color=color.new(color.white, 85), textcolor=color.white, style=label.style_label_left, size=size.small)
+    lbl_st := label.new(bar_index + 3, stop_px,  "STP " + str.tostring(stop_px,  "#.##"),  color=color.new(C_STOP, 75), textcolor=C_STOP, style=label.style_label_left, size=size.small)
+    lbl_sc := label.new(bar_index + 3, stop_px - atr * 0.8,
+         heat_txt + " " + str.tostring(score, "#") + " | " + dir_txt + vol_note,
+         color=color.new(heat_col, 75), textcolor=heat_col, style=label.style_label_left, size=size.normal)

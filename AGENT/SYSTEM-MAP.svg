@@ -1,0 +1,445 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1980" width="1200" height="1980" style="font-family:'SF Mono','Fira Mono',monospace;background:#060d1a">
+  <defs>
+    <linearGradient id="gBlue" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#0a2a5e"/><stop offset="100%" stop-color="#0d3a7a"/></linearGradient>
+    <linearGradient id="gGreen" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#0a3a1e"/><stop offset="100%" stop-color="#0d5228"/></linearGradient>
+    <linearGradient id="gOrange" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#3a1a00"/><stop offset="100%" stop-color="#5a2800"/></linearGradient>
+    <linearGradient id="gPurple" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#2a0a4a"/><stop offset="100%" stop-color="#3d0d6e"/></linearGradient>
+    <linearGradient id="gGold" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#3a2a00"/><stop offset="100%" stop-color="#5a4200"/></linearGradient>
+    <linearGradient id="gRed" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#3a0a0a"/><stop offset="100%" stop-color="#5a1010"/></linearGradient>
+    <linearGradient id="gTeal" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#003a3a"/><stop offset="100%" stop-color="#005252"/></linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#2a5a9e"/></marker>
+    <marker id="arrG" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#1a8a3e"/></marker>
+    <marker id="arrGold" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#c8940a"/></marker>
+  </defs>
+
+  <!-- Title -->
+  <rect x="0" y="0" width="1200" height="60" fill="#030810"/>
+  <text x="600" y="22" fill="#4a9eff" font-size="18" font-weight="bold" text-anchor="middle" filter="url(#glow)">M4D ALPHA SYSTEM — ARCHITECTURE MAP</text>
+  <text x="600" y="44" fill="#3a6a9e" font-size="11" text-anchor="middle">RenTech/Medallion Doctrine · Solo Operator JR · Build Master Claude Sonnet 4.6 · 2026-04-19</text>
+  <text x="600" y="56" fill="#1a8a3e" font-size="10" text-anchor="middle">PROMISING 4/5 RenTech Gates · Stacked Sharpe 15.862 · EUPHORIA 19.833 (62.4% WR) · Re-entry 29.716</text>
+
+  <!-- ═══ LAYER 0-1: DATA ═══ -->
+  <rect x="20" y="70" width="1160" height="105" rx="6" fill="url(#gBlue)" stroke="#1a4a8e" stroke-width="1"/>
+  <text x="30" y="90" fill="#4a9eff" font-size="12" font-weight="bold">LAYER 0-1 · DATA FOUNDATION</text>
+
+  <rect x="30" y="97" width="360" height="68" rx="4" fill="#0a1a3a" stroke="#1a3a6e" stroke-width="1"/>
+  <text x="40" y="113" fill="#6ab4ff" font-size="11" font-weight="bold">futures.db</text>
+  <text x="40" y="128" fill="#4a7aae" font-size="10">Binance 5m OHLCV · 20 crypto symbols</text>
+  <text x="40" y="142" fill="#4a7aae" font-size="10">2 years history · ~4M rows</text>
+  <text x="40" y="156" fill="#2a5a8e" font-size="10">Source for: cross_asset.py · regime features</text>
+
+  <rect x="410" y="97" width="380" height="68" rx="4" fill="#0a1a3a" stroke="#1a3a6e" stroke-width="1"/>
+  <text x="420" y="113" fill="#6ab4ff" font-size="11" font-weight="bold">signal_log.db</text>
+  <text x="420" y="128" fill="#4a7aae" font-size="10">23 signal votes (v_*) · jedi_raw · rvol · atr_pct</text>
+  <text x="420" y="142" fill="#4a7aae" font-size="10">outcome_1h_pct + outcome_4h_pct · 3.2M rows</text>
+  <text x="420" y="156" fill="#2a5a8e" font-size="10">Core: walkforward · gate · delta_ops · exit_optimizer</text>
+
+  <rect x="810" y="97" width="360" height="68" rx="4" fill="#0a1a3a" stroke="#1a3a6e" stroke-width="1"/>
+  <text x="820" y="113" fill="#6ab4ff" font-size="11" font-weight="bold">cross_asset_report.json</text>
+  <text x="820" y="128" fill="#4a7aae" font-size="10">btc_eth_ratio · alt_beta · defi_momentum</text>
+  <text x="820" y="142" fill="#4a7aae" font-size="10">l1_spread · btc_corr_break · composite</text>
+  <text x="820" y="156" fill="#2a5a8e" font-size="10">RISK_ON / NEUTRAL / RISK_OFF · every 5m</text>
+
+  <!-- ═══ LAYER 2-5: SIGNAL ENGINE ═══ -->
+  <line x1="600" y1="175" x2="600" y2="195" stroke="#2a5a9e" stroke-width="2" marker-end="url(#arr)"/>
+
+  <rect x="20" y="195" width="1160" height="185" rx="6" fill="url(#gGreen)" stroke="#1a5a2e" stroke-width="1"/>
+  <text x="30" y="215" fill="#3ae87a" font-size="12" font-weight="bold">LAYER 2-5 · SIGNAL LIBRARY &amp; VALIDATION</text>
+
+  <!-- 23 signals grid -->
+  <rect x="30" y="222" width="540" height="148" rx="4" fill="#081a10" stroke="#1a4a22" stroke-width="1"/>
+  <text x="40" y="238" fill="#3ae87a" font-size="11" font-weight="bold">23-SIGNAL LIBRARY</text>
+  <!-- ALIVE -->
+  <rect x="40" y="243" width="80" height="16" rx="3" fill="#1a5a2e"/>
+  <text x="44" y="255" fill="#3ae87a" font-size="9">ALIVE (2)</text>
+  <text x="130" y="255" fill="#5ae89a" font-size="9">ADX_TREND · GOLDEN</text>
+  <!-- SPECIALIST -->
+  <rect x="40" y="262" width="80" height="16" rx="3" fill="#1a4a3a"/>
+  <text x="44" y="274" fill="#2ad4aa" font-size="9">SPECIALIST (18)</text>
+  <text x="130" y="274" fill="#4ab4aa" font-size="9">PULLBACK PSAR MACD_CROSS SUPERTREND EMA_STACK</text>
+  <text x="130" y="287" fill="#4ab4aa" font-size="9">SQZPOP VOL_BO DON_BO RANGE_BO BB_BREAK KC_BREAK</text>
+  <text x="130" y="300" fill="#4ab4aa" font-size="9">ATR_EXP RSI_STRONG RSI_CROSS TREND_SMA NEW_HIGH OBV_TREND</text>
+  <!-- PROBATION -->
+  <rect x="40" y="308" width="80" height="16" rx="3" fill="#3a2a00"/>
+  <text x="44" y="320" fill="#c8940a" font-size="9">PROBATION (2)</text>
+  <text x="130" y="320" fill="#a87a08" font-size="9">VOL_SURGE · CONSEC_BULL</text>
+  <!-- RETIRE -->
+  <rect x="40" y="327" width="80" height="16" rx="3" fill="#1a0a0a"/>
+  <text x="44" y="339" fill="#5a2a2a" font-size="9">RETIRE (0)</text>
+  <text x="130" y="339" fill="#4a2a2a" font-size="9">Zero — all "dead" global IC signals are regime specialists</text>
+  <text x="40" y="358" fill="#1a5a2e" font-size="9">★ SUPERTREND: NOT dead. IC +0.025 in BREAKOUT. Globally neg → fires in ranging = guaranteed loss</text>
+
+  <!-- Walk-forward -->
+  <rect x="585" y="222" width="280" height="148" rx="4" fill="#081a10" stroke="#1a4a22" stroke-width="1"/>
+  <text x="595" y="238" fill="#3ae87a" font-size="11" font-weight="bold">WALK-FORWARD ENGINE</text>
+  <text x="595" y="253" fill="#4a9a5a" font-size="10">41 folds · 90d train / 30d test / 2d embargo</text>
+  <text x="595" y="267" fill="#4a9a5a" font-size="10">OOS Sharpe: +5.35 · IS/OOS: 1.41</text>
+  <text x="595" y="281" fill="#4a9a5a" font-size="10">PROMISING: 4/5 RenTech gates ✓✓✓✓✗</text>
+  <text x="595" y="295" fill="#2a7a3a" font-size="9">Gate 5 fails: ic_not_decaying (regime variance expected)</text>
+  <text x="595" y="315" fill="#3ae87a" font-size="10">Regime-conditional IC (regime × signal matrix):</text>
+  <text x="595" y="328" fill="#4a9a5a" font-size="9">TRENDING: PULLBACK +0.050 · ADX +0.045</text>
+  <text x="595" y="341" fill="#4a9a5a" font-size="9">BREAKOUT: SQZPOP +0.033 · SUPERTREND +0.025</text>
+  <text x="595" y="354" fill="#4a9a5a" font-size="9">RISK-OFF:  GOLDEN +0.005 · ADX +0.004</text>
+  <text x="595" y="367" fill="#2a7a3a" font-size="9">Runtime: ~40s · walkforward.py</text>
+
+  <!-- Regime engine -->
+  <rect x="880" y="222" width="290" height="148" rx="4" fill="#081a10" stroke="#1a4a22" stroke-width="1"/>
+  <text x="890" y="238" fill="#3ae87a" font-size="11" font-weight="bold">REGIME ENGINE</text>
+  <text x="890" y="253" fill="#4a9a5a" font-size="10">Price-based (NOT signal-vote circular)</text>
+  <text x="890" y="268" fill="#2ae870" font-size="10">TRENDING  = close &gt; EMA200 + SUP + ADX</text>
+  <text x="890" y="282" fill="#2ae870" font-size="10">BREAKOUT  = squeeze→breakout OR ATR_EXP</text>
+  <text x="890" y="296" fill="#2ae870" font-size="10">RISK-OFF  = ATR &gt; 75pct + mom &lt; -1.5%</text>
+  <text x="890" y="310" fill="#2ae870" font-size="10">RANGING   = default</text>
+  <text x="890" y="330" fill="#c8940a" font-size="9">⚠ assign_regimes() only. _regime_labels_simple()</text>
+  <text x="890" y="342" fill="#c8940a" font-size="9">  uses signal votes → CIRCULAR → degrades routing</text>
+  <text x="890" y="358" fill="#2a7a3a" font-size="9">sharpe_ensemble.py → assign_regimes()</text>
+
+  <!-- ═══ LAYER 8-11: ENSEMBLE ═══ -->
+  <line x1="600" y1="380" x2="600" y2="400" stroke="#2a5a9e" stroke-width="2" marker-end="url(#arr)"/>
+
+  <rect x="20" y="400" width="1160" height="215" rx="6" fill="url(#gPurple)" stroke="#4a1a7e" stroke-width="1"/>
+  <text x="30" y="420" fill="#b07aff" font-size="12" font-weight="bold">LAYER 8-11 · ENSEMBLE ROUTING ENGINE</text>
+
+  <!-- Sharpe baseline -->
+  <rect x="30" y="427" width="260" height="178" rx="4" fill="#180828" stroke="#3a1a5e" stroke-width="1"/>
+  <text x="40" y="443" fill="#b07aff" font-size="11" font-weight="bold">SHARPE ROUTING</text>
+  <text x="40" y="458" fill="#8a5acc" font-size="10">Branch comparison (OOS):</text>
+  <text x="40" y="473" fill="#6a4aaa" font-size="10">Equal weight:    Sharpe 5.43  118k trades</text>
+  <text x="40" y="487" fill="#7a5abb" font-size="10">Sharpe-weighted: Sharpe 5.94  112k trades</text>
+  <text x="40" y="501" fill="#5a3a99" font-size="10">Hard routed:     Sharpe 5.20   22k  DEGRADED</text>
+  <text x="40" y="515" fill="#b07aff" font-size="10" font-weight="bold">Soft routed 0.35: Sharpe 6.605  15k ✓</text>
+  <text x="40" y="536" fill="#8a5acc" font-size="9">SOFT_REGIME_MULT: per-signal × per-regime</text>
+  <text x="40" y="549" fill="#8a5acc" font-size="9">1.5× specialist · 1.0× neutral · 0.05× wrong</text>
+  <text x="40" y="563" fill="#6a4aaa" font-size="9">SUPERTREND: RANGING×0.05 · TRENDING×1.5</text>
+  <text x="40" y="577" fill="#6a4aaa" font-size="9">RSI signals:  TRENDING×0.10 · RANGING×1.5</text>
+  <text x="40" y="597" fill="#4a2a88" font-size="9">sharpe_ensemble.py · SOFT_REGIME_MULT dict</text>
+
+  <!-- Gate layer -->
+  <rect x="305" y="427" width="280" height="178" rx="4" fill="#180828" stroke="#3a1a5e" stroke-width="1"/>
+  <text x="315" y="443" fill="#b07aff" font-size="11" font-weight="bold">TRADE QUALITY GATE</text>
+  <text x="315" y="458" fill="#c8940a" font-size="10">Any ONE fires = BLOCK entry</text>
+  <rect x="315" y="463" width="262" height="14" rx="2" fill="#1a0a00"/>
+  <text x="319" y="474" fill="#ff7a3a" font-size="9">SQUEEZE_LOCK   squeeze==1            +0.934  37.2%</text>
+  <rect x="315" y="479" width="262" height="14" rx="2" fill="#0a1a00"/>
+  <text x="319" y="490" fill="#7aff5a" font-size="9">ATR_RANK_LOW   atr &lt; 30th pct         +0.661  28.5%</text>
+  <rect x="315" y="495" width="262" height="14" rx="2" fill="#1a1a00"/>
+  <text x="319" y="506" fill="#ffff3a" font-size="9">HOUR_KILLS     UTC 0,1,3-5,12,13,20-23 +2.571  44.2%</text>
+  <rect x="315" y="511" width="262" height="14" rx="2" fill="#0a0a1a"/>
+  <text x="319" y="522" fill="#7a7aff" font-size="9">RVOL_EXHAUST   rvol &gt; 90th pct/100bar  +0.435  37.5%</text>
+  <rect x="315" y="527" width="262" height="14" rx="2" fill="#1a0a1a"/>
+  <text x="319" y="538" fill="#ff7aff" font-size="9">LOW_JEDI       |jedi_raw| &lt; 4          +0.310  25.1%</text>
+  <text x="315" y="556" fill="#b07aff" font-size="10">Combined (SW):     Sharpe 12.447  5.7k trades</text>
+  <text x="315" y="570" fill="#b07aff" font-size="10">Stacked (soft+):   Sharpe 15.862  1.3k trades</text>
+  <text x="315" y="590" fill="#4a2a88" font-size="9">trade_quality_gate.py · gate_search.py</text>
+
+  <!-- Cross-asset -->
+  <rect x="600" y="427" width="270" height="178" rx="4" fill="#180828" stroke="#3a1a5e" stroke-width="1"/>
+  <text x="610" y="443" fill="#b07aff" font-size="11" font-weight="bold">CROSS-ASSET DIMS</text>
+  <text x="610" y="458" fill="#8a5acc" font-size="10">5 new alpha dimensions from crypto DB:</text>
+  <text x="610" y="472" fill="#6a4aaa" font-size="9">btc_eth_ratio  (w=0.15)  alt season proxy</text>
+  <text x="610" y="485" fill="#6a4aaa" font-size="9">alt_beta       (w=0.30)  alts vs BTC spread</text>
+  <text x="610" y="498" fill="#6a4aaa" font-size="9">defi_momentum  (w=0.20)  DeFi rotation</text>
+  <text x="610" y="511" fill="#6a4aaa" font-size="9">l1_spread      (w=0.15)  SOL vs ETH</text>
+  <text x="610" y="524" fill="#6a4aaa" font-size="9">btc_corr_break (w=0.20)  decorrelation z</text>
+  <text x="610" y="543" fill="#b07aff" font-size="10">RISK_ON &gt; 0.5 · RISK_OFF &lt; -0.5 · NEUTRAL</text>
+  <text x="610" y="557" fill="#8a5acc" font-size="9">RISK_ON → +20% size Kelly mult</text>
+  <text x="610" y="570" fill="#8a5acc" font-size="9">RISK_OFF → SOFT multiplier 0.70×</text>
+  <text x="610" y="590" fill="#4a2a88" font-size="9">cross_asset.py · /v1/cross/report/</text>
+
+  <!-- PCA -->
+  <rect x="885" y="427" width="285" height="178" rx="4" fill="#180828" stroke="#3a1a5e" stroke-width="1"/>
+  <text x="895" y="443" fill="#b07aff" font-size="11" font-weight="bold">PCA + ACTIVITY GATE</text>
+  <text x="895" y="458" fill="#8a5acc" font-size="10">PCA: 9 true dimensions at 80% variance</text>
+  <text x="895" y="472" fill="#6a4aaa" font-size="9">Expansion cluster identified (SQZPOP group)</text>
+  <text x="895" y="485" fill="#6a4aaa" font-size="9">Redundancy test: corr &lt; 0.85 for promotion</text>
+  <text x="895" y="505" fill="#8a5acc" font-size="10">XAIGROK Activity Gate:</text>
+  <text x="895" y="518" fill="#5a3a99" font-size="9">tick_score × RVOL/ATR + grok_score</text>
+  <rect x="895" y="524" width="55" height="14" rx="2" fill="#3a0a0a"/>
+  <text x="899" y="535" fill="#ff4a4a" font-size="9">DEAD</text>
+  <rect x="955" y="524" width="55" height="14" rx="2" fill="#2a1a00"/>
+  <text x="959" y="535" fill="#c8940a" font-size="9">SLOW</text>
+  <rect x="1015" y="524" width="55" height="14" rx="2" fill="#0a2a0a"/>
+  <text x="1019" y="535" fill="#3ae87a" font-size="9">ALIVE</text>
+  <rect x="1075" y="524" width="55" height="14" rx="2" fill="#1a2a00"/>
+  <text x="1079" y="535" fill="#eaff3a" font-size="9">HOT</text>
+  <text x="895" y="555" fill="#8a5acc" font-size="9">DEAD → no new signals today</text>
+  <text x="895" y="568" fill="#8a5acc" font-size="9">HOT → EUPHORIA trigger check</text>
+  <text x="895" y="590" fill="#4a2a88" font-size="9">xaigrok_activity.py · /v1/ai/activity/</text>
+
+  <!-- ═══ LAYER 13: DELTA OPS ═══ -->
+  <line x1="600" y1="615" x2="600" y2="635" stroke="#2a5a9e" stroke-width="2" marker-end="url(#arr)"/>
+
+  <rect x="20" y="635" width="1160" height="420" rx="6" fill="url(#gGold)" stroke="#5a4200" stroke-width="1"/>
+  <text x="30" y="655" fill="#ffcc3a" font-size="12" font-weight="bold">LAYER 13 · DELTA SPECIAL OPS — POSITION MANAGER</text>
+  <text x="30" y="671" fill="#a87a08" font-size="10">Doctrine: No stops. No donations to MM. Exit on invalidation. Re-enter on revalidation. Always winning.</text>
+
+  <!-- Position lifecycle flow -->
+  <!-- FLAT box -->
+  <rect x="30" y="680" width="120" height="40" rx="4" fill="#1a1000" stroke="#5a3a00" stroke-width="1"/>
+  <text x="90" y="697" fill="#ffcc3a" font-size="11" font-weight="bold" text-anchor="middle">FLAT</text>
+  <text x="90" y="713" fill="#a87a08" font-size="9" text-anchor="middle">waiting</text>
+  <!-- Arrow FLAT → ENTRY -->
+  <line x1="150" y1="700" x2="230" y2="700" stroke="#c8940a" stroke-width="2" marker-end="url(#arrGold)"/>
+  <text x="190" y="693" fill="#c8940a" font-size="8" text-anchor="middle">gates clear</text>
+  <text x="190" y="712" fill="#c8940a" font-size="8" text-anchor="middle">score≥0.35</text>
+  <!-- ENTRY box -->
+  <rect x="230" y="680" width="120" height="40" rx="4" fill="#1a2000" stroke="#3a5a00" stroke-width="1"/>
+  <text x="290" y="697" fill="#7aff3a" font-size="11" font-weight="bold" text-anchor="middle">ENTRY</text>
+  <text x="290" y="713" fill="#5a9a1a" font-size="9" text-anchor="middle">1.0 lots</text>
+  <!-- Arrow ENTRY → IN -->
+  <line x1="350" y1="700" x2="430" y2="700" stroke="#c8940a" stroke-width="2" marker-end="url(#arrGold)"/>
+  <!-- IN box -->
+  <rect x="430" y="660" width="200" height="80" rx="4" fill="#1a1a00" stroke="#5a5a00" stroke-width="2"/>
+  <text x="530" y="679" fill="#ffff3a" font-size="11" font-weight="bold" text-anchor="middle">IN POSITION</text>
+  <text x="530" y="695" fill="#aaaa2a" font-size="9" text-anchor="middle">score+rvol rising →</text>
+  <text x="530" y="707" fill="#3ae87a" font-size="9" text-anchor="middle">SCALE-IN +0.5 lot (max 3×)</text>
+  <text x="530" y="719" fill="#ff9a3a" font-size="9" text-anchor="middle">score|rvol falling →</text>
+  <text x="530" y="731" fill="#ffcc3a" font-size="9" text-anchor="middle">SCALE-OUT -0.5 lot (lock ✓)</text>
+  <!-- Arrow IN → CIS EXIT -->
+  <line x1="630" y1="700" x2="710" y2="700" stroke="#c8940a" stroke-width="2" marker-end="url(#arrGold)"/>
+  <text x="670" y="692" fill="#ff7a3a" font-size="8" text-anchor="middle">CIS ≥ 2</text>
+  <!-- CIS EXIT box -->
+  <rect x="710" y="675" width="140" height="50" rx="4" fill="#200000" stroke="#6a0000" stroke-width="2"/>
+  <text x="780" y="696" fill="#ff4a4a" font-size="11" font-weight="bold" text-anchor="middle">CIS EXIT</text>
+  <text x="780" y="712" fill="#aa2a2a" font-size="9" text-anchor="middle">NOT a stop price</text>
+  <!-- Arrow CIS EXIT → RE-ENTRY check -->
+  <line x1="850" y1="700" x2="920" y2="700" stroke="#c8940a" stroke-width="2" marker-end="url(#arrGold)"/>
+  <text x="885" y="692" fill="#c8940a" font-size="8" text-anchor="middle">revalidate?</text>
+  <!-- REENTRY box -->
+  <rect x="920" y="675" width="140" height="50" rx="4" fill="#001a10" stroke="#006a30" stroke-width="2"/>
+  <text x="990" y="694" fill="#3ae87a" font-size="10" font-weight="bold" text-anchor="middle">RE-ENTRY</text>
+  <text x="990" y="710" fill="#2aaa5a" font-size="9" text-anchor="middle">retest = confirm</text>
+  <text x="990" y="722" fill="#1a6a3a" font-size="8" text-anchor="middle">Sharpe 29.716 !!!</text>
+  <!-- Loop back RE-ENTRY → IN -->
+  <path d="M1060,700 Q1100,700 1100,640 Q1100,580 530,580 Q430,580 430,660" stroke="#1a6a3a" stroke-width="1.5" fill="none" stroke-dasharray="4,3" marker-end="url(#arrG)"/>
+
+  <!-- CIS Signals breakdown -->
+  <rect x="30" y="770" width="540" height="270" rx="4" fill="#100800" stroke="#3a2200" stroke-width="1"/>
+  <text x="40" y="787" fill="#ffcc3a" font-size="11" font-weight="bold">CIS — COMBINED INVALIDATION SCORE</text>
+  <text x="40" y="801" fill="#a87a08" font-size="9">Any 2 of 5 fire = EXIT · Mode-specific signal sets</text>
+
+  <!-- PADAWAN/NORMAL CIS -->
+  <rect x="40" y="808" width="240" height="220" rx="3" fill="#0a0a18" stroke="#2a2a5e" stroke-width="1"/>
+  <text x="50" y="824" fill="#8a8aff" font-size="10" font-weight="bold">PADAWAN / NORMAL</text>
+  <text x="50" y="838" fill="#6a6acc" font-size="8">(early-warning: exit before full reversal)</text>
+  <rect x="50" y="843" width="220" height="16" rx="2" fill="#1a0020"/>
+  <text x="54" y="855" fill="#cc7aff" font-size="8">1. REGIME_DEGRADE  trend → ranging  +1.121</text>
+  <rect x="50" y="862" width="220" height="16" rx="2" fill="#001a00"/>
+  <text x="54" y="874" fill="#7aff9a" font-size="8">2. JEDI_FADE       conv halved       +0.486</text>
+  <rect x="50" y="881" width="220" height="16" rx="2" fill="#1a1000"/>
+  <text x="54" y="893" fill="#ffcc7a" font-size="8">3. SCORE_DECAY     score &lt; 40% entry</text>
+  <rect x="50" y="900" width="220" height="16" rx="2" fill="#0a0a00"/>
+  <text x="54" y="912" fill="#aaaa7a" font-size="8">4. ATR_COLLAPSE    atr_rank &lt; 20th pct</text>
+  <rect x="50" y="919" width="220" height="16" rx="2" fill="#1a0000"/>
+  <text x="54" y="931" fill="#ff9a7a" font-size="8">5. SQUEEZE_FIRED   squeeze activated</text>
+  <text x="50" y="950" fill="#6a6acc" font-size="8">Threshold: 2 of 5 · PADAWAN Sharpe 11.187</text>
+  <text x="50" y="962" fill="#6a6acc" font-size="8">Re-entry: 12 bars (1h) · Sharpe 29.716</text>
+
+  <!-- EUPHORIA CIS -->
+  <rect x="295" y="808" width="240" height="220" rx="3" fill="#1a0a00" stroke="#5a2a00" stroke-width="1"/>
+  <text x="305" y="824" fill="#ffcc3a" font-size="10" font-weight="bold">EUPHORIA</text>
+  <text x="305" y="838" fill="#a87a08" font-size="8">(hold fat pitches through wobbles)</text>
+  <rect x="305" y="843" width="220" height="16" rx="2" fill="#1a0020"/>
+  <text x="309" y="855" fill="#cc7aff" font-size="8">1. REGIME_FLIP    any regime change</text>
+  <rect x="305" y="862" width="220" height="16" rx="2" fill="#001a00"/>
+  <text x="309" y="874" fill="#7aff9a" font-size="8">2. JEDI_REVERSAL  sign flip (full reverse)</text>
+  <rect x="305" y="881" width="220" height="16" rx="2" fill="#1a1000"/>
+  <text x="309" y="893" fill="#ffcc7a" font-size="8">3. SCORE_DECAY    score &lt; 40% entry</text>
+  <rect x="305" y="900" width="220" height="16" rx="2" fill="#0a0a00"/>
+  <text x="309" y="912" fill="#aaaa7a" font-size="8">4. ATR_COLLAPSE   atr_rank &lt; 20th pct</text>
+  <rect x="305" y="919" width="220" height="16" rx="2" fill="#1a0000"/>
+  <text x="309" y="931" fill="#ff9a7a" font-size="8">5. SQUEEZE_FIRED  squeeze activated</text>
+  <text x="305" y="950" fill="#c8940a" font-size="8">Threshold: 3 of 5 (wider trail for fat pitch)</text>
+  <text x="305" y="962" fill="#c8940a" font-size="8">Win Rate: 62.4% · Sharpe: 19.833</text>
+  <text x="305" y="975" fill="#c8940a" font-size="8">Scale-out events: 134 partial locks</text>
+
+  <!-- Mode config table -->
+  <rect x="590" y="770" width="580" height="270" rx="4" fill="#100800" stroke="#3a2200" stroke-width="1"/>
+  <text x="600" y="787" fill="#ffcc3a" font-size="11" font-weight="bold">MODE CONFIGS + PERFORMANCE</text>
+
+  <!-- Table headers -->
+  <rect x="600" y="793" width="560" height="16" rx="2" fill="#1a1200"/>
+  <text x="605" y="805" fill="#c8940a" font-size="9">MODE     KELLY   LOTS  ENTRY  CIS  RE-WIN   SHARPE   TRADES   WR</text>
+  <!-- PADAWAN row -->
+  <rect x="600" y="812" width="560" height="16" rx="2" fill="#0a0a18"/>
+  <text x="605" y="824" fill="#8a8aff" font-size="9">PADAWAN  0.25×   1.5   0.35   2/5  12bar    11.187   1,300    52.2%</text>
+  <!-- NORMAL row -->
+  <rect x="600" y="831" width="560" height="16" rx="2" fill="#0a180a"/>
+  <text x="605" y="843" fill="#5ae89a" font-size="9">NORMAL   1.00×   3.0   0.35   2/5  24bar    11.188   1,300    52.2%</text>
+  <!-- EUPHORIA row -->
+  <rect x="600" y="850" width="560" height="18" rx="2" fill="#1a1000"/>
+  <text x="605" y="863" fill="#ffcc3a" font-size="9" font-weight="bold">EUPHORIA 2.50×   3.0   0.50   3/5  6bar     19.833     117    62.4% ★</text>
+  <!-- Re-entry row -->
+  <rect x="600" y="871" width="560" height="18" rx="2" fill="#001a08"/>
+  <text x="605" y="884" fill="#3ae87a" font-size="9" font-weight="bold">RE-ENTRY                                       29.716      87        ← RETEST = CONFIRM</text>
+
+  <!-- Euphoria trigger -->
+  <text x="600" y="910" fill="#ffcc3a" font-size="10" font-weight="bold">EUPHORIA TRIGGER (ALL must fire simultaneously):</text>
+  <text x="600" y="924" fill="#a87a08" font-size="9">jedi_raw ≥ ±18 · RVOL &gt; 2.0 · Activity=HOT · Cross-asset=RISK_ON · soft_score ≥ 0.50 · All 5 gates clear</text>
+  <text x="600" y="938" fill="#c8940a" font-size="9">→ 2-3× Kelly · Scale-in on every ACCEL bar · CIS threshold=3 (wider trail) · This is the fat pitch</text>
+
+  <!-- Exit optimizer results -->
+  <text x="600" y="958" fill="#ffcc3a" font-size="10" font-weight="bold">EXIT OPTIMIZER (exit_optimizer.py):</text>
+  <text x="600" y="972" fill="#3ae87a" font-size="9">✓ regime_degrade +1.121 (3.7% trigger) · jedi_fade +0.486 (9.5%) · atr_diverge +0.435 (34%)</text>
+  <text x="600" y="986" fill="#aa3a3a" font-size="9">✗ tape_decel -4.837 (91% fires too often) · rvol_fade -5.096 (99%) · score_decay_fast -5.041 (99%)</text>
+  <text x="600" y="1000" fill="#a87a08" font-size="9">Law: exit signals firing &gt;40% = noise. Low trigger, high delta only.</text>
+  <text x="600" y="1015" fill="#c8940a" font-size="9">Combined: regime_degrade + jedi_fade → Sharpe 17.887 (+2.025 vs baseline 15.862)</text>
+  <text x="600" y="1029" fill="#c8940a" font-size="8">NOTE: gates selected on OOS — holdout validation needed (re-entry 29.716 = 87 trades, thin)</text>
+
+  <!-- ═══ HALO MODE ═══ -->
+  <line x1="600" y1="1055" x2="600" y2="1075" stroke="#2a5a9e" stroke-width="2" marker-end="url(#arr)"/>
+
+  <rect x="20" y="1075" width="1160" height="200" rx="6" fill="url(#gTeal)" stroke="#005a5a" stroke-width="1"/>
+  <text x="30" y="1095" fill="#3aefef" font-size="12" font-weight="bold">HALO MODE — STEALTH EXECUTION LAYER</text>
+  <text x="30" y="1111" fill="#1a9a9a" font-size="10">Doctrine: Consistent high-Sharpe bots are detectable. Prime brokers identify "informed flow" → spread widening.</text>
+
+  <rect x="30" y="1118" width="320" height="147" rx="4" fill="#001a1a" stroke="#005a5a" stroke-width="1"/>
+  <text x="40" y="1134" fill="#3aefef" font-size="11" font-weight="bold">THREAT MODEL</text>
+  <text x="40" y="1149" fill="#1a9a9a" font-size="9">Same entry time → front-runnable pattern</text>
+  <text x="40" y="1163" fill="#1a9a9a" font-size="9">Fixed lot sizes → bot-detectable</text>
+  <text x="40" y="1177" fill="#1a9a9a" font-size="9">62% WR over 1k trades → spread widening</text>
+  <text x="40" y="1191" fill="#1a9a9a" font-size="9">Predictable re-entry timing → hunted</text>
+  <text x="40" y="1212" fill="#3aefef" font-size="9">Fingerprint Score: gap_cv + size_cv + hour_entropy</text>
+  <text x="40" y="1225" fill="#1a7a7a" font-size="9">&gt;60 = SAFE · 35-60 = WARN · &lt;35 = DANGER</text>
+  <text x="40" y="1252" fill="#0a5a5a" font-size="9">halo_mode.py · fingerprint_score()</text>
+
+  <rect x="365" y="1118" width="360" height="147" rx="4" fill="#001a1a" stroke="#005a5a" stroke-width="1"/>
+  <text x="375" y="1134" fill="#3aefef" font-size="11" font-weight="bold">HALO COMPONENTS</text>
+  <text x="375" y="1150" fill="#2adfdf" font-size="9">1. Timing jitter:   delay 0-3 bars random after signal</text>
+  <text x="375" y="1164" fill="#2adfdf" font-size="9">2. Size noise:      ±15% variation on Kelly units</text>
+  <text x="375" y="1178" fill="#2adfdf" font-size="9">3. Skip rate:       15% of valid signals skipped</text>
+  <text x="375" y="1192" fill="#2adfdf" font-size="9">4. Split entry:     55-65% first lot, rest next bar</text>
+  <text x="375" y="1206" fill="#2adfdf" font-size="9">5. Scale variance:  0.3-0.7 lot (not always 0.5)</text>
+  <text x="375" y="1220" fill="#2adfdf" font-size="9">6. Exit stagger:    fill over 1-2 bars on large pos</text>
+  <rect x="375" y="1232" width="340" height="16" rx="2" fill="#1a1000"/>
+  <text x="379" y="1244" fill="#ffcc3a" font-size="9">EUPHORIA override: NEVER skip/delay fat pitches</text>
+  <text x="375" y="1258" fill="#0a5a5a" font-size="9">LIVE ONLY — backtesting with HALO = invalid</text>
+
+  <rect x="740" y="1118" width="430" height="147" rx="4" fill="#001a1a" stroke="#005a5a" stroke-width="1"/>
+  <text x="750" y="1134" fill="#3aefef" font-size="11" font-weight="bold">SEAL / NINJA HUMAN ENTRIES</text>
+  <text x="750" y="1150" fill="#1a9a9a" font-size="9">Human traders don't always enter on exact signal bar.</text>
+  <text x="750" y="1164" fill="#1a9a9a" font-size="9">"Watch it develop" → enter 1-2 bars later → HALO mimics.</text>
+  <text x="750" y="1185" fill="#3aefef" font-size="9">REAL SEAL MODE = HALO + manual override slot</text>
+  <text x="750" y="1199" fill="#1a9a9a" font-size="9">Human timing irregularity is the ultimate fingerprint breaker.</text>
+  <text x="750" y="1218" fill="#c8940a" font-size="9">⚠ "CANT WIN TOO MUCH" — at Sharpe 15-20 you ARE visible.</text>
+  <text x="750" y="1232" fill="#c8940a" font-size="9">   HALO keeps edge intact while reducing detectability.</text>
+  <text x="750" y="1248" fill="#c8940a" font-size="9">   Paper mode: monitor fill quality degradation as signal.</text>
+  <text x="750" y="1258" fill="#0a5a5a" font-size="9">halo_mode.py · HaloDecision · HaloConfig</text>
+
+  <!-- ═══ PENDING BUILD QUEUE ═══ -->
+  <line x1="600" y1="1275" x2="600" y2="1295" stroke="#2a5a9e" stroke-width="2" marker-end="url(#arr)"/>
+
+  <rect x="20" y="1295" width="1160" height="310" rx="6" fill="url(#gRed)" stroke="#5a1010" stroke-width="1"/>
+  <text x="30" y="1315" fill="#ff7a7a" font-size="12" font-weight="bold">PENDING BUILD QUEUE — ITER-OPT NEXT</text>
+
+  <!-- P0-D -->
+  <rect x="30" y="1323" width="270" height="150" rx="4" fill="#200808" stroke="#5a1010" stroke-width="1"/>
+  <rect x="30" y="1323" width="270" height="20" rx="4" fill="#3a0808"/>
+  <text x="40" y="1338" fill="#ff7a7a" font-size="10" font-weight="bold">P0-D · Alpaca Paper Adapter</text>
+  <text x="40" y="1356" fill="#aa5a5a" font-size="9">api/src/alpaca.rs — Rust route</text>
+  <text x="40" y="1369" fill="#aa5a5a" font-size="9">Reads paper_trading_config.json</text>
+  <text x="40" y="1382" fill="#aa5a5a" font-size="9">Delta Ops CIS → Alpaca paper orders</text>
+  <text x="40" y="1395" fill="#aa5a5a" font-size="9">PADAWAN first: 3 trades/day, 0.25× Kelly</text>
+  <text x="40" y="1415" fill="#ff7a7a" font-size="9" font-weight="bold">Critical: first live-adjacent execution test</text>
+  <text x="40" y="1428" fill="#6a2a2a" font-size="8">Est: 4h · Rust Axum + Alpaca REST</text>
+  <text x="40" y="1465" fill="#3a1010" font-size="8">Status: PENDING</text>
+
+  <!-- P1-A -->
+  <rect x="315" y="1323" width="270" height="150" rx="4" fill="#180820" stroke="#3a1050" stroke-width="1"/>
+  <rect x="315" y="1323" width="270" height="20" rx="4" fill="#2a0a38"/>
+  <text x="325" y="1338" fill="#cc7aff" font-size="10" font-weight="bold">P1-A · HMM Regime Posterior</text>
+  <text x="325" y="1356" fill="#8a5acc" font-size="9">Replace binary label with P(regime=k) vector</text>
+  <text x="325" y="1369" fill="#8a5acc" font-size="9">statsmodels MarkovRegression on vol+corr</text>
+  <text x="325" y="1382" fill="#8a5acc" font-size="9">Probabilistic CIS weighting (soft not hard)</text>
+  <text x="325" y="1395" fill="#8a5acc" font-size="9">hmm_regime.py · 3-state HMM</text>
+  <text x="325" y="1415" fill="#cc7aff" font-size="9" font-weight="bold">Unlocks: regime confidence in CIS</text>
+  <text x="325" y="1428" fill="#5a3a88" font-size="8">Est: 3h · Python statsmodels</text>
+  <text x="325" y="1465" fill="#2a1048" font-size="8">Status: PENDING</text>
+
+  <!-- Re-entry holdout -->
+  <rect x="600" y="1323" width="270" height="150" rx="4" fill="#002010" stroke="#005030" stroke-width="1"/>
+  <rect x="600" y="1323" width="270" height="20" rx="4" fill="#003a1a"/>
+  <text x="610" y="1338" fill="#3ae87a" font-size="10" font-weight="bold">ITER · Re-entry Holdout Validation</text>
+  <text x="610" y="1356" fill="#2aaa5a" font-size="9">Re-entry Sharpe 29.716 = 87 trades</text>
+  <text x="610" y="1369" fill="#2aaa5a" font-size="9">Thin statistics — needs separate fold</text>
+  <text x="610" y="1382" fill="#2aaa5a" font-size="9">Split OOS: first 15% test / last 15% holdout</text>
+  <text x="610" y="1395" fill="#2aaa5a" font-size="9">Validate retest=confirm doctrine on holdout</text>
+  <text x="610" y="1415" fill="#3ae87a" font-size="9" font-weight="bold">Critical: if 29.716 holds → doctrine confirmed</text>
+  <text x="610" y="1428" fill="#1a7a3a" font-size="8">Est: 1h · modify delta_ops.py split</text>
+  <text x="610" y="1465" fill="#003a1a" font-size="8">Status: PENDING</text>
+
+  <!-- ICT / HALO fix -->
+  <rect x="885" y="1323" width="285" height="150" rx="4" fill="#1a1000" stroke="#4a3000" stroke-width="1"/>
+  <rect x="885" y="1323" width="285" height="20" rx="4" fill="#2a1800"/>
+  <text x="895" y="1338" fill="#ffcc3a" font-size="10" font-weight="bold">ITER · ICT Liquidity + HALO Fix</text>
+  <text x="895" y="1356" fill="#c8940a" font-size="9">ICT FVG: Fair Value Gap fill = exit signal</text>
+  <text x="895" y="1369" fill="#c8940a" font-size="9">EQH/EQL: equal highs/lows proximity gate</text>
+  <text x="895" y="1382" fill="#c8940a" font-size="9">Round numbers proximity (MM magnets)</text>
+  <text x="895" y="1395" fill="#c8940a" font-size="9">HALO fingerprint formula fix (cv overflow)</text>
+  <text x="895" y="1415" fill="#ffcc3a" font-size="9" font-weight="bold">EQH/EQL already in exit_optimizer (-3.3)</text>
+  <text x="895" y="1428" fill="#8a6008" font-size="8">Retest with tighter proximity (0.05% not 0.2%)</text>
+  <text x="895" y="1465" fill="#3a2000" font-size="8">Status: PENDING</text>
+
+  <!-- P1-C MTF -->
+  <rect x="30" y="1490" width="550" height="100" rx="4" fill="#080818" stroke="#1a1a5e" stroke-width="1"/>
+  <text x="40" y="1506" fill="#6a8aff" font-size="10" font-weight="bold">P1-C · MTF Confirmation + P1-B IC Decay Monitor</text>
+  <text x="40" y="1521" fill="#4a5acc" font-size="9">MTF: 5m signal + 1h trend agreement. Conflict → reduce size 50%. mtf_confirm.py</text>
+  <text x="40" y="1535" fill="#4a5acc" font-size="9">IC decay: 14-day rolling IC per signal, alert slope &lt; -0.0003 for 3 windows. ic_monitor.py</text>
+  <text x="40" y="1549" fill="#4a5acc" font-size="9">P1-D Cost-adjusted Sharpe: 0.10% slippage + 0.05% spread. Real Sharpe = OOS × 0.40-0.60.</text>
+  <text x="40" y="1575" fill="#2a3a88" font-size="8">All P1: signal quality upgrades. No live trading until P0-D Alpaca paper validates.</text>
+
+  <!-- P2-A Funding rate -->
+  <rect x="600" y="1490" width="560" height="100" rx="4" fill="#080818" stroke="#1a1a5e" stroke-width="1"/>
+  <text x="610" y="1506" fill="#6a8aff" font-size="10" font-weight="bold">P2 · Alpha Expansion (after P1 complete)</text>
+  <text x="610" y="1521" fill="#4a5acc" font-size="9">P2-A: Funding rate signal (Binance /fapi/v1/fundingRate) — extreme funding = overextended</text>
+  <text x="610" y="1535" fill="#4a5acc" font-size="9">P2-B: OBI ratio as scored signal — useObiStream already built, needs IC test</text>
+  <text x="610" y="1549" fill="#4a5acc" font-size="9">P2-C: Cross-asset confirmation as Kelly multiplier (RISK_ON +20%, RISK_OFF -30%)</text>
+  <text x="610" y="1575" fill="#2a3a88" font-size="8">P2-D: IntermarketOrb · P2-E: PositioningOrb UI components</text>
+
+  <!-- ═══ PERFORMANCE SUMMARY ═══ -->
+  <rect x="20" y="1625" width="1160" height="340" rx="6" fill="#060e1a" stroke="#1a3a5e" stroke-width="1"/>
+  <text x="30" y="1645" fill="#4a9eff" font-size="12" font-weight="bold">STACKED PERFORMANCE WATERFALL</text>
+
+  <!-- Bars -->
+  <text x="50" y="1675" fill="#4a7aae" font-size="10">Equal weight baseline</text>
+  <rect x="250" y="1660" width="108" height="20" rx="3" fill="#1a3a5e"/>
+  <text x="362" y="1675" fill="#4a7aae" font-size="10">5.43</text>
+
+  <text x="50" y="1705" fill="#6a9ade" font-size="10">+ Sharpe-weighted routing</text>
+  <rect x="250" y="1690" width="119" height="20" rx="3" fill="#1a4a7e"/>
+  <text x="373" y="1705" fill="#6a9ade" font-size="10">5.94 (+0.51)</text>
+
+  <text x="50" y="1735" fill="#7aaaee" font-size="10">+ Soft regime multipliers (thr=0.35)</text>
+  <rect x="250" y="1720" width="132" height="20" rx="3" fill="#1a5a9e"/>
+  <text x="386" y="1735" fill="#7aaaee" font-size="10">6.61 (+0.66)</text>
+
+  <text x="50" y="1765" fill="#3aefef" font-size="10">+ Gate: HOUR_KILLS</text>
+  <rect x="250" y="1750" width="204" height="20" rx="3" fill="#005a5a"/>
+  <text x="458" y="1765" fill="#3aefef" font-size="10">9.18 (+2.57)</text>
+
+  <text x="50" y="1795" fill="#3ae87a" font-size="10">+ Gate: SQUEEZE_LOCK + ATR_RANK + RVOL_EXHAUST + LOW_JEDI</text>
+  <rect x="250" y="1780" width="317" height="20" rx="3" fill="#1a5a2e"/>
+  <text x="571" y="1795" fill="#3ae87a" font-size="10">15.86 (+6.68)</text>
+
+  <text x="50" y="1825" fill="#b07aff" font-size="10">+ Delta Ops (PADAWAN mode, CIS exit, scale-out)</text>
+  <rect x="250" y="1810" width="224" height="20" rx="3" fill="#2a1a5e"/>
+  <text x="478" y="1825" fill="#b07aff" font-size="10">11.19  (position mgmt layer)</text>
+
+  <text x="50" y="1855" fill="#ffcc3a" font-size="11" font-weight="bold">EUPHORIA mode (fat pitches only)</text>
+  <rect x="250" y="1840" width="397" height="22" rx="3" fill="#3a2000"/>
+  <text x="651" y="1856" fill="#ffcc3a" font-size="11" font-weight="bold">19.83  62.4% WR  117 trades</text>
+
+  <text x="50" y="1888" fill="#3ae87a" font-size="12" font-weight="bold">RE-ENTRY after CIS exit (retest = confirm)</text>
+  <rect x="250" y="1873" width="594" height="24" rx="3" fill="#003a10"/>
+  <text x="848" y="1889" fill="#3ae87a" font-size="12" font-weight="bold">29.72  Sharpe  87 trades ★</text>
+
+  <!-- Real-world caveat -->
+  <rect x="30" y="1910" width="1140" height="44" rx="4" fill="#0a0a00" stroke="#3a2a00" stroke-width="1"/>
+  <text x="40" y="1926" fill="#c8940a" font-size="10">⚠  REAL-WORLD HAIRCUT: Gate selection on OOS set = mild snooping. Individual gates economically justified.</text>
+  <text x="40" y="1942" fill="#a87a08" font-size="9">    Expected live Sharpe: 6-10 range after 40-60% slippage/spread haircut. HALO reduces fill quality ~0.3 Sharpe. Paper mode first — always.</text>
+
+  <!-- Bottom bar -->
+  <rect x="0" y="1958" width="1200" height="22" fill="#030810"/>
+  <text x="600" y="1973" fill="#1a3a5e" font-size="9" text-anchor="middle">M4D Alpha System · AGENT/SYSTEM-MAP.svg · AGENT/SYSTEM-SPEC.md · AGENT/BUILDOUT-PROGRESS.md · AGENT/ALPHA-SEARCH-DAILY.md</text>
+</svg>

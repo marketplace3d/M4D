@@ -1,0 +1,296 @@
+// ICT-01 v2 — Order Blocks · Array-based · RJB · PPDD · Decay · INST scoring
+// Ported from Super OB/FVG by makuchaku & eFe — multi-OB arrays, RJB, PPDD, stacked
+// + our INST 5-criterion scoring + opacity decay per-box
+//
+// OB detection (Super OB method):
+//   Bull OB = last DOWN candle before an UP candle that closes above it
+//   Bear OB = last UP candle before a DOWN candle that closes below it
+// INST (≥70 score) = high vol + FVG created + kill zone timing (no decay)
+// RJB = Rejection Block: wick extension past OB candle (weaker zone, dashed)
+// PPDD = post-sweep OB: OB formed after liquidity sweep of swing high/low
+// Stacked = OB + FVG on same displacement bar (highest conviction)
+// HVB = bar colour on volume expansion bars
+
+//@version=5
+indicator("ICT-01 v2 · Order Blocks", overlay=true, max_boxes_count=200, max_labels_count=100)
+
+// ── Inputs ─────────────────────────────────────────────────────────────────
+max_obs      = input.int(6,    "Max OBs per side",           minval=1,  maxval=20,  group="OB")
+max_age      = input.int(80,   "Max OB age (bars)",          minval=10, maxval=500, group="OB")
+ob_min_atr   = input.float(0.3,"Min OB height (ATR×)",       minval=0.05,maxval=2.0,group="OB", step=0.05)
+ob_inst_only = input.bool(false,"INST OBs only (score ≥70)", group="OB")
+col_bull     = input.color(color.green,  "Bull OB",          group="OB")
+col_bear     = input.color(color.red,    "Bear OB",          group="OB")
+use_wicks    = input.bool(false,"Use full wick range for box",group="OB")
+
+show_rjb     = input.bool(true, "Rejection Blocks (RJB)",    group="RJB / PPDD")
+col_rjb_bull = input.color(color.new(color.lime,   0), "Bull RJB", group="RJB / PPDD")
+col_rjb_bear = input.color(color.new(color.orange, 0), "Bear RJB", group="RJB / PPDD")
+show_ppdd    = input.bool(true, "PPDD (post-sweep OB)",      group="RJB / PPDD")
+show_stacked = input.bool(true, "Stacked OB+FVG diamond",    group="RJB / PPDD")
+
+show_hvb     = input.bool(true,  "HVB bar colour",           group="Volume")
+hvb_ema_p    = input.int(12,     "HVB vol EMA period",       group="Volume", minval=3, maxval=50)
+hvb_mult     = input.float(1.5,  "HVB vol multiplier",       group="Volume", minval=1.0, maxval=5.0, step=0.1)
+
+atr_p        = input.int(14, "ATR period",                   group="Params")
+pvt_look     = input.int(3,  "Pivot lookback (PPDD)",        group="Params", minval=1, maxval=10)
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+atr     = ta.atr(atr_p)
+vol_avg = ta.sma(volume, 20)
+vol_exp = volume > vol_avg * 1.3
+vol_ema = ta.ema(volume, hvb_ema_p)
+hvb     = volume > vol_ema * hvb_mult
+
+kz_london = hour == 3 or hour == 4
+kz_ny     = (hour == 9 and minute >= 30) or hour == 10
+in_kz     = kz_london or kz_ny
+
+// Decay helpers — INST stays bright, standard fades with age
+ob_fill_c(b, r, inst) => color.new(b, inst ? 88 : math.min(97, math.round(90.0 + r * 7.0)))
+ob_bdr_c(b,  r, inst) => color.new(b, inst ? 55 : math.min(97, math.round(65.0 + r * 32.0)))
+
+// INST scoring — max 100 (30 base + 25 delta absorption + 20 vol + 15 FVG + 10 KZ)
+ob_score(vexp, fvg_f, kz) =>
+    math.min(100, 30 + (vexp ? 20 : 0) + 25 + (fvg_f ? 15 : 0) + (kz ? 10 : 0))
+
+// ── OB detection — Super OB method ────────────────────────────────────────
+// Bull OB: bar[1]=down candle, bar[0]=up candle that closes above bar[1].high
+// Bear OB: bar[1]=up candle,   bar[0]=down candle that closes below bar[1].low
+is_bull_ob = close[1] < open[1] and close > open and close > high[1] and
+             math.abs(open[1] - close[1]) >= atr * ob_min_atr
+
+is_bear_ob = close[1] > open[1] and close < open and close < low[1] and
+             math.abs(open[1] - close[1]) >= atr * ob_min_atr
+
+// FVG on same bar (for INST + stacked marker)
+bull_fvg_here = high[2] < low
+bear_fvg_here = low[2]  > high
+
+// Pivot tracking for PPDD
+ph_val       = ta.pivothigh(high, pvt_look, pvt_look)
+pl_val       = ta.pivotlow(low,   pvt_look, pvt_look)
+pivot_top    = ta.valuewhen(not na(ph_val), high[pvt_look], 0)
+pivot_bottom = ta.valuewhen(not na(pl_val), low[pvt_look],  0)
+
+// ── Box arrays — one set per side ─────────────────────────────────────────
+var box[]  bull_boxes = array.new_box()
+var int[]  bull_bars  = array.new_int()
+var bool[] bull_inst  = array.new_bool()
+var bool[] bull_ghost = array.new_bool()
+
+var box[]  bear_boxes = array.new_box()
+var int[]  bear_bars  = array.new_int()
+var bool[] bear_inst  = array.new_bool()
+var bool[] bear_ghost = array.new_bool()
+
+var box[] rjb_bull_boxes = array.new_box()
+var box[] rjb_bear_boxes = array.new_box()
+
+// ── Bull OB creation ──────────────────────────────────────────────────────
+if is_bull_ob
+    sc   = ob_score(vol_exp, bull_fvg_here, in_kz)
+    inst = sc >= 70
+    if not ob_inst_only or inst
+        ob_top = use_wicks ? high[1]             : math.max(open[1], close[1])
+        ob_bot = use_wicks ? math.min(low[1], low) : math.min(open[1], close[1])
+        new_bx = box.new(bar_index - 1, ob_top, bar_index + 1, ob_bot,
+                          border_color=ob_bdr_c(col_bull, 0.0, inst),
+                          bgcolor      =ob_fill_c(col_bull, 0.0, inst), border_width=1)
+        array.push(bull_boxes, new_bx)
+        array.push(bull_bars,  bar_index)
+        array.push(bull_inst,  inst)
+        array.push(bull_ghost, false)
+        if inst
+            label.new(bar_index - 1, ob_top, "INST",
+                       color=color.new(color.black, 55), textcolor=color.new(col_bull, 5),
+                       style=label.style_label_down, size=size.tiny)
+        if array.size(bull_boxes) > max_obs
+            box.delete(array.shift(bull_boxes))
+            array.shift(bull_bars)
+            array.shift(bull_inst)
+            array.shift(bull_ghost)
+
+// ── Bear OB creation ──────────────────────────────────────────────────────
+if is_bear_ob
+    sc   = ob_score(vol_exp, bear_fvg_here, in_kz)
+    inst = sc >= 70
+    if not ob_inst_only or inst
+        ob_top = use_wicks ? math.max(high[1], high) : math.max(open[1], close[1])
+        ob_bot = use_wicks ? low[1]                   : math.min(open[1], close[1])
+        new_bx = box.new(bar_index - 1, ob_top, bar_index + 1, ob_bot,
+                          border_color=ob_bdr_c(col_bear, 0.0, inst),
+                          bgcolor      =ob_fill_c(col_bear, 0.0, inst), border_width=1)
+        array.push(bear_boxes, new_bx)
+        array.push(bear_bars,  bar_index)
+        array.push(bear_inst,  inst)
+        array.push(bear_ghost, false)
+        if inst
+            label.new(bar_index - 1, ob_bot, "INST",
+                       color=color.new(color.black, 55), textcolor=color.new(col_bear, 5),
+                       style=label.style_label_up, size=size.tiny)
+        if array.size(bear_boxes) > max_obs
+            box.delete(array.shift(bear_boxes))
+            array.shift(bear_bars)
+            array.shift(bear_inst)
+            array.shift(bear_ghost)
+
+// ── RJB — Rejection Block ─────────────────────────────────────────────────
+// RJB1: signal bar wick doesn't fully cover the trapped candle wick — zone on trapped wick
+// RJB2: signal bar extends past trapped candle entirely — zone on signal wick
+if show_rjb and is_bull_ob
+    rjb1 = low > (close[1] - 0.2 * (close[1] - low[1]))
+    rjb2 = low < low[1]
+    if rjb1 and not rjb2
+        rjb_bx = box.new(bar_index - 1, close[1], bar_index + max_age, low[1],
+                          border_color=color.new(col_rjb_bull, 55),
+                          bgcolor      =color.new(col_rjb_bull, 90),
+                          border_width=1, border_style=line.style_dashed)
+        array.push(rjb_bull_boxes, rjb_bx)
+        if array.size(rjb_bull_boxes) > max_obs
+            box.delete(array.shift(rjb_bull_boxes))
+            array.shift(rjb_bull_boxes)
+    if rjb2
+        rjb_bx = box.new(bar_index, open, bar_index + max_age, low,
+                          border_color=color.new(col_rjb_bull, 55),
+                          bgcolor      =color.new(col_rjb_bull, 90),
+                          border_width=1, border_style=line.style_dashed)
+        array.push(rjb_bull_boxes, rjb_bx)
+        if array.size(rjb_bull_boxes) > max_obs
+            box.delete(array.shift(rjb_bull_boxes))
+            array.shift(rjb_bull_boxes)
+
+if show_rjb and is_bear_ob
+    rjb1 = high < (close[1] + 0.2 * (high[1] - close[1]))
+    rjb2 = high > high[1]
+    if rjb1 and not rjb2
+        rjb_bx = box.new(bar_index - 1, high[1], bar_index + max_age, close[1],
+                          border_color=color.new(col_rjb_bear, 55),
+                          bgcolor      =color.new(col_rjb_bear, 90),
+                          border_width=1, border_style=line.style_dashed)
+        array.push(rjb_bear_boxes, rjb_bx)
+        if array.size(rjb_bear_boxes) > max_obs
+            box.delete(array.shift(rjb_bear_boxes))
+            array.shift(rjb_bear_boxes)
+    if rjb2
+        rjb_bx = box.new(bar_index, open, bar_index + max_age, high,
+                          border_color=color.new(col_rjb_bear, 55),
+                          bgcolor      =color.new(col_rjb_bear, 90),
+                          border_width=1, border_style=line.style_dashed)
+        array.push(rjb_bear_boxes, rjb_bx)
+        if array.size(rjb_bear_boxes) > max_obs
+            box.delete(array.shift(rjb_bear_boxes))
+            array.shift(rjb_bear_boxes)
+
+// Extend RJB boxes until mitigated
+for i = 0 to array.size(rjb_bull_boxes) - 1
+    bx = array.get(rjb_bull_boxes, i)
+    if bar_index <= box.get_right(bx)
+        if close < box.get_bottom(bx)
+            box.set_bgcolor(bx, color.new(col_rjb_bull, 97)); box.set_border_color(bx, color.new(col_rjb_bull, 97))
+        else
+            box.set_right(bx, bar_index + 1)
+
+for i = 0 to array.size(rjb_bear_boxes) - 1
+    bx = array.get(rjb_bear_boxes, i)
+    if bar_index <= box.get_right(bx)
+        if close > box.get_top(bx)
+            box.set_bgcolor(bx, color.new(col_rjb_bear, 97)); box.set_border_color(bx, color.new(col_rjb_bear, 97))
+        else
+            box.set_right(bx, bar_index + 1)
+
+// ── Update Bull OBs (decay + extend + invalidation) ───────────────────────
+bull_ob_active = false
+
+for i = 0 to array.size(bull_boxes) - 1
+    bx    = array.get(bull_boxes, i)
+    b_bar = array.get(bull_bars,  i)
+    inst  = array.get(bull_inst,  i)
+    ghost = array.get(bull_ghost, i)
+    if not ghost
+        age    = bar_index - b_bar
+        ratio  = math.min(1.0, age / float(max_age))
+        ob_bot = box.get_bottom(bx)
+        ob_top = box.get_top(bx)
+        if close < ob_bot
+            array.set(bull_ghost, i, true)
+            box.set_bgcolor(bx, color.new(col_bull, 97)); box.set_border_color(bx, color.new(col_bull, 97))
+        else if age >= max_age
+            array.set(bull_ghost, i, true)
+            box.set_bgcolor(bx, color.new(col_bull, 97)); box.set_border_color(bx, color.new(col_bull, 97))
+        else
+            box.set_right(bx, bar_index + 1)
+            box.set_bgcolor(bx,      ob_fill_c(col_bull, ratio, inst))
+            box.set_border_color(bx, ob_bdr_c(col_bull,  ratio, inst))
+            if close > ob_bot and close < ob_top + atr * 0.5
+                bull_ob_active := true
+
+// ── Update Bear OBs ────────────────────────────────────────────────────────
+bear_ob_active = false
+
+for i = 0 to array.size(bear_boxes) - 1
+    bx    = array.get(bear_boxes, i)
+    b_bar = array.get(bear_bars,  i)
+    inst  = array.get(bear_inst,  i)
+    ghost = array.get(bear_ghost, i)
+    if not ghost
+        age    = bar_index - b_bar
+        ratio  = math.min(1.0, age / float(max_age))
+        ob_top = box.get_top(bx)
+        ob_bot = box.get_bottom(bx)
+        if close > ob_top
+            array.set(bear_ghost, i, true)
+            box.set_bgcolor(bx, color.new(col_bear, 97)); box.set_border_color(bx, color.new(col_bear, 97))
+        else if age >= max_age
+            array.set(bear_ghost, i, true)
+            box.set_bgcolor(bx, color.new(col_bear, 97)); box.set_border_color(bx, color.new(col_bear, 97))
+        else
+            box.set_right(bx, bar_index + 1)
+            box.set_bgcolor(bx,      ob_fill_c(col_bear, ratio, inst))
+            box.set_border_color(bx, ob_bdr_c(col_bear,  ratio, inst))
+            if close < ob_top and close > ob_bot - atr * 0.5
+                bear_ob_active := true
+
+// ── PPDD — Post-sweep Order Block ─────────────────────────────────────────
+// Highest-probability ICT setup: OB forms AFTER liquidity sweep of swing high/low
+bull_ppdd = show_ppdd and is_bull_ob and not na(pivot_bottom) and
+            math.min(low, low[1]) < pivot_bottom and close > pivot_bottom
+
+bear_ppdd = show_ppdd and is_bear_ob and not na(pivot_top) and
+            math.max(high, high[1]) > pivot_top and close < pivot_top
+
+plotshape(bull_ppdd, "Bull PPDD ⚡", style=shape.triangleup,   location=location.belowbar,
+          color=color.new(color.lime, 0), size=size.small)
+plotshape(bear_ppdd, "Bear PPDD ⚡", style=shape.triangledown, location=location.abovebar,
+          color=color.new(color.red,  0), size=size.small)
+
+// ── Stacked OB + FVG (maximum confluence) ────────────────────────────────
+bull_stacked = show_stacked and is_bull_ob and bull_fvg_here
+bear_stacked = show_stacked and is_bear_ob and bear_fvg_here
+
+plotshape(bull_stacked, "Stacked OB+FVG ▲", style=shape.diamond, location=location.belowbar,
+          color=color.new(color.lime, 0), size=size.tiny)
+plotshape(bear_stacked, "Stacked OB+FVG ▼", style=shape.diamond, location=location.abovebar,
+          color=color.new(color.red,  0), size=size.tiny)
+
+// ── HVB bar colour ────────────────────────────────────────────────────────
+barcolor(show_hvb and hvb and close > open ? color.new(col_bull, 35) : na, title="HVB Bull")
+barcolor(show_hvb and hvb and close < open ? color.new(col_bear, 35) : na, title="HVB Bear")
+
+// ── CONF entry signals ────────────────────────────────────────────────────
+long_entry  = bull_ob_active and vol_exp
+short_entry = bear_ob_active and vol_exp
+
+plotshape(long_entry,  "OB LONG",  style=shape.circle, location=location.belowbar,
+          color=color.teal,   size=size.tiny)
+plotshape(short_entry, "OB SHORT", style=shape.circle, location=location.abovebar,
+          color=color.orange, size=size.tiny)
+
+// ── Alerts ────────────────────────────────────────────────────────────────
+alertcondition(long_entry,   "ICT-01 LONG",    "ICT-01 OB LONG  · {{ticker}} · {{close}}")
+alertcondition(short_entry,  "ICT-01 SHORT",   "ICT-01 OB SHORT · {{ticker}} · {{close}}")
+alertcondition(bull_ppdd,    "ICT-01 PPDD ▲",  "ICT-01 PPDD Bull sweep OB · {{ticker}}")
+alertcondition(bear_ppdd,    "ICT-01 PPDD ▼",  "ICT-01 PPDD Bear sweep OB · {{ticker}}")
+alertcondition(bull_stacked, "ICT-01 STACK ▲", "ICT-01 Stacked OB+FVG Bull · {{ticker}}")
+alertcondition(bear_stacked, "ICT-01 STACK ▼", "ICT-01 Stacked OB+FVG Bear · {{ticker}}")

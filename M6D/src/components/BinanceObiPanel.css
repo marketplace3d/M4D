@@ -1,0 +1,56 @@
+.bnb-panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  background: #060e1a;
+  border-top: 1px solid #0d1f3c;
+  flex-shrink: 0;
+}
+
+.bnb-panel__hdr {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 10px;
+  font-size: 10.5px;
+  font-family: 'JetBrains Mono', 'Fira Mono', ui-monospace, monospace;
+  flex-shrink: 0;
+  min-height: 22px;
+}
+
+.bnb-panel__dot { font-size: 9px; line-height: 1; }
+.bnb-panel__dot--live       { color: #f0a020; } /* Binance orange */
+.bnb-panel__dot--connecting { color: #f0a020; animation: bnb-pulse 0.9s ease-in-out infinite; }
+.bnb-panel__dot--error      { color: #e05050; }
+.bnb-panel__dot--idle       { color: #3a4a5a; }
+
+@keyframes bnb-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.25; }
+}
+
+.bnb-panel__label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  color: #c07020;
+  text-transform: uppercase;
+}
+
+.bnb-panel__mid   { color: #c0c8d0; font-variant-numeric: tabular-nums; font-weight: 600; }
+.bnb-panel__val   { color: #7090a8; }
+.bnb-panel__val strong { font-weight: 700; }
+.bnb-panel__sep   { color: #1e2e3e; }
+.bnb-panel__bid   { color: #00a888; font-variant-numeric: tabular-nums; }
+.bnb-panel__ask   { color: #c04040; font-variant-numeric: tabular-nums; }
+.bnb-panel__buys  { color: #00c890; font-weight: 700; }
+.bnb-panel__sells { color: #e05050; font-weight: 700; }
+.bnb-panel__hint  { color: #3a4a5a; font-size: 9px; }
+.bnb-panel__connecting { color: #f0a020; }
+.bnb-panel__warn       { color: #e05050; font-size: 10px; }
+
+.bnb-panel__canvas {
+  width: 100%;
+  display: block;
+  flex-shrink: 0;
+}

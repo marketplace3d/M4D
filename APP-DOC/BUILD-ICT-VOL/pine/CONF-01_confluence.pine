@@ -1,0 +1,166 @@
+// CONF-01 — Weighted Confluence Scorer
+// Weights applied per spec: ICT-01=18% OB · ICT-02=12% FVG · LIQ-01=15% HUNT
+//                           OR-01=10% ORB · MSS-01=13% CHoCH · VWAP-01=8% VWAP · VOL-01=24% (replaces raw CONF)
+// Output: 0–100 weighted score. Threshold default = 60 (equivalent to ~6/8 raw)
+// Faded/aged zones still counted (visual decay ≠ algo contribution)
+
+//@version=5
+indicator("CONF-01 · Weighted Confluence", overlay=false, max_lines_count=5)
+
+// ── Inputs ────────────────────────────────────────────────────────────────────
+conf_threshold = input.int(60,    "Min weighted score (0–100)", minval=30, maxval=95)
+htf_bias_tf    = input.timeframe("D", "HTF bias timeframe")
+show_table     = input.bool(true, "Show score table")
+atr_p          = input.int(14,    "ATR period")
+
+// ── Weights (must sum to 100) ──────────────────────────────────────────────────
+w_ob   = 18; w_fvg  = 12; w_liq  = 15
+w_orb  = 10; w_mss  = 13; w_vwap =  8; w_vol  = 24
+// total = 100
+
+// ── Core indicators ───────────────────────────────────────────────────────────
+atr     = ta.atr(atr_p)
+vwap_d  = ta.vwap(hlc3)
+rsi     = ta.rsi(close, 14)
+vol_avg = ta.sma(volume, 20)
+rvol    = volume / vol_avg
+
+// ── HTF bias ──────────────────────────────────────────────────────────────────
+htf_close_d = request.security(syminfo.tickerid, htf_bias_tf, close, lookahead=barmerge.lookahead_off)
+htf_open_d  = request.security(syminfo.tickerid, htf_bias_tf, open,  lookahead=barmerge.lookahead_off)
+htf_bull = htf_close_d > htf_open_d and close > vwap_d
+htf_bear = htf_close_d < htf_open_d and close < vwap_d
+
+// ── ICT-01 OB proxy ───────────────────────────────────────────────────────────
+// HTF-confirmed: displacement into prior candle's range, HTF bias aligned
+bull_disp = (close - open) > 1.5 * atr
+bear_disp = (open - close) > 1.5 * atr
+bull_ob   = bull_disp and htf_bull and close > ta.highest(close, 20)[1]
+bear_ob   = bear_disp and htf_bear and close < ta.lowest(close,  20)[1]
+
+// ── ICT-02 FVG proxy ──────────────────────────────────────────────────────────
+// Count ANY open FVG (inc faded) — zone still magnetic even if barely visible
+bull_fvg = low  > high[2]
+bear_fvg = high < low[2]
+// Persist recent FVG (faded zones still active)
+var bool active_bull_fvg = false; var bool active_bear_fvg = false
+var int  fvg_bull_age    = 0;     var int  fvg_bear_age    = 0
+if bull_fvg  then active_bull_fvg := true,  fvg_bull_age := 0
+if bear_fvg  then active_bear_fvg := true,  fvg_bear_age := 0
+if active_bull_fvg  then fvg_bull_age := fvg_bull_age + 1
+if active_bear_fvg  then fvg_bear_age := fvg_bear_age + 1
+// Expire after 80 bars (matches ICT-02 max_age)
+if fvg_bull_age > 80 then active_bull_fvg := false
+if fvg_bear_age > 80 then active_bear_fvg := false
+// Still contributes at half weight if age > 40 (faded zone)
+fvg_bull_weight = active_bull_fvg ? (fvg_bull_age > 40 ? w_fvg * 0.5 : w_fvg) : 0.0
+fvg_bear_weight = active_bear_fvg ? (fvg_bear_age > 40 ? w_fvg * 0.5 : w_fvg) : 0.0
+
+// ── LIQ-01 stop hunt proxy ────────────────────────────────────────────────────
+eq_high   = ta.highest(high, 20)[1]
+eq_low    = ta.lowest(low,   20)[1]
+tick      = syminfo.mintick
+bull_hunt = low  <= eq_low  + 3 * tick and close > eq_low  and volume > vol_avg * 2.0
+bear_hunt = high >= eq_high - 3 * tick and close < eq_high and volume > vol_avg * 2.0
+
+// ── OR-01 ORB proxy ───────────────────────────────────────────────────────────
+bull_orb = close > vwap_d and rvol >= 1.5 and htf_bull
+bear_orb = close < vwap_d and rvol >= 1.5 and htf_bear
+
+// ── MSS-01 CHoCH proxy ────────────────────────────────────────────────────────
+ph = ta.pivothigh(high, 5, 5)
+pl = ta.pivotlow(low,   5, 5)
+var float last_ph = na; var float last_pl = na
+if not na(ph) then last_ph := ph
+if not na(pl) then last_pl := pl
+bull_choch = not na(last_pl) and close > last_pl and bull_disp and htf_bull
+bear_choch = not na(last_ph) and close < last_ph and bear_disp and htf_bear
+
+// ── VWAP-01 proxy ─────────────────────────────────────────────────────────────
+bull_vwap = ta.crossover(close,  vwap_d) and volume > vol_avg * 1.2
+bear_vwap = ta.crossunder(close, vwap_d) and volume > vol_avg * 1.2
+
+// ── VOL-01 cumulative delta proxy ─────────────────────────────────────────────
+// Close in upper half of bar = buying pressure; lower = selling
+bar_delta   = (close - low) / math.max(high - low, syminfo.mintick) * 2 - 1  // -1 to +1
+cum_delta   = ta.cum(bar_delta * volume)
+delta_slope = cum_delta - cum_delta[5]
+bull_vol    = delta_slope > 0 and rvol > 1.0
+bear_vol    = delta_slope < 0 and rvol > 1.0
+
+// ── Weighted score ────────────────────────────────────────────────────────────
+bull_score = (bull_ob    ? w_ob   : 0) +
+             fvg_bull_weight            +
+             (bull_hunt  ? w_liq  : 0) +
+             (bull_orb   ? w_orb  : 0) +
+             (bull_choch ? w_mss  : 0) +
+             (bull_vwap  ? w_vwap : 0) +
+             (bull_vol   ? w_vol  : 0)
+
+bear_score = (bear_ob    ? w_ob   : 0) +
+             fvg_bear_weight            +
+             (bear_hunt  ? w_liq  : 0) +
+             (bear_orb   ? w_orb  : 0) +
+             (bear_choch ? w_mss  : 0) +
+             (bear_vwap  ? w_vwap : 0) +
+             (bear_vol   ? w_vol  : 0)
+
+bull_conf = bull_score >= conf_threshold
+bear_conf = bear_score >= conf_threshold
+
+// ── Plot ──────────────────────────────────────────────────────────────────────
+plot(bull_score, "Bull Score", color=color.new(color.green, 20), linewidth=2)
+plot(bear_score, "Bear Score", color=color.new(color.red,   20), linewidth=2)
+plot(100,        "Max",        color=color.new(color.gray,  80), linewidth=1)
+hline(conf_threshold, "Threshold", color=color.yellow, linestyle=hline.style_dashed, linewidth=1)
+hline(0,              "Zero",      color=color.gray,   linestyle=hline.style_dotted)
+
+bgcolor(bull_conf ? color.new(color.green, 88) : na, title="Bull Confluence")
+bgcolor(bear_conf ? color.new(color.red,   88) : na, title="Bear Confluence")
+
+// ── Score bar (horizontal strength indicator) ─────────────────────────────────
+// Draw as filled area for quick read
+plot(bull_conf ? bull_score : na, "CONF BULL", color=color.new(color.lime,    0), style=plot.style_area, linewidth=1)
+plot(bear_conf ? -bear_score : na,"CONF BEAR", color=color.new(color.fuchsia, 0), style=plot.style_area, linewidth=1)
+
+// ── Score table ───────────────────────────────────────────────────────────────
+if show_table and barstate.islast
+    var table t = table.new(position.top_right, 4, 9, border_width=1,
+                            frame_color=color.new(color.gray, 60))
+    // Header
+    for c = 0 to 3
+        hdr_txt = c == 0 ? "SIGNAL" : c == 1 ? "W%" : c == 2 ? "BULL" : "BEAR"
+        hdr_col = c == 0 ? color.gray : c == 1 ? color.gray : color.green
+        table.cell(t, c, 0, hdr_txt,
+                   text_color= c == 3 ? color.red : hdr_col,
+                   bgcolor=color.new(color.black, 55), text_size=size.small)
+
+    labels  = array.from("OB", "FVG", "HUNT", "ORB", "CHoCH", "VWAP", "VOL Δ")
+    weights = array.from(w_ob, w_fvg, w_liq, w_orb, w_mss, w_vwap, w_vol)
+    b_vals  = array.from(bull_ob, active_bull_fvg, bull_hunt, bull_orb, bull_choch, bull_vwap, bull_vol)
+    br_vals = array.from(bear_ob, active_bear_fvg, bear_hunt, bear_orb, bear_choch, bear_vwap, bear_vol)
+
+    for i = 0 to 6
+        bv = array.get(b_vals, i)
+        brv= array.get(br_vals, i)
+        table.cell(t, 0, i+1, array.get(labels, i), text_color=color.gray,   bgcolor=color.new(color.black, 70), text_size=size.small)
+        table.cell(t, 1, i+1, str.tostring(array.get(weights, i)) + "%",      text_color=color.gray,   bgcolor=color.new(color.black, 70), text_size=size.small)
+        table.cell(t, 2, i+1, bv  ? "▲" : "–", text_color=bv  ? color.green : color.new(color.gray, 50), bgcolor=color.new(color.black, 70), text_size=size.small)
+        table.cell(t, 3, i+1, brv ? "▼" : "–", text_color=brv ? color.red   : color.new(color.gray, 50), bgcolor=color.new(color.black, 70), text_size=size.small)
+
+    // Score row
+    bull_col = bull_score >= conf_threshold ? color.lime  : bull_score >= 40 ? color.yellow : color.gray
+    bear_col = bear_score >= conf_threshold ? color.fuchsia: bear_score >= 40 ? color.yellow : color.gray
+    table.cell(t, 0, 8, "SCORE",              text_color=color.white,  bgcolor=color.new(color.black, 45), text_size=size.small)
+    table.cell(t, 1, 8, "/ 100",              text_color=color.gray,   bgcolor=color.new(color.black, 45), text_size=size.small)
+    table.cell(t, 2, 8, str.tostring(math.round(bull_score)), text_color=bull_col, bgcolor=color.new(color.black, 45), text_size=size.normal)
+    table.cell(t, 3, 8, str.tostring(math.round(bear_score)), text_color=bear_col, bgcolor=color.new(color.black, 45), text_size=size.normal)
+
+// ── Alerts — wire to Python → Claude API ─────────────────────────────────────
+// Payload includes score for Claude context
+alertcondition(bull_conf, "CONF-01 BULL",
+    "CONF-01 BULL · score=" + str.tostring(math.round(bull_score)) +
+    " · " + syminfo.ticker + " · " + str.tostring(close) + " · " + str.tostring(timenow))
+alertcondition(bear_conf, "CONF-01 BEAR",
+    "CONF-01 BEAR · score=" + str.tostring(math.round(bear_score)) +
+    " · " + syminfo.ticker + " · " + str.tostring(close) + " · " + str.tostring(timenow))

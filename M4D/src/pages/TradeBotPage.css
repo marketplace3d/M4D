@@ -1,0 +1,171 @@
+.trade-fire-page {
+  min-height: calc(100dvh - var(--app-header-h));
+  background: radial-gradient(120% 120% at 50% 0%, #080c17 0%, #04070d 55%, #020307 100%);
+  color: #d0dfec;
+  padding: 0 10px 10px;
+}
+
+.trade-fire-head {
+  margin: 0 0 4px;
+  padding-top: 1px;
+}
+
+.trade-fire-k {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 17px;
+  letter-spacing: 0.16em;
+  color: #f43f5e;
+  line-height: 1.05;
+}
+
+.trade-fire-sub {
+  font-size: 10px;
+  font-family: 'Share Tech Mono', 'Courier New', ui-monospace, monospace;
+  color: #8ca8ba;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.trade-fire-shell {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.trade-fire-main {
+  min-width: 0;
+}
+
+.trade-fire-charts {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.trade-fire-card {
+  border: 1px solid #173247;
+  background: #060c12;
+  padding: 8px;
+}
+
+.trade-fire-card__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.trade-fire-card__title {
+  font-size: 12px;
+  color: #7dd3fc;
+  letter-spacing: 0.1em;
+}
+
+.trade-fire-chart {
+  margin-top: 6px;
+  min-height: 170px;
+  height: clamp(180px, 33dvh, 260px);
+  border: 1px solid #1a2d3c;
+  background: #020408;
+}
+
+.trade-fire-chart .tv-lw-chart-outer {
+  min-height: 0;
+  height: 100%;
+}
+
+.trade-fire-chart .tv-lw-chart-wrap {
+  min-height: 0;
+  height: 100%;
+}
+
+.trade-fire-tabs {
+  display: flex;
+  gap: 6px;
+}
+
+.trade-fire-tabs button {
+  border: 1px solid #2c4355;
+  background: #0a121b;
+  color: #8da6b8;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.trade-fire-tabs button.is-active {
+  border-color: #22d3ee;
+  color: #22d3ee;
+}
+
+.trade-fire-err {
+  color: #f87171;
+  margin-top: 8px;
+}
+
+.trade-fire-orbs {
+  display: block;
+  border: 1px solid #173247;
+  background: #060c12;
+  padding: 8px;
+  max-height: min(100dvh - 120px, 1180px);
+  overflow: auto;
+}
+
+.trade-fire-orb-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px;
+}
+
+.trade-fire-orb-row--core {
+  margin-bottom: 8px;
+}
+
+.trade-fire-orb-row--new {
+  margin-top: 8px;
+}
+
+.trade-fire-indicators {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 2px 0 4px;
+}
+
+.trade-fire-indicator {
+  border: 1px solid #1f3548;
+  background: #08121b;
+  color: #8ca8ba;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  padding: 3px 6px;
+}
+
+@media (min-width: 1100px) {
+  .trade-fire-charts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1500px) {
+  .trade-fire-shell {
+    grid-template-columns: minmax(0, 1fr) 360px;
+    align-items: start;
+  }
+  .trade-fire-orbs {
+    position: sticky;
+    top: calc(var(--app-header-h) + 8px);
+  }
+  .trade-fire-chart {
+    height: clamp(190px, 33dvh, 280px);
+  }
+}

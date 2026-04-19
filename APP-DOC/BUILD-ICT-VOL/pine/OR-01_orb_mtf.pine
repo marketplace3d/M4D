@@ -1,0 +1,68 @@
+// OR-01 — Opening Range Breakout + MTF Alignment
+// Weight: 10%
+// Logic: First 15m candle range · breakout with 1.5x RVOL · HTF bias (price vs daily VWAP) · no OB blocking
+// Edge: Institutional order flood at open — ORB captures directional commitment from largest players
+
+//@version=5
+indicator("OR-01 · ORB + MTF Align", overlay=true)
+
+// ── Inputs ────────────────────────────────────────────────────────────────────
+orb_tf       = input.timeframe("15",  "ORB timeframe (first candle)")
+htf_tf       = input.timeframe("D",   "HTF bias timeframe")
+rvol_mult    = input.float(1.5,       "Min RVOL",           minval=1.0, maxval=5.0, step=0.1)
+extend_bars  = input.int(50,          "ORB line extend (bars)", minval=10, maxval=200)
+
+// ── Session open detection ────────────────────────────────────────────────────
+// NY session: 09:30 ET = 14:30 UTC
+is_ny_open = (hour == 9 and minute == 30 and syminfo.timezone == "America/New_York") or
+             (hour == 14 and minute == 30 and syminfo.timezone == "UTC")
+
+// ── First 15m bar of session ──────────────────────────────────────────────────
+orb_high_raw = request.security(syminfo.tickerid, orb_tf, high,  lookahead=barmerge.lookahead_off)
+orb_low_raw  = request.security(syminfo.tickerid, orb_tf, low,   lookahead=barmerge.lookahead_off)
+
+var float orb_high = na
+var float orb_low  = na
+var bool  orb_set  = false
+
+// Reset at session open
+if dayofweek != dayofweek[1]
+    orb_set  := false
+    orb_high := na
+    orb_low  := na
+
+// Capture first 15m bar
+if not orb_set and not na(orb_high_raw)
+    orb_high := orb_high_raw
+    orb_low  := orb_low_raw
+    orb_set  := true
+
+// ── HTF VWAP bias ─────────────────────────────────────────────────────────────
+// Use daily VWAP as HTF bias proxy
+vwap_daily = ta.vwap(hlc3)
+htf_bias_bull = close > vwap_daily
+htf_bias_bear = close < vwap_daily
+
+// ── RVOL ──────────────────────────────────────────────────────────────────────
+vol_avg  = ta.sma(volume, 20)
+rvol     = volume / vol_avg
+rvol_ok  = rvol >= rvol_mult
+
+// ── Breakout ──────────────────────────────────────────────────────────────────
+bull_bo = orb_set and close > orb_high and rvol_ok and htf_bias_bull
+bear_bo = orb_set and close < orb_low  and rvol_ok and htf_bias_bear
+
+plotshape(bull_bo, "ORB Long",  style=shape.triangleup,  location=location.belowbar, color=color.aqua,   size=size.small)
+plotshape(bear_bo, "ORB Short", style=shape.triangledown, location=location.abovebar, color=color.yellow, size=size.small)
+
+// ── ORB levels ────────────────────────────────────────────────────────────────
+plot(orb_set ? orb_high : na, "ORB High", color=color.new(color.aqua,   40), style=plot.style_linebr, linewidth=1)
+plot(orb_set ? orb_low  : na, "ORB Low",  color=color.new(color.yellow, 40), style=plot.style_linebr, linewidth=1)
+plot(orb_set ? (orb_high + orb_low) / 2 : na, "ORB Mid", color=color.new(color.gray, 60), style=plot.style_linebr, linewidth=1)
+
+// VWAP
+plot(vwap_daily, "VWAP", color=color.new(color.purple, 30), linewidth=1)
+
+// ── Alerts ────────────────────────────────────────────────────────────────────
+alertcondition(bull_bo, "OR-01 LONG",  "OR-01: ORB Breakout Long · {{ticker}} · RVOL={{custom_1}}")
+alertcondition(bear_bo, "OR-01 SHORT", "OR-01: ORB Breakout Short · {{ticker}} · RVOL={{custom_1}}")

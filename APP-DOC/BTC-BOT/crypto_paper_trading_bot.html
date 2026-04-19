@@ -1,0 +1,505 @@
+
+<div style="font-family: 'Courier New', monospace; padding: 0; color: var(--color-text-primary);">
+
+<style>
+:root { --green: #1a9e6e; --red: #d94040; --accent: #f0a500; --surface: var(--color-background-secondary); --border: var(--color-border-tertiary); }
+.panel { background: var(--color-background-primary); border: 0.5px solid var(--border); border-radius: 10px; padding: 14px; }
+.metric { background: var(--surface); border-radius: 8px; padding: 10px 14px; }
+.metric .val { font-size: 22px; font-weight: 500; }
+.metric .lbl { font-size: 11px; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.06em; }
+.pos { color: var(--green); } .neg { color: var(--red); }
+.tag { font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 500; }
+.tag-buy { background: #1a9e6e22; color: var(--green); }
+.tag-sell { background: #d9404022; color: var(--red); }
+.tag-hold { background: #f0a50022; color: var(--accent); }
+.tag-long { background: #1a9e6e22; color: var(--green); }
+.btn { border: 0.5px solid var(--border); border-radius: 6px; padding: 6px 14px; font-family: inherit; font-size: 12px; background: var(--surface); color: var(--color-text-primary); cursor: pointer; }
+.btn:hover { background: var(--color-background-secondary); }
+.btn-accent { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 500; }
+.btn-accent:hover { opacity: 0.88; }
+.btn-red { background: #d9404018; color: var(--red); border-color: #d9404044; }
+select, input { font-family: inherit; font-size: 12px; border: 0.5px solid var(--border); border-radius: 6px; padding: 5px 10px; background: var(--surface); color: var(--color-text-primary); }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+td, th { padding: 7px 10px; border-bottom: 0.5px solid var(--border); text-align: left; }
+th { font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--color-text-secondary); font-weight: 500; }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+.dot-green { background: var(--green); box-shadow: 0 0 0 2px #1a9e6e33; }
+.dot-red { background: var(--red); }
+.dot-yellow { background: var(--accent); }
+.log-line { font-size: 11px; padding: 3px 0; border-bottom: 0.5px solid var(--border); display: flex; gap: 10px; }
+.log-time { color: var(--color-text-secondary); min-width: 60px; }
+</style>
+
+<!-- Header -->
+<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+  <div style="display:flex; align-items:center; gap:10px;">
+    <span style="font-size:18px; font-weight:500;">⬡ CryptoBot</span>
+    <span style="font-size:11px; color:var(--color-text-secondary); background:var(--surface); padding:2px 8px; border-radius:4px; border:0.5px solid var(--border);">PAPER TRADING</span>
+  </div>
+  <div style="display:flex; align-items:center; gap:8px;">
+    <span id="bot-status-dot" class="status-dot dot-yellow"></span>
+    <span id="bot-status-txt" style="font-size:12px;">Idle</span>
+    <button class="btn btn-accent" id="startBtn" onclick="toggleBot()">Start Bot</button>
+    <button class="btn" onclick="resetPaper()">Reset</button>
+  </div>
+</div>
+
+<!-- Top metrics -->
+<div style="display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-bottom:14px;">
+  <div class="metric"><div class="lbl">Portfolio</div><div class="val" id="m-portfolio">$10,000</div></div>
+  <div class="metric"><div class="lbl">Cash</div><div class="val" id="m-cash">$10,000</div></div>
+  <div class="metric"><div class="lbl">P&L</div><div class="val" id="m-pnl">$0.00</div></div>
+  <div class="metric"><div class="lbl">Win Rate</div><div class="val" id="m-winrate">—</div></div>
+  <div class="metric"><div class="lbl">Trades</div><div class="val" id="m-trades">0</div></div>
+</div>
+
+<!-- Chart + controls row -->
+<div style="display:grid; grid-template-columns:1fr 260px; gap:12px; margin-bottom:14px;">
+
+  <!-- Chart panel -->
+  <div class="panel">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+      <div style="display:flex; gap:8px; align-items:center;">
+        <select id="pairSelect" onchange="changePair()">
+          <option value="BTCUSDT">BTC/USDT</option>
+          <option value="ETHUSDT">ETH/USDT</option>
+          <option value="SOLUSDT">SOL/USDT</option>
+          <option value="BNBUSDT">BNB/USDT</option>
+          <option value="XRPUSDT">XRP/USDT</option>
+          <option value="DOGEUSDT">DOGE/USDT</option>
+        </select>
+        <select id="intervalSelect" onchange="changePair()">
+          <option value="1m">1m</option>
+          <option value="5m" selected>5m</option>
+          <option value="15m">15m</option>
+          <option value="1h">1h</option>
+          <option value="4h">4h</option>
+        </select>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span id="live-price" style="font-size:18px; font-weight:500;">—</span>
+        <span id="live-change" style="font-size:12px;">—</span>
+        <button class="btn" onclick="fetchData()" style="font-size:11px;">↻ Refresh</button>
+      </div>
+    </div>
+    <div style="position:relative; height:240px;">
+      <canvas id="priceChart"></canvas>
+    </div>
+    <!-- Signal indicators row -->
+    <div style="display:flex; gap:16px; margin-top:10px; font-size:11px; color:var(--color-text-secondary);">
+      <span>RSI: <b id="ind-rsi" style="color:var(--color-text-primary);">—</b></span>
+      <span>SMA20: <b id="ind-sma" style="color:var(--color-text-primary);">—</b></span>
+      <span>MACD: <b id="ind-macd" style="color:var(--color-text-primary);">—</b></span>
+      <span>Signal: <b id="ind-signal">—</b></span>
+    </div>
+  </div>
+
+  <!-- Strategy panel -->
+  <div class="panel" style="display:flex; flex-direction:column; gap:12px;">
+    <div style="font-size:13px; font-weight:500;">Strategy Config</div>
+
+    <div>
+      <div style="font-size:11px; color:var(--color-text-secondary); margin-bottom:4px;">Strategy</div>
+      <select id="stratSelect" style="width:100%;">
+        <option value="rsi">RSI Reversal</option>
+        <option value="macd">MACD Crossover</option>
+        <option value="sma">SMA Crossover</option>
+        <option value="breakout">Breakout</option>
+      </select>
+    </div>
+    <div>
+      <div style="font-size:11px; color:var(--color-text-secondary); margin-bottom:4px;">Trade Size (% of cash)</div>
+      <input type="range" min="5" max="50" value="20" id="sizeSlider" style="width:100%;" oninput="document.getElementById('sizeVal').textContent=this.value+'%'">
+      <span id="sizeVal" style="font-size:12px;">20%</span>
+    </div>
+    <div>
+      <div style="font-size:11px; color:var(--color-text-secondary); margin-bottom:4px;">Stop Loss %</div>
+      <input type="range" min="1" max="15" value="3" id="stopSlider" style="width:100%;" oninput="document.getElementById('stopVal').textContent=this.value+'%'">
+      <span id="stopVal" style="font-size:12px;">3%</span>
+    </div>
+    <div>
+      <div style="font-size:11px; color:var(--color-text-secondary); margin-bottom:4px;">Take Profit %</div>
+      <input type="range" min="2" max="30" value="6" id="tpSlider" style="width:100%;" oninput="document.getElementById('tpVal').textContent=this.value+'%'">
+      <span id="tpVal" style="font-size:12px;">6%</span>
+    </div>
+    <div style="margin-top:auto;">
+      <button class="btn btn-accent" style="width:100%; margin-bottom:6px;" onclick="manualTrade('BUY')">Manual BUY</button>
+      <button class="btn btn-red" style="width:100%;" onclick="manualTrade('SELL')">Manual SELL</button>
+    </div>
+  </div>
+</div>
+
+<!-- Open position + trade log -->
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px;">
+
+  <!-- Open position -->
+  <div class="panel">
+    <div style="font-size:12px; font-weight:500; margin-bottom:10px; color:var(--color-text-secondary);">Open Position</div>
+    <div id="open-position">
+      <div style="font-size:12px; color:var(--color-text-secondary); text-align:center; padding:20px 0;">No open position</div>
+    </div>
+  </div>
+
+  <!-- Trade history -->
+  <div class="panel">
+    <div style="font-size:12px; font-weight:500; margin-bottom:10px; color:var(--color-text-secondary);">Trade History</div>
+    <div style="overflow-y:auto; max-height:130px;">
+      <table>
+        <thead><tr><th>Pair</th><th>Side</th><th>Entry</th><th>Exit</th><th>P&L</th></tr></thead>
+        <tbody id="trade-table"><tr><td colspan="5" style="text-align:center; color:var(--color-text-secondary);">No trades yet</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Bot log -->
+<div class="panel">
+  <div style="font-size:12px; font-weight:500; margin-bottom:8px; color:var(--color-text-secondary);">Bot Log</div>
+  <div id="bot-log" style="max-height:120px; overflow-y:auto;">
+    <div class="log-line"><span class="log-time">00:00:00</span><span style="color:var(--accent);">System initialised. Select a strategy and press Start Bot.</span></div>
+  </div>
+</div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+let priceChart = null;
+let candles = [];
+let botRunning = false;
+let botInterval = null;
+let position = null;
+let trades = [];
+let cash = 10000;
+let winCount = 0;
+let lossCount = 0;
+const INIT_CASH = 10000;
+
+function log(msg, type) {
+  const box = document.getElementById('bot-log');
+  const now = new Date().toLocaleTimeString('en',{hour12:false});
+  const colors = { info: 'var(--color-text-primary)', buy: '#1a9e6e', sell: '#d94040', warn: '#f0a500', sys: '#888' };
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  line.innerHTML = `<span class="log-time">${now}</span><span style="color:${colors[type||'info']}">${msg}</span>`;
+  box.insertBefore(line, box.firstChild);
+  if (box.children.length > 50) box.removeChild(box.lastChild);
+}
+
+async function fetchData() {
+  const pair = document.getElementById('pairSelect').value;
+  const interval = document.getElementById('intervalSelect').value;
+  try {
+    const url = `https://api.binance.com/api/v3/klines?symbol=${pair}&interval=${interval}&limit=80`;
+    const res = await fetch(url);
+    const data = await res.json();
+    candles = data.map(k => ({
+      t: k[0], open: +k[1], high: +k[2], low: +k[3], close: +k[4], vol: +k[5]
+    }));
+    renderChart();
+    updateIndicators();
+    const last = candles[candles.length-1];
+    const prev = candles[candles.length-2];
+    document.getElementById('live-price').textContent = '$'+last.close.toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:4});
+    const chg = ((last.close - prev.close)/prev.close*100);
+    const el = document.getElementById('live-change');
+    el.textContent = (chg>=0?'+':'')+chg.toFixed(2)+'%';
+    el.style.color = chg>=0 ? 'var(--green)' : 'var(--red)';
+    checkStopLossTakeProfit(last.close);
+  } catch(e) {
+    log('Failed to fetch data: '+e.message, 'warn');
+  }
+}
+
+function calcSMA(arr, n) {
+  if (arr.length < n) return null;
+  const slice = arr.slice(-n);
+  return slice.reduce((a,b)=>a+b,0)/n;
+}
+
+function calcRSI(closes, n=14) {
+  if (closes.length < n+1) return null;
+  const sliced = closes.slice(-n-1);
+  let gains=0, losses=0;
+  for (let i=1;i<sliced.length;i++) {
+    const d = sliced[i]-sliced[i-1];
+    if(d>0) gains+=d; else losses-=d;
+  }
+  const rs = gains/losses;
+  return 100 - 100/(1+rs);
+}
+
+function calcMACD(closes) {
+  if (closes.length < 26) return {macd:null,signal:null};
+  const ema = (arr,n) => {
+    const k=2/(n+1);
+    let e=arr.slice(0,n).reduce((a,b)=>a+b,0)/n;
+    for(let i=n;i<arr.length;i++) e=arr[i]*k+e*(1-k);
+    return e;
+  };
+  const ema12=ema(closes,12), ema26=ema(closes,26);
+  const macd=ema12-ema26;
+  return {macd, signal: macd*0.9};
+}
+
+function updateIndicators() {
+  const closes = candles.map(c=>c.close);
+  const rsi = calcRSI(closes);
+  const sma20 = calcSMA(closes,20);
+  const {macd} = calcMACD(closes);
+  const last = closes[closes.length-1];
+
+  document.getElementById('ind-rsi').textContent = rsi ? rsi.toFixed(1) : '—';
+  document.getElementById('ind-sma').textContent = sma20 ? '$'+sma20.toFixed(2) : '—';
+  document.getElementById('ind-macd').textContent = macd ? macd.toFixed(2) : '—';
+
+  const sig = computeSignal(closes, rsi, sma20, macd, last);
+  const sigEl = document.getElementById('ind-signal');
+  sigEl.textContent = sig;
+  sigEl.className = sig==='BUY'?'tag tag-buy':sig==='SELL'?'tag tag-sell':'tag tag-hold';
+}
+
+function computeSignal(closes, rsi, sma20, macd, last) {
+  const strat = document.getElementById('stratSelect').value;
+  if (!rsi || !sma20) return 'HOLD';
+  if (strat==='rsi') {
+    if (rsi < 32) return 'BUY';
+    if (rsi > 68) return 'SELL';
+    return 'HOLD';
+  }
+  if (strat==='macd') {
+    if (!macd) return 'HOLD';
+    return macd > 0 ? 'BUY' : 'SELL';
+  }
+  if (strat==='sma') {
+    const sma5 = calcSMA(closes,5);
+    if (!sma5) return 'HOLD';
+    return sma5 > sma20 ? 'BUY' : 'SELL';
+  }
+  if (strat==='breakout') {
+    const highs = closes.slice(-20);
+    const maxH = Math.max(...highs.slice(0,-1));
+    const minL = Math.min(...highs.slice(0,-1));
+    if (last > maxH) return 'BUY';
+    if (last < minL) return 'SELL';
+    return 'HOLD';
+  }
+  return 'HOLD';
+}
+
+function renderChart() {
+  if (!candles.length) return;
+  const labels = candles.map(c => new Date(c.t).toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',hour12:false}));
+  const closes = candles.map(c=>c.close);
+  const sma20 = closes.map((_,i,arr)=>i>=19?arr.slice(i-19,i+1).reduce((a,b)=>a+b,0)/20:null);
+
+  const isDark = matchMedia('(prefers-color-scheme: dark)').matches;
+  const gridColor = isDark ? '#ffffff18' : '#00000012';
+  const textColor = isDark ? '#aaa' : '#888';
+
+  if (priceChart) { priceChart.destroy(); priceChart=null; }
+  const ctx = document.getElementById('priceChart').getContext('2d');
+
+  // Color price line based on direction
+  const priceColor = closes[closes.length-1] >= closes[0] ? '#1a9e6e' : '#d94040';
+
+  // Add buy/sell markers
+  const buyPoints = candles.map((c,i)=>null);
+  const sellPoints = candles.map((c,i)=>null);
+  trades.forEach(t=>{
+    const pair = document.getElementById('pairSelect').value;
+    if (t.pair===pair) {
+      const buyIdx = candles.findIndex(c=>c.t===t.entryTime);
+      const sellIdx = candles.findIndex(c=>c.t===t.exitTime);
+      if (buyIdx>=0) buyPoints[buyIdx]=closes[buyIdx];
+      if (sellIdx>=0) sellPoints[sellIdx]=closes[sellIdx];
+    }
+  });
+
+  priceChart = new Chart(ctx, {
+    type:'line',
+    data:{
+      labels,
+      datasets:[
+        {label:'Price',data:closes,borderColor:priceColor,borderWidth:1.5,pointRadius:0,tension:0.2,fill:false},
+        {label:'SMA20',data:sma20,borderColor:'#f0a500',borderWidth:1,pointRadius:0,tension:0.2,fill:false,borderDash:[4,2]},
+        {label:'Buy',data:buyPoints,pointStyle:'triangle',pointRadius:8,pointBackgroundColor:'#1a9e6e',showLine:false,fill:false},
+        {label:'Sell',data:sellPoints,pointStyle:'triangle',pointRadius:8,rotation:180,pointBackgroundColor:'#d94040',showLine:false,fill:false}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,
+        callbacks:{label:ctx=>`$${ctx.parsed.y.toFixed(2)}`}}},
+      scales:{
+        x:{ticks:{color:textColor,font:{size:9},maxTicksLimit:10,maxRotation:0},grid:{color:gridColor}},
+        y:{ticks:{color:textColor,font:{size:9},callback:v=>'$'+v.toLocaleString()},grid:{color:gridColor}}
+      }
+    }
+  });
+}
+
+function checkStopLossTakeProfit(price) {
+  if (!position) return;
+  const sl = parseFloat(document.getElementById('stopSlider').value)/100;
+  const tp = parseFloat(document.getElementById('tpSlider').value)/100;
+  const slPrice = position.entry * (1-sl);
+  const tpPrice = position.entry * (1+tp);
+  if (price <= slPrice) {
+    log(`Stop loss hit @ $${price.toFixed(2)}`, 'sell');
+    closeTrade(price, 'SL');
+  } else if (price >= tpPrice) {
+    log(`Take profit hit @ $${price.toFixed(2)}`, 'buy');
+    closeTrade(price, 'TP');
+  }
+}
+
+function openTrade(price) {
+  if (position) { log('Already in a position', 'warn'); return; }
+  const pct = parseFloat(document.getElementById('sizeSlider').value)/100;
+  const amount = cash * pct;
+  const qty = amount / price;
+  const pair = document.getElementById('pairSelect').value;
+  position = { pair, entry: price, qty, amount, entryTime: candles[candles.length-1]?.t };
+  cash -= amount;
+  log(`OPEN LONG ${pair} @ $${price.toFixed(2)} | Qty: ${qty.toFixed(6)} | Size: $${amount.toFixed(2)}`, 'buy');
+  updateOpenPosition(price);
+  updateMetrics(price);
+}
+
+function closeTrade(price, reason='') {
+  if (!position) { log('No position to close','warn'); return; }
+  const exitVal = position.qty * price;
+  const pnl = exitVal - position.amount;
+  const pnlPct = (pnl/position.amount*100);
+  cash += exitVal;
+  if (pnl>0) winCount++; else lossCount++;
+  trades.unshift({pair:position.pair,side:'LONG',entry:position.entry,exit:price,pnl,pnlPct,exitTime:candles[candles.length-1]?.t,entryTime:position.entryTime,reason});
+  log(`CLOSE LONG ${position.pair} @ $${price.toFixed(2)} | PnL: ${pnl>=0?'+':''}$${pnl.toFixed(2)} (${pnlPct.toFixed(1)}%) ${reason}`, pnl>=0?'buy':'sell');
+  position = null;
+  updateTradeTable();
+  updateOpenPosition(price);
+  updateMetrics(price);
+}
+
+function updateOpenPosition(price) {
+  const box = document.getElementById('open-position');
+  if (!position) { box.innerHTML='<div style="font-size:12px;color:var(--color-text-secondary);text-align:center;padding:20px 0;">No open position</div>'; return; }
+  const pnl = (price - position.entry)*position.qty;
+  const pnlPct = ((price-position.entry)/position.entry*100);
+  const sl = position.entry*(1-parseFloat(document.getElementById('stopSlider').value)/100);
+  const tp = position.entry*(1+parseFloat(document.getElementById('tpSlider').value)/100);
+  box.innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;">
+      <div><span style="color:var(--color-text-secondary);">Pair</span><br><b>${position.pair}</b></div>
+      <div><span style="color:var(--color-text-secondary);">Side</span><br><span class="tag tag-long">LONG</span></div>
+      <div><span style="color:var(--color-text-secondary);">Entry</span><br><b>$${position.entry.toFixed(2)}</b></div>
+      <div><span style="color:var(--color-text-secondary);">Current</span><br><b>$${price.toFixed(2)}</b></div>
+      <div><span style="color:var(--color-text-secondary);">Unrealised P&L</span><br><b class="${pnl>=0?'pos':'neg'}">${pnl>=0?'+':''}$${pnl.toFixed(2)} (${pnlPct.toFixed(1)}%)</b></div>
+      <div><span style="color:var(--color-text-secondary);">Qty</span><br><b>${position.qty.toFixed(6)}</b></div>
+      <div><span style="color:var(--color-text-secondary);">Stop Loss</span><br><b style="color:var(--red);">$${sl.toFixed(2)}</b></div>
+      <div><span style="color:var(--color-text-secondary);">Take Profit</span><br><b style="color:var(--green);">$${tp.toFixed(2)}</b></div>
+    </div>
+    <button class="btn btn-red" style="width:100%;margin-top:10px;" onclick="manualClose()">Close Position</button>
+  `;
+}
+
+function manualClose() {
+  if (!candles.length) return;
+  const price = candles[candles.length-1].close;
+  closeTrade(price, 'Manual');
+  renderChart();
+}
+
+function updateTradeTable() {
+  const tb = document.getElementById('trade-table');
+  if (!trades.length) { tb.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--color-text-secondary);">No trades yet</td></tr>'; return; }
+  tb.innerHTML = trades.slice(0,20).map(t=>`
+    <tr>
+      <td>${t.pair}</td>
+      <td><span class="tag tag-long">LONG</span></td>
+      <td>$${t.entry.toFixed(2)}</td>
+      <td>$${t.exit.toFixed(2)}</td>
+      <td class="${t.pnl>=0?'pos':'neg'}">${t.pnl>=0?'+':''}$${t.pnl.toFixed(2)}</td>
+    </tr>`).join('');
+}
+
+function updateMetrics(currentPrice) {
+  const posVal = position ? position.qty*currentPrice : 0;
+  const total = cash + posVal;
+  const pnl = total - INIT_CASH;
+  document.getElementById('m-portfolio').textContent = '$'+total.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+  document.getElementById('m-cash').textContent = '$'+cash.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+  const pnlEl = document.getElementById('m-pnl');
+  pnlEl.textContent = (pnl>=0?'+':'')+'$'+pnl.toFixed(2);
+  pnlEl.className = 'val '+(pnl>=0?'pos':'neg');
+  const total_t = winCount+lossCount;
+  document.getElementById('m-winrate').textContent = total_t ? Math.round(winCount/total_t*100)+'%' : '—';
+  document.getElementById('m-trades').textContent = total_t;
+}
+
+function manualTrade(side) {
+  if (!candles.length) { log('No data loaded. Fetch data first.','warn'); return; }
+  const price = candles[candles.length-1].close;
+  if (side==='BUY') openTrade(price);
+  else { if (position) closeTrade(price,'Manual'); else log('No position to sell','warn'); }
+  renderChart();
+}
+
+async function botTick() {
+  await fetchData();
+  if (!candles.length) return;
+  const closes = candles.map(c=>c.close);
+  const price = closes[closes.length-1];
+  const rsi = calcRSI(closes);
+  const sma20 = calcSMA(closes,20);
+  const {macd} = calcMACD(closes);
+  const sig = computeSignal(closes, rsi, sma20, macd, price);
+  if (sig==='BUY' && !position) openTrade(price);
+  else if (sig==='SELL' && position) closeTrade(price,'Signal');
+  renderChart();
+}
+
+function toggleBot() {
+  botRunning = !botRunning;
+  const btn = document.getElementById('startBtn');
+  const dot = document.getElementById('bot-status-dot');
+  const txt = document.getElementById('bot-status-txt');
+  if (botRunning) {
+    btn.textContent='Stop Bot';
+    btn.classList.remove('btn-accent');
+    btn.classList.add('btn-red');
+    dot.className='status-dot dot-green';
+    txt.textContent='Running';
+    log('Bot started — '+document.getElementById('stratSelect').value+' strategy on '+document.getElementById('pairSelect').value,'sys');
+    fetchData();
+    botInterval = setInterval(botTick, 30000);
+  } else {
+    clearInterval(botInterval);
+    btn.textContent='Start Bot';
+    btn.classList.remove('btn-red');
+    btn.classList.add('btn-accent');
+    dot.className='status-dot dot-yellow';
+    txt.textContent='Idle';
+    log('Bot stopped','sys');
+  }
+}
+
+function changePair() {
+  fetchData();
+  if (position) {
+    log('Warning: pair changed with open position','warn');
+  }
+}
+
+function resetPaper() {
+  if (position) closeTrade(candles[candles.length-1]?.close||0,'Reset');
+  cash=INIT_CASH; trades=[]; winCount=0; lossCount=0; position=null;
+  updateMetrics(0);
+  updateTradeTable();
+  updateOpenPosition(0);
+  log('Paper account reset to $'+INIT_CASH,'sys');
+}
+
+fetchData();
+</script>

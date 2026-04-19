@@ -1,0 +1,161 @@
+
+<style>
+.wq-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:12px}
+.wq-card{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:10px 12px}
+.wq-label{font-size:11px;color:var(--color-text-secondary);margin:0 0 3px;letter-spacing:.03em}
+.wq-val{font-size:22px;font-weight:500;margin:0;line-height:1}
+.wq-sub{font-size:11px;margin:2px 0 0;color:var(--color-text-secondary)}
+.pos{color:#1D9E75}.neg{color:#D85A30}.neu{color:var(--color-text-primary)}
+.sig-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:12px}
+.sig-row:last-child{border:none}
+.bar-bg{flex:1;height:6px;background:var(--color-border-tertiary);border-radius:3px;overflow:hidden}
+.bar-fill{height:100%;border-radius:3px;transition:width .5s}
+.regime-pill{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:500}
+.wq-btn{background:transparent;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:6px 14px;font-size:12px;cursor:pointer;color:var(--color-text-primary)}
+.wq-btn:hover{background:var(--color-background-secondary)}
+.section-head{font-size:11px;font-weight:500;color:var(--color-text-secondary);letter-spacing:.06em;text-transform:uppercase;margin:14px 0 6px}
+#pnl-canvas-wrap{position:relative;width:100%;height:160px}
+</style>
+
+<div class="wq-grid">
+  <div class="wq-card">
+    <p class="wq-label">YTD RETURN</p>
+    <p class="wq-val pos" id="ytd">+18.4%</p>
+    <p class="wq-sub">benchmark +7.2%</p>
+  </div>
+  <div class="wq-card">
+    <p class="wq-label">SHARPE (TTM)</p>
+    <p class="wq-val pos" id="sharpe">2.41</p>
+    <p class="wq-sub">target &gt;2.0</p>
+  </div>
+  <div class="wq-card">
+    <p class="wq-label">MAX DRAWDOWN</p>
+    <p class="wq-val neg" id="dd">-3.8%</p>
+    <p class="wq-sub">limit −8%</p>
+  </div>
+  <div class="wq-card">
+    <p class="wq-label">PORTFOLIO IC</p>
+    <p class="wq-val pos" id="ic">0.068</p>
+    <p class="wq-sub">decay half-life 12d</p>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-bottom:12px">
+  <div class="wq-card">
+    <p class="wq-label">GROSS EXPOSURE</p>
+    <p class="wq-val neu">3.2×</p><p class="wq-sub">net 0.18× · beta 0.04</p>
+  </div>
+  <div class="wq-card" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+    <div>
+      <p class="wq-label">MARKET REGIME</p>
+      <span class="regime-pill" id="regime-pill" style="background:#E1F5EE;color:#0F6E56">● RISK-ON / TRENDING</span>
+    </div>
+    <div style="text-align:right;font-size:11px;color:var(--color-text-secondary)">
+      confidence <strong id="conf">82%</strong><br>Vol regime: <span style="color:#1D9E75">LOW</span>
+    </div>
+  </div>
+</div>
+
+<p class="section-head">Cumulative P&amp;L simulation</p>
+<div id="pnl-canvas-wrap"><canvas id="pnl-canvas"></canvas></div>
+
+<p class="section-head">Live alpha signal board — IC &amp; strength</p>
+<div class="wq-card" style="margin-bottom:10px">
+  <div class="sig-row">
+    <span style="width:130px;color:var(--color-text-primary);font-weight:500">12M momentum</span>
+    <div class="bar-bg"><div class="bar-fill" style="width:82%;background:#1D9E75"></div></div>
+    <span style="width:40px;text-align:right;color:#1D9E75">0.091</span>
+    <span class="regime-pill" style="background:#E1F5EE;color:#0F6E56;font-size:10px">ON</span>
+  </div>
+  <div class="sig-row">
+    <span style="width:130px;color:var(--color-text-primary);font-weight:500">5d mean-reversion</span>
+    <div class="bar-bg"><div class="bar-fill" style="width:55%;background:#1D9E75"></div></div>
+    <span style="width:40px;text-align:right;color:#1D9E75">0.051</span>
+    <span class="regime-pill" style="background:#E1F5EE;color:#0F6E56;font-size:10px">ON</span>
+  </div>
+  <div class="sig-row">
+    <span style="width:130px;color:var(--color-text-primary);font-weight:500">Earnings revision</span>
+    <div class="bar-bg"><div class="bar-fill" style="width:70%;background:#1D9E75"></div></div>
+    <span style="width:40px;text-align:right;color:#1D9E75">0.073</span>
+    <span class="regime-pill" style="background:#E1F5EE;color:#0F6E56;font-size:10px">ON</span>
+  </div>
+  <div class="sig-row">
+    <span style="width:130px;color:var(--color-text-primary);font-weight:500">Vol carry</span>
+    <div class="bar-bg"><div class="bar-fill" style="width:44%;background:#EF9F27"></div></div>
+    <span style="width:40px;text-align:right;color:#EF9F27">0.038</span>
+    <span class="regime-pill" style="background:#FAEEDA;color:#854F0B;font-size:10px">WEAK</span>
+  </div>
+  <div class="sig-row">
+    <span style="width:130px;color:var(--color-text-primary);font-weight:500">Sentiment NLP</span>
+    <div class="bar-bg"><div class="bar-fill" style="width:66%;background:#1D9E75"></div></div>
+    <span style="width:40px;text-align:right;color:#1D9E75">0.062</span>
+    <span class="regime-pill" style="background:#E1F5EE;color:#0F6E56;font-size:10px">ON</span>
+  </div>
+  <div class="sig-row">
+    <span style="width:130px;color:var(--color-text-primary);font-weight:500">Options flow skew</span>
+    <div class="bar-bg"><div class="bar-fill" style="width:31%;background:#D85A30"></div></div>
+    <span style="width:40px;text-align:right;color:#D85A30">0.022</span>
+    <span class="regime-pill" style="background:#FAECE7;color:#993C1D;font-size:10px">OFF</span>
+  </div>
+  <div class="sig-row">
+    <span style="width:130px;color:var(--color-text-primary);font-weight:500">Stat-arb pairs</span>
+    <div class="bar-bg"><div class="bar-fill" style="width:78%;background:#1D9E75"></div></div>
+    <span style="width:40px;text-align:right;color:#1D9E75">0.085</span>
+    <span class="regime-pill" style="background:#E1F5EE;color:#0F6E56;font-size:10px">ON</span>
+  </div>
+</div>
+
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+  <button class="wq-btn" onclick="sendPrompt('Explain IC-weighted ensemble combination for these alpha signals')">IC ensemble math ↗</button>
+  <button class="wq-btn" onclick="sendPrompt('How do I build a regime-conditional signal weighting system in Python?')">Regime weighting code ↗</button>
+  <button class="wq-btn" onclick="sendPrompt('Derive the optimal entry and exit rules for a momentum-mean-reversion combined strategy')">Optimal entry/exit ↗</button>
+  <button class="wq-btn" onclick="sendPrompt('Build me the full WorldQuant-style quant system in Python with backtester, signal library, and portfolio optimizer')">Full Python build ↗</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const isDark = matchMedia('(prefers-color-scheme: dark)').matches;
+
+// Synthetic P&L curve — random-walk with positive drift
+const n=252, labels=[], pnl=[], bench=[];
+let p=100, b=100;
+for(let i=0;i<n;i++){
+  labels.push(i===0?'Jan':(i===63?'Apr':(i===126?'Jul':(i===189?'Oct':''))));
+  p += (Math.random()-0.44)*0.9 + 0.085;
+  b += (Math.random()-0.48)*0.7 + 0.035;
+  pnl.push(+p.toFixed(2));
+  bench.push(+b.toFixed(2));
+}
+
+new Chart(document.getElementById('pnl-canvas'),{
+  type:'line',
+  data:{
+    labels,
+    datasets:[
+      {label:'Strategy NAV',data:pnl,borderColor:'#1D9E75',borderWidth:1.5,pointRadius:0,tension:.3,fill:false},
+      {label:'Benchmark',data:bench,borderColor:isDark?'#5F5E5A':'#B4B2A9',borderWidth:1,pointRadius:0,tension:.3,fill:false,borderDash:[4,3]}
+    ]
+  },
+  options:{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,
+      callbacks:{label:ctx=>ctx.dataset.label+': '+(ctx.raw-100).toFixed(1)+'%'}}},
+    scales:{
+      x:{grid:{display:false},ticks:{color:isDark?'#888780':'#888780',font:{size:11},maxTicksLimit:5},border:{display:false}},
+      y:{grid:{color:isDark?'rgba(255,255,255,.06)':'rgba(0,0,0,.05)'},ticks:{color:isDark?'#888780':'#888780',font:{size:11},callback:v=>'+'+(v-100).toFixed(0)+'%'},border:{display:false}}
+    }
+  }
+});
+
+// Animate regime confidence
+let t=0;
+setInterval(()=>{
+  t++;
+  const v=Math.round(78+8*Math.sin(t*0.15));
+  document.getElementById('conf').textContent=v+'%';
+  const sharp=(2.35+0.12*Math.sin(t*0.1)).toFixed(2);
+  document.getElementById('sharpe').textContent=sharp;
+  const ic=(0.064+0.006*Math.sin(t*0.13)).toFixed(3);
+  document.getElementById('ic').textContent=ic;
+},1800);
+</script>

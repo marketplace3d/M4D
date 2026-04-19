@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>vectorbt — BOOM Darvas mass grid</title>
+      <style>
+        body { font-family: system-ui, sans-serif; background: #0d1117; color: #e6edf3; margin: 1rem; }
+        a { color: #58a6ff; }
+        code { background: #21262d; padding: 0.15rem 0.35rem; border-radius: 4px; }
+        .card { max-width: 52rem; border: 1px solid #30363d; border-radius: 10px; background: #161b22; padding: 0.9rem 1rem; }
+        .ok { color: #3fb950; }
+        .err { color: #f85149; }
+        .muted { color: #8b949e; font-size: 0.86rem; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: 0.5rem; margin: 0.55rem 0; }
+        label { font-size: 0.76rem; color: #8b949e; display: block; margin-bottom: 0.15rem; }
+        input { width: 100%; box-sizing: border-box; padding: 0.32rem 0.4rem; border-radius: 6px; border: 1px solid #30363d; background: #0d1117; color: #e6edf3; }
+        button { margin-top: 0.5rem; padding: 0.4rem 0.85rem; border-radius: 8px; border: 1px solid #388bfd; background: #1f6feb; color: #fff; font-weight: 600; cursor: pointer; }
+        table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; font-size: 0.82rem; }
+        th, td { padding: 0.32rem 0.35rem; border-bottom: 1px solid #30363d; text-align: left; }
+        th { color: #8b949e; font-weight: 600; }
+        .chart-wrap { margin-top: 0.75rem; border: 1px solid #30363d; border-radius: 8px; overflow: auto; background: #0f141c; }
+        .chart-wrap img { display: block; width: 100%; height: auto; }
+      </style>
+</head>
+<body>
+  <p><a href="/">← home</a> · <a href="/vectorbt/">vectorbt smoke</a> · <a href="/vectorbt-expansion/">BOOM expansion (full grid)</a> · <a href="/boom-backtest/">BOOM sweep</a> · <a href="/boom-visual/">BOOM visual (chart)</a></p>
+  <div class="card">
+    <h1 style="margin: 0 0 0.35rem;">vectorbt mass grid — Darvas-style BOOM entries</h1>
+    <p class="muted" style="margin-top:0;">
+      <strong>Screening defaults are loose</strong> (more trades): <code>atr_mult=0</code> (off), <code>min_vote=2</code>, RVOL sweep <code>1.0–2.0</code>, slightly wider squeeze/Darvas steps. Same Darvas-style core as <code>boom_backtest</code>; exit = 13 EMA; <code>sl_stop</code> off unless you set it. Tighten (e.g. <code>atr_mult</code> <code>1.05</code>, <code>min_vote</code> <code>3</code>, lower RVOL hi) to match the BOOM sweep when comparing.
+      vectorbt does not render candles — use <strong>Show trade chart</strong> below (same PNG engine as <a href="/boom-visual/">/boom-visual/</a>, backtesting.py) to verify entries/exits for the top Sharpe row.
+    </p>
+    <p class="muted">Grid size: <code>{{ grid_product }}</code> (cap <code>max_combos</code>). <a href="/vectorbt-boom/?symbol=SPY&amp;tf=1d&amp;period=6mo&amp;max_combos=300">One-click SPY · 1d · 6mo</a></p>
+
+    <form method="get" action="/vectorbt-boom/">
+      <div class="grid">
+        <div><label>Symbol</label><input name="symbol" value="{{ symbol }}" /></div>
+        <div><label>TF</label><input name="tf" value="{{ timeframe }}" /></div>
+        <div><label>Period</label><input name="period" value="{{ period }}" /></div>
+        <div><label>max_combos cap</label><input name="max_combos" type="number" value="{{ max_combos }}" /></div>
+        <div><label>min_vote</label><input name="min_vote" type="number" value="{{ min_vote }}" /></div>
+        <div><label>atr_mult (0=off)</label><input name="atr_mult" value="{{ atr_mult }}" /></div>
+        <div><label>sl_stop (0=off)</label><input name="sl_stop" value="{{ sl_stop_display }}" placeholder="0.0065" /></div>
+        <div><label>sq min / max / step</label>
+          <div class="grid" style="grid-template-columns:1fr 1fr 1fr;">
+            <input name="sq_min" type="number" value="{{ sq_min }}" />
+            <input name="sq_max" type="number" value="{{ sq_max }}" />
+            <input name="sq_step" type="number" value="{{ sq_step }}" />
+          </div>
+        </div>
+        <div><label>dv min / max / step</label>
+          <div class="grid" style="grid-template-columns:1fr 1fr 1fr;">
+            <input name="dv_min" type="number" value="{{ dv_min }}" />
+            <input name="dv_max" type="number" value="{{ dv_max }}" />
+            <input name="dv_step" type="number" value="{{ dv_step }}" />
+          </div>
+        </div>
+        <div><label>rvol steps</label><input name="rvol_n" type="number" value="{{ rvol_n }}" /></div>
+        <div><label>rvol lo</label><input name="rvol_lo" value="{{ rvol_lo }}" /></div>
+        <div><label>rvol hi</label><input name="rvol_hi" value="{{ rvol_hi }}" /></div>
+        <div><label>hold (chart / BE parity)</label><input name="hold" type="number" value="{{ hold_viz }}" title="Used for boom-visual chart only; grid uses EMA13 exit" /></div>
+        <div><label>be_off %</label><input name="be_off" step="any" value="{{ be_off }}" /></div>
+        <div><label>max_bars (chart tail)</label><input name="max_bars" type="number" min="50" value="{{ max_bars }}" /></div>
+      </div>
+      <input type="hidden" name="first_half" value="0" />
+      <label style="margin-top:0.4rem;display:block;"><input type="checkbox" name="first_half" value="1" {% if first_half_only %}checked{% endif %} /> First-half session only (US)</label>
+      <label style="display:block;"><input type="checkbox" name="chart" value="1" {% if chart_requested %}checked{% endif %} /> Show trade chart (top Sharpe row · backtesting.py)</label>
+      <button type="submit">Run grid</button>
+      <a href="/vectorbt-boom/?format=json&amp;symbol={{ symbol }}&amp;tf={{ timeframe }}&amp;period={{ period }}&amp;max_combos={{ max_combos }}" style="margin-left:0.75rem;font-size:0.88rem;">Open results as JSON</a>
+    </form>
+
+    {% if error %}
+      <p class="err" style="margin-top:0.75rem;">{{ error }}</p>
+    {% endif %}
+    {% if ok and result %}
+      <p class="ok" style="margin-top:0.35rem;">
+        {{ result.symbol }} · {{ result.bars }} bars · {{ result.grid_size }} combos run · data {{ result.data_source }}
+        · <strong>{{ result.combos_with_trades }}</strong> combos with ≥1 trade
+      </p>
+      <p class="muted" style="margin-top:0.25rem;">
+        This run: <code>atr_mult={{ result.atr_mult }}</code>
+        · <code>sl_stop={% if result.sl_stop %} {{ result.sl_stop }}{% else %}off{% endif %}</code>
+        · <code>first_half={{ result.first_half_only|yesno:"1,0" }}</code>
+        · <code>min_vote={{ result.min_vote }}</code>
+      </p>
+      <p class="muted">{{ result.note }}</p>
+      {% if result.combos_with_trades == 0 %}
+        <p class="err" style="font-size:0.88rem;margin-top:0.35rem;">
+          No trades in any combo: try <code>atr_mult</code> <code>1.0</code> or <code>0</code> (off), lower RVOL thresholds, widen squeeze/Darvas ranges, uncheck first-half on intraday bars, or a more volatile symbol — then re-run.
+        </p>
+        {% if vb_retry_looser_atr_url %}
+          <p class="muted" style="font-size:0.88rem;margin-top:0.25rem;">
+            Daily run with a strict ATR gate often causes this on ~6mo SPY.
+            <a href="{{ vb_retry_looser_atr_url }}">Re-run same grid with <code>atr_mult=1.0</code></a> (keeps your other form fields).
+          </p>
+        {% endif %}
+      {% endif %}
+
+      <h2 style="font-size:1rem;margin-top:1rem;">Top by Sharpe</h2>
+      <table>
+        <thead>
+          <tr><th>SQ</th><th>DV</th><th>RVOL</th><th>Ret %</th><th>Sharpe</th><th>Max DD %</th><th>Trades</th></tr>
+        </thead>
+        <tbody>
+          {% for r in result.top_sharpe %}
+          <tr>
+            <td>{{ r.squeeze_len }}</td>
+            <td>{{ r.darvas_lookback }}</td>
+            <td>{% if r.rvol_display %}{{ r.rvol_display }}{% else %}{{ r.rvol_mult }}{% endif %}</td>
+            <td>{{ r.total_return_pct|floatformat:2 }}</td>
+            <td>{{ r.sharpe|floatformat:3 }}</td>
+            <td>{{ r.max_dd_pct|floatformat:2 }}</td>
+            <td>{{ r.trades }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <h2 style="font-size:1rem;margin-top:1rem;">Top by total return</h2>
+      <table>
+        <thead>
+          <tr><th>SQ</th><th>DV</th><th>RVOL</th><th>Ret %</th><th>Sharpe</th><th>Max DD %</th><th>Trades</th></tr>
+        </thead>
+        <tbody>
+          {% for r in result.top_return %}
+          <tr>
+            <td>{{ r.squeeze_len }}</td>
+            <td>{{ r.darvas_lookback }}</td>
+            <td>{% if r.rvol_display %}{{ r.rvol_display }}{% else %}{{ r.rvol_mult }}{% endif %}</td>
+            <td>{{ r.total_return_pct|floatformat:2 }}</td>
+            <td>{{ r.sharpe|floatformat:3 }}</td>
+            <td>{{ r.max_dd_pct|floatformat:2 }}</td>
+            <td>{{ r.trades }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      {% if chart_requested %}
+        {% if chart_b64 %}
+          <h2 style="font-size:1rem;margin-top:1rem;">Trade chart (backtesting.py · top Sharpe row)</h2>
+          <p class="muted" style="margin:0.25rem 0 0.5rem;">{{ chart_caption }} · {{ chart_bars }} bars</p>
+          <div class="chart-wrap">
+            <img src="data:image/png;base64,{{ chart_b64 }}" alt="BOOM trades on price" />
+          </div>
+        {% elif chart_error %}
+          <p class="err" style="margin-top:0.75rem;">Chart: {{ chart_error }}</p>
+        {% endif %}
+      {% endif %}
+    {% endif %}
+  </div>
+</body>
+</html>

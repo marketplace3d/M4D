@@ -1,0 +1,141 @@
+// BOS-01 — Break of Structure + CHoCH Full Engine
+// BOS: continuation signal (trend resuming)
+// CHoCH: reversal signal (trend changing)
+// Tracks HH/HL/LH/LL structure; labels each shift; projects displacement targets
+// Feeds MSS-01 for pullback entries; feeds CONF-01 structure score
+
+//@version=5
+indicator("BOS-01 · Market Structure Engine", overlay=true, max_lines_count=100, max_labels_count=100)
+
+// ── Inputs ────────────────────────────────────────────────────────────────────
+pivot_len     = input.int(5,    "Pivot length",         minval=2,  maxval=20)
+show_struct   = input.bool(true,"Show HH/HL/LH/LL labels")
+show_bos      = input.bool(true,"Show BOS lines")
+show_choch    = input.bool(true,"Show CHoCH lines")
+show_disp     = input.bool(true,"Show displacement candles")
+disp_mult     = input.float(1.5,"Displacement ATR mult",minval=0.5, maxval=5.0, step=0.1)
+htf_tf        = input.timeframe("60","HTF for structure confluence")
+
+col_bos_bull  = input.color(color.new(color.lime,    20), "BOS Bull")
+col_bos_bear  = input.color(color.new(color.red,     20), "BOS Bear")
+col_choch_bull= input.color(color.new(color.aqua,    20), "CHoCH Bull")
+col_choch_bear= input.color(color.new(color.fuchsia, 20), "CHoCH Bear")
+col_hh        = input.color(color.lime,    "HH label")
+col_lh        = input.color(color.red,     "LH label")
+col_hl        = input.color(color.lime,    "HL label")
+col_ll        = input.color(color.red,     "LL label")
+
+// ── Pivots ────────────────────────────────────────────────────────────────────
+ph = ta.pivothigh(high, pivot_len, pivot_len)
+pl = ta.pivotlow(low,   pivot_len, pivot_len)
+
+// Track last 3 pivot highs and lows
+var float ph1 = na; var float ph2 = na; var float ph3 = na
+var int   ph1_bar = na; var int ph2_bar = na
+var float pl1 = na; var float pl2 = na; var float pl3 = na
+var int   pl1_bar = na; var int pl2_bar = na
+
+if not na(ph)
+    ph3 := ph2; ph2 := ph1; ph1 := ph; ph2_bar := ph1_bar; ph1_bar := bar_index - pivot_len
+if not na(pl)
+    pl3 := pl2; pl2 := pl1; pl1 := pl; pl2_bar := pl1_bar; pl1_bar := bar_index - pivot_len
+
+// ── Structure state ───────────────────────────────────────────────────────────
+// HH = ph1 > ph2 | LH = ph1 < ph2 | HL = pl1 > pl2 | LL = pl1 < pl2
+is_hh = not na(ph1) and not na(ph2) and ph1 > ph2
+is_lh = not na(ph1) and not na(ph2) and ph1 < ph2
+is_hl = not na(pl1) and not na(pl2) and pl1 > pl2
+is_ll = not na(pl1) and not na(pl2) and pl1 < pl2
+
+// Trend: bullish = HH + HL | bearish = LH + LL
+var int trend = 0  // 1 = bull, -1 = bear
+if is_hh and is_hl then trend := 1
+if is_lh and is_ll then trend := -1
+
+// ── CHoCH detection ───────────────────────────────────────────────────────────
+// Bull CHoCH: in downtrend (LH+LL), price breaks ABOVE last LH → structure shift up
+// Bear CHoCH: in uptrend (HH+HL), price breaks BELOW last HL → structure shift down
+bull_choch = trend[1] == -1 and not na(ph1) and close > ph1 and not na(pl1)
+bear_choch = trend[1] ==  1 and not na(pl1) and close < pl1 and not na(ph1)
+
+// ── BOS detection ─────────────────────────────────────────────────────────────
+// Bull BOS: in uptrend, breaks previous HH (continuation)
+// Bear BOS: in downtrend, breaks previous LL (continuation)
+bull_bos = trend == 1 and not na(ph2) and close > ph2 and close[1] <= ph2
+bear_bos = trend == -1 and not na(pl2) and close < pl2 and close[1] >= pl2
+
+// ── Displacement candles ──────────────────────────────────────────────────────
+atr = ta.atr(14)
+bull_disp = (close - open) > disp_mult * atr and close > close[1]
+bear_disp = (open - close) > disp_mult * atr and close < close[1]
+
+// ── HTF structure alignment ───────────────────────────────────────────────────
+htf_ph = request.security(syminfo.tickerid, htf_tf, ta.pivothigh(high, pivot_len, pivot_len), lookahead=barmerge.lookahead_off)
+htf_pl = request.security(syminfo.tickerid, htf_tf, ta.pivotlow(low,   pivot_len, pivot_len), lookahead=barmerge.lookahead_off)
+var float htf_ph1 = na; var float htf_ph2 = na
+var float htf_pl1 = na; var float htf_pl2 = na
+if not na(htf_ph) then htf_ph2 := htf_ph1, htf_ph1 := htf_ph
+if not na(htf_pl) then htf_pl2 := htf_pl1, htf_pl1 := htf_pl
+htf_bull_struct = not na(htf_ph1) and not na(htf_ph2) and htf_ph1 > htf_ph2
+htf_bear_struct = not na(htf_ph1) and not na(htf_ph2) and htf_ph1 < htf_ph2
+
+// ── Draw BOS lines ────────────────────────────────────────────────────────────
+if show_bos and bull_bos and not na(ph2_bar)
+    ln = line.new(ph2_bar, ph2, bar_index, ph2,
+                   color=col_bos_bull, width=2, style=line.style_solid)
+    label.new(bar_index, ph2, "BOS", color=color.new(color.black, 80),
+               textcolor=col_bos_bull, style=label.style_label_down, size=size.tiny)
+
+if show_bos and bear_bos and not na(pl2_bar)
+    ln = line.new(pl2_bar, pl2, bar_index, pl2,
+                   color=col_bos_bear, width=2, style=line.style_solid)
+    label.new(bar_index, pl2, "BOS", color=color.new(color.black, 80),
+               textcolor=col_bos_bear, style=label.style_label_up, size=size.tiny)
+
+// ── Draw CHoCH lines ──────────────────────────────────────────────────────────
+if show_choch and bull_choch and not na(ph1_bar)
+    line.new(ph1_bar, ph1, bar_index, ph1,
+              color=col_choch_bull, width=2, style=line.style_dashed)
+    label.new(bar_index, close, "CHoCH ▲", color=color.new(color.black, 80),
+               textcolor=col_choch_bull, style=label.style_label_left, size=size.small)
+
+if show_choch and bear_choch and not na(pl1_bar)
+    line.new(pl1_bar, pl1, bar_index, pl1,
+              color=col_choch_bear, width=2, style=line.style_dashed)
+    label.new(bar_index, close, "CHoCH ▼", color=color.new(color.black, 80),
+               textcolor=col_choch_bear, style=label.style_label_left, size=size.small)
+
+// ── Pivot structure labels ─────────────────────────────────────────────────────
+if show_struct
+    if not na(ph)
+        lbl_txt = is_hh ? "HH" : "LH"
+        lbl_col = is_hh ? col_hh : col_lh
+        label.new(bar_index - pivot_len, ph, lbl_txt,
+                   color=color.new(color.black, 85), textcolor=lbl_col,
+                   style=label.style_label_down, size=size.tiny)
+    if not na(pl)
+        lbl_txt = is_hl ? "HL" : "LL"
+        lbl_col = is_hl ? col_hl : col_ll
+        label.new(bar_index - pivot_len, pl, lbl_txt,
+                   color=color.new(color.black, 85), textcolor=lbl_col,
+                   style=label.style_label_up, size=size.tiny)
+
+// ── Displacement highlighting ─────────────────────────────────────────────────
+if show_disp and bull_disp
+    label.new(bar_index, low, "⚡", color=color.new(color.black, 85),
+               textcolor=color.lime, style=label.style_label_up, size=size.tiny)
+if show_disp and bear_disp
+    label.new(bar_index, high, "⚡", color=color.new(color.black, 85),
+               textcolor=color.red, style=label.style_label_down, size=size.tiny)
+
+// ── Swing level plots ─────────────────────────────────────────────────────────
+plot(ph1, "Last PH", color=color.new(color.red,   50), style=plot.style_linebr, linewidth=1)
+plot(pl1, "Last PL", color=color.new(color.green, 50), style=plot.style_linebr, linewidth=1)
+
+// ── Alerts ────────────────────────────────────────────────────────────────────
+alertcondition(bull_choch, "BOS-01 CHoCH BULL", "CHoCH Bullish · structure shift · {{ticker}} · {{close}}")
+alertcondition(bear_choch, "BOS-01 CHoCH BEAR", "CHoCH Bearish · structure shift · {{ticker}} · {{close}}")
+alertcondition(bull_bos,   "BOS-01 BOS BULL",   "BOS Bull · trend continuation · {{ticker}} · {{close}}")
+alertcondition(bear_bos,   "BOS-01 BOS BEAR",   "BOS Bear · trend continuation · {{ticker}} · {{close}}")
+alertcondition(bull_choch and htf_bull_struct, "BOS-01 HTF CHoCH BULL", "HTF-aligned CHoCH Bull · HIGH PROB · {{ticker}}")
+alertcondition(bear_choch and htf_bear_struct, "BOS-01 HTF CHoCH BEAR", "HTF-aligned CHoCH Bear · HIGH PROB · {{ticker}}")

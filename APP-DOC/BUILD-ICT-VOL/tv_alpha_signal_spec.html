@@ -1,0 +1,117 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+.wrap{padding:1rem 0;font-family:var(--font-sans,sans-serif)}
+.section-label{font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--color-text-tertiary);margin:14px 0 6px 2px}
+.alpha-row{display:grid;grid-template-columns:90px 1fr 110px 80px;gap:0;border:0.5px solid var(--color-border-tertiary);border-radius:8px;margin-bottom:5px;overflow:hidden;cursor:pointer;transition:background .15s}
+.alpha-row:hover{background:var(--color-background-secondary)}
+.cell{padding:8px 10px;font-size:11px;color:var(--color-text-secondary);line-height:1.4}
+.cell-name{font-size:12px;font-weight:500;color:var(--color-text-primary);padding:8px 10px;border-right:0.5px solid var(--color-border-tertiary)}
+.cell-spec{padding:8px 10px;color:var(--color-text-secondary);font-size:11px;line-height:1.4;border-right:0.5px solid var(--color-border-tertiary)}
+.cell-edge{padding:8px 10px;font-size:11px;color:var(--color-text-secondary);border-right:0.5px solid var(--color-border-tertiary)}
+.cell-w{padding:8px 10px;font-size:11px;font-weight:500;color:var(--color-text-primary);text-align:right}
+.badge{display:inline-block;font-size:9px;font-weight:500;padding:1px 5px;border-radius:3px;margin-bottom:3px}
+.b-p{background:#EEEDFE;color:#534AB7}
+.b-t{background:#E1F5EE;color:#0F6E56}
+.b-a{background:#FAEEDA;color:#854F0B}
+.b-c{background:#FAECE7;color:#993C1D}
+.b-b{background:#E6F1FB;color:#185FA5}
+.b-g{background:#EAF3DE;color:#3B6D11}
+.b-s{background:#F1EFE8;color:#5F5E5A}
+@media(prefers-color-scheme:dark){
+.b-p{background:#3C3489;color:#AFA9EC}
+.b-t{background:#085041;color:#9FE1CB}
+.b-a{background:#633806;color:#FAC775}
+.b-c{background:#712B13;color:#F0997B}
+.b-b{background:#0C447C;color:#85B7EB}
+.b-g{background:#27500A;color:#C0DD97}
+.b-s{background:#444441;color:#B4B2A9}
+}
+.header-row{display:grid;grid-template-columns:90px 1fr 110px 80px;gap:0;padding:4px 0;margin-bottom:4px}
+.hc{font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:.07em;color:var(--color-text-tertiary);padding:0 10px}
+.vs-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}
+.vs-card{border:0.5px solid var(--color-border-tertiary);border-radius:8px;padding:10px 12px}
+.vs-title{font-size:11px;font-weight:500;color:var(--color-text-primary);margin-bottom:6px}
+.vs-item{font-size:10px;color:var(--color-text-secondary);line-height:1.6;padding-left:8px;border-left:2px solid var(--color-border-tertiary);margin-bottom:3px}
+.vs-item.win{border-color:#1D9E75}
+.vs-item.gap{border-color:#D85A30}
+</style>
+
+<div class="wrap">
+
+<div class="section-label">Alpha library — TV signal definitions with ensemble weights</div>
+<div class="header-row">
+  <div class="hc">Alpha ID</div>
+  <div class="hc">Signal spec (Pine logic)</div>
+  <div class="hc">Edge mechanism</div>
+  <div class="hc">Weight</div>
+</div>
+
+<div class="alpha-row" onclick="sendPrompt('Write the full Pine Script v5 code for Alpha ICT-01: HTF order block with LTF entry confirmation')">
+  <div class="cell-name"><div class="badge b-c">ICT-01</div><div>HTF Order Block</div></div>
+  <div class="cell-spec">HTF (4H/D) OB identified → LTF (15m/5m) displacement into zone → FVG present inside OB → entry on retracement to 50% of OB</div>
+  <div class="cell-edge">Institutional entry replication · OB = demand/supply imbalance left by smart money</div>
+  <div class="cell-w">18%</div>
+</div>
+
+<div class="alpha-row" onclick="sendPrompt('Write the Pine Script v5 code for Alpha ICT-02: FVG fill with sweep confirmation entry signal')">
+  <div class="cell-name"><div class="badge b-c">ICT-02</div><div>FVG Magnet</div></div>
+  <div class="cell-spec">Unfilled FVG within 1 ATR · price approaching from outside zone · volume expansion on approach · entry at FVG 50% line</div>
+  <div class="cell-edge">Price fills imbalances with high statistical consistency · FVG = unfilled order flow</div>
+  <div class="cell-w">12%</div>
+</div>
+
+<div class="alpha-row" onclick="sendPrompt('Write the Pine Script v5 code for Alpha LIQ-01: liquidity sweep and reversal signal with stop hunt detection')">
+  <div class="cell-name"><div class="badge b-a">LIQ-01</div><div>Stop Hunt Reversal</div></div>
+  <div class="cell-spec">EQ high/low swept by 1-3 ticks · wick closes back inside range · volume spike on sweep bar · RSI divergence present</div>
+  <div class="cell-edge">Retail stops harvested → institutional reversal · highest probability entry point in ICT framework</div>
+  <div class="cell-w">15%</div>
+</div>
+
+<div class="alpha-row" onclick="sendPrompt('Write the Pine Script v5 code for Alpha OR-01: Opening Range Breakout with volume confirmation and MTF alignment')">
+  <div class="cell-name"><div class="badge b-b">OR-01</div><div>ORB + MTF Align</div></div>
+  <div class="cell-spec">First 15m candle range defined · breakout with 1.5x RVOL · HTF bias aligned (price above/below daily VWAP) · no OB blocking path</div>
+  <div class="cell-edge">Institutional orders flood market at open · ORB captures directional commitment from largest players</div>
+  <div class="cell-w">10%</div>
+</div>
+
+<div class="alpha-row" onclick="sendPrompt('Write the Pine Script v5 code for Alpha MSS-01: market structure shift entry after CHoCH with pullback')">
+  <div class="cell-name"><div class="badge b-p">MSS-01</div><div>CHoCH Entry</div></div>
+  <div class="cell-spec">CHoCH confirmed (LH after uptrend / HL after downtrend) · displacement candle 2x ATR body · pullback to 61.8% of displacement · volume contraction on pullback</div>
+  <div class="cell-edge">Identifies trend transition points before retail sees them · early positioning in new leg</div>
+  <div class="cell-w">13%</div>
+</div>
+
+<div class="alpha-row" onclick="sendPrompt('Write the Pine Script v5 code for Alpha VWAP-01: VWAP reclaim entry with volume profile confirmation')">
+  <div class="cell-name"><div class="badge b-t">VWAP-01</div><div>VWAP Reclaim</div></div>
+  <div class="cell-spec">Price rejected below VWAP → reclaims VWAP with volume · daily VWAP SD1 acting as support · POC above current price</div>
+  <div class="cell-edge">VWAP = institutional cost basis · reclaims signal repositioning by large funds</div>
+  <div class="cell-w">8%</div>
+</div>
+
+<div class="alpha-row" onclick="sendPrompt('Write the Pine Script v5 code for Alpha CONF-01: multi-signal confluence score that fires only when 5+ signals align')">
+  <div class="cell-name"><div class="badge b-g">CONF-01</div><div>Confluence Score</div></div>
+  <div class="cell-spec">Score = sum of all active signals at price ± 0.5 ATR · threshold 6/8 minimum · each signal weighted by timeframe (HTF = 2x) · fires single alert</div>
+  <div class="cell-edge">Meta-alpha — not a single edge but the intersection of all above · eliminates low-quality setups</div>
+  <div class="cell-w">24%</div>
+</div>
+
+<div class="section-label">Your edge vs WorldQuant / quant fund alpha models</div>
+<div class="vs-row">
+  <div class="vs-card">
+    <div class="vs-title">Your structural advantage</div>
+    <div class="vs-item win">ICT logic is discretionary — quant funds can't easily backtest narrative-based structure</div>
+    <div class="vs-item win">Pattern recognition across OB + FVG + sweep simultaneously is not in standard factor libraries</div>
+    <div class="vs-item win">Low latency not required — edge is in precision, not speed</div>
+    <div class="vs-item win">Claude arbitration adds a reasoning layer no quant model has built-in</div>
+  </div>
+  <div class="vs-card">
+    <div class="vs-title">WorldQuant / systematic fund approach</div>
+    <div class="vs-item gap">Mean reversion, momentum, quality factors — all heavily competed, crowded</div>
+    <div class="vs-item gap">Alpha decay fast — 200+ researchers running similar signals</div>
+    <div class="vs-item gap">No ICT structural logic in standard alpha libraries (Quantopian/WorldQuant Brain)</div>
+    <div class="vs-item gap">Cannot model "institutional narrative" — only price/volume features</div>
+  </div>
+</div>
+
+</div>

@@ -1,0 +1,164 @@
+// STRATEGY-01 — ICT Ensemble Backtester
+// Uses SIGNAL-MASTER logic for entries; regime-gated; walk-forward compatible
+// Run in TV Strategy Tester — adjust conf_thresh + regime inputs to optimise
+// SL: ATR-based below/above OB. TP: R:R multiplier. Trailing optional.
+// Tracks: per-signal attribution, regime performance, Sharpe proxy
+
+//@strategy("STRATEGY-01 · ICT Ensemble", overlay=true,
+//           default_qty_type=strategy.percent_of_equity, default_qty_value=2,
+//           commission_type=strategy.commission.percent, commission_value=0.02,
+//           slippage=1, initial_capital=10000, currency=currency.USD,
+//           calc_on_every_tick=false)
+
+//@version=5
+strategy("STRATEGY-01 · ICT Ensemble", overlay=true,
+          default_qty_type=strategy.percent_of_equity, default_qty_value=2,
+          commission_type=strategy.commission.percent, commission_value=0.02,
+          slippage=1, initial_capital=10000, currency=currency.USD,
+          calc_on_every_tick=false, max_bars_back=500)
+
+// ── Inputs ────────────────────────────────────────────────────────────────────
+conf_thresh    = input.int(60,    "CONF threshold",         minval=30, maxval=100, group="Signal")
+sl_atr         = input.float(1.5, "SL ATR mult",            minval=0.5, maxval=5.0, step=0.1, group="Risk")
+tp_rr          = input.float(2.0, "TP R:R",                 minval=1.0, maxval=10.0, step=0.5, group="Risk")
+use_trailing   = input.bool(false,"Use trailing stop",       group="Risk")
+trail_atr      = input.float(1.0, "Trail ATR mult",          minval=0.3, maxval=3.0, step=0.1, group="Risk")
+use_regime     = input.bool(true, "Gate by regime (no range/volatile)", group="Signal")
+use_kill_zone  = input.bool(true, "Kill zone bonus",         group="Signal")
+htf_tf         = input.timeframe("D", "HTF bias",            group="Signal")
+// Walk-forward: IS period (in-sample). Set date range in TV UI for OOS testing.
+max_trades_day = input.int(3,     "Max trades per day",      minval=1, maxval=10, group="Risk")
+
+// ── Core ──────────────────────────────────────────────────────────────────────
+atr     = ta.atr(14)
+vol_avg = ta.sma(volume, 20)
+vwap_d  = ta.vwap(hlc3)
+
+htf_close = request.security(syminfo.tickerid, htf_tf, close, lookahead=barmerge.lookahead_off)
+htf_open  = request.security(syminfo.tickerid, htf_tf, open,  lookahead=barmerge.lookahead_off)
+htf_bull  = htf_close > htf_open and close > vwap_d
+htf_bear  = htf_close < htf_open and close < vwap_d
+
+// Kill zone
+h_et  = (hour - 5 + 24) % 24
+in_kz = use_kill_zone and ((h_et >= 3 and h_et < 5) or (h_et >= 9 and h_et < 11))
+kz_b  = in_kz ? 8 : 0
+
+// Regime
+[_, _, adx_v] = ta.dmi(14, 14)
+atr_s   = math.sum(ta.atr(1), 14)
+hlr     = ta.highest(high, 14) - ta.lowest(low, 14)
+chop    = 100 * math.log10(atr_s / math.max(hlr, syminfo.mintick)) / math.log10(14)
+trending  = adx_v > 25 and chop < 50
+ranging   = adx_v < 20 and chop > 60
+volatile  = atr > ta.percentile_nearest_rank(atr, 100, 80)
+
+// ── Signals ───────────────────────────────────────────────────────────────────
+bull_disp = (close - open) > 1.5 * atr
+bear_disp = (open - close) > 1.5 * atr
+bar_cp    = (close - low) / math.max(high - low, syminfo.mintick)
+
+bull_ob  = bull_disp and volume > vol_avg * 1.5 and bar_cp[1] > 0.5 and htf_bull
+bear_ob  = bear_disp and volume > vol_avg * 1.5 and bar_cp[1] < 0.5 and htf_bear
+
+var bool bfvg = false; var bool brfvg = false; var int bfa = 0; var int bra = 0
+if low > high[2]  then bfvg := true,  bfa := 0
+if high < low[2]  then brfvg := true, bra := 0
+if bfvg  then bfa += 1
+if brfvg then bra += 1
+if bfa > 80 then bfvg  := false
+if bra > 80 then brfvg := false
+fvg_wb = bfvg  ? (bfa  > 40 ? 6 : 12) : 0
+fvg_wbr= brfvg ? (bra  > 40 ? 6 : 12) : 0
+
+eq_h = ta.highest(high, 20)[1]; eq_l = ta.lowest(low, 20)[1]
+bull_liq = low <= eq_l + 3 * syminfo.mintick and close > eq_l and volume > vol_avg * 2
+bear_liq = high >= eq_h - 3 * syminfo.mintick and close < eq_h and volume > vol_avg * 2
+
+bull_orb = close > vwap_d and volume > vol_avg * 1.5 and htf_bull
+bear_orb = close < vwap_d and volume > vol_avg * 1.5 and htf_bear
+
+ph5 = ta.pivothigh(high, 5, 5); pl5 = ta.pivotlow(low, 5, 5)
+var float lph5 = na; var float lpl5 = na
+if not na(ph5) then lph5 := ph5
+if not na(pl5) then lpl5 := pl5
+bull_choch = not na(lpl5) and close > lpl5 and bull_disp and htf_bull
+bear_choch = not na(lph5) and close < lph5 and bear_disp and htf_bear
+
+bull_vwap = ta.crossover(close,  vwap_d) and volume > vol_avg * 1.2
+bear_vwap = ta.crossunder(close, vwap_d) and volume > vol_avg * 1.2
+
+bar_d      = (bar_cp * 2 - 1) * volume
+roll_d     = math.sum(bar_d, 20)
+ds         = roll_d - roll_d[5]
+poc_a      = ta.highest(volume * close, 50) / ta.highest(volume, 50)
+bull_vol   = ds > 0 and volume > vol_avg * 1.2 and close > poc_a
+bear_vol   = ds < 0 and volume > vol_avg * 1.2 and close < poc_a
+
+bull_sc = (bull_ob ? 18 : 0) + fvg_wb  + (bull_liq ? 15 : 0) + (bull_orb ? 10 : 0) + (bull_choch ? 13 : 0) + (bull_vwap ? 8 : 0) + (bull_vol ? 24 : 0) + kz_b
+bear_sc = (bear_ob ? 18 : 0) + fvg_wbr + (bear_liq ? 15 : 0) + (bear_orb ? 10 : 0) + (bear_choch ? 13 : 0) + (bear_vwap ? 8 : 0) + (bear_vol ? 24 : 0) + kz_b
+
+// ── Trade gate ────────────────────────────────────────────────────────────────
+regime_ok = not volatile and (not use_regime or trending) and not ranging
+
+var int trades_today = 0
+if dayofweek != dayofweek[1]
+    trades_today := 0
+
+can_trade_l = regime_ok and htf_bull and bull_sc >= conf_thresh and strategy.position_size == 0 and trades_today < max_trades_day
+can_trade_s = regime_ok and htf_bear and bear_sc >= conf_thresh and strategy.position_size == 0 and trades_today < max_trades_day
+
+// ── Entries ───────────────────────────────────────────────────────────────────
+sl_l = close - atr * sl_atr; tp_l = close + atr * sl_atr * tp_rr
+sl_s = close + atr * sl_atr; tp_s = close - atr * sl_atr * tp_rr
+
+if can_trade_l
+    strategy.entry("LONG", strategy.long)
+    strategy.exit("LONG-X", "LONG", stop=sl_l, limit=tp_l,
+                   trail_offset=use_trailing ? atr * trail_atr * syminfo.mintick * 10 : na)
+    trades_today += 1
+
+if can_trade_s
+    strategy.entry("SHORT", strategy.short)
+    strategy.exit("SHORT-X", "SHORT", stop=sl_s, limit=tp_s,
+                   trail_offset=use_trailing ? atr * trail_atr * syminfo.mintick * 10 : na)
+    trades_today += 1
+
+// ── Visualisation ─────────────────────────────────────────────────────────────
+plotshape(can_trade_l, "LONG Entry",  style=shape.triangleup,  location=location.belowbar, color=color.lime,    size=size.normal)
+plotshape(can_trade_s, "SHORT Entry", style=shape.triangledown, location=location.abovebar, color=color.fuchsia, size=size.normal)
+
+// Score bars
+plot(bull_sc, "Bull Score", color=color.new(color.green, 40), display=display.pane)
+plot(bear_sc, "Bear Score", color=color.new(color.red,   40), display=display.pane)
+
+// SL/TP lines when in trade
+in_long  = strategy.position_size > 0
+in_short = strategy.position_size < 0
+entry_p  = strategy.position_avg_price
+
+plot(in_long  ? entry_p - atr * sl_atr      : na, "SL Long",  color=color.red,   style=plot.style_linebr, linewidth=1)
+plot(in_long  ? entry_p + atr * sl_atr * tp_rr : na, "TP Long",  color=color.lime,  style=plot.style_linebr, linewidth=1)
+plot(in_short ? entry_p + atr * sl_atr      : na, "SL Short", color=color.red,   style=plot.style_linebr, linewidth=1)
+plot(in_short ? entry_p - atr * sl_atr * tp_rr : na, "TP Short", color=color.lime,  style=plot.style_linebr, linewidth=1)
+
+// ── Live stats table ──────────────────────────────────────────────────────────
+if barstate.islast
+    var table st = table.new(position.bottom_right, 2, 6, border_width=1, frame_color=color.new(color.gray, 70))
+    pnl_pct = strategy.netprofit / strategy.initial_capital * 100
+    wr      = strategy.wintrades / math.max(strategy.closedtrades, 1) * 100
+    pf      = strategy.grossprofit / math.max(strategy.grossloss, 0.01)
+    row_bg  = color.new(color.black, 72)
+    hdr_bg  = color.new(color.black, 55)
+    table.cell(st, 0, 0, "STRATEGY",       text_color=color.gray,  bgcolor=hdr_bg, text_size=size.small)
+    table.cell(st, 1, 0, "STATS",          text_color=color.gray,  bgcolor=hdr_bg, text_size=size.small)
+    table.cell(st, 0, 1, "Net P&L",        text_color=color.gray,  bgcolor=row_bg, text_size=size.small)
+    table.cell(st, 1, 1, str.tostring(math.round(pnl_pct * 10) / 10) + "%", text_color=pnl_pct > 0 ? color.lime : color.red, bgcolor=row_bg, text_size=size.small)
+    table.cell(st, 0, 2, "Win Rate",       text_color=color.gray,  bgcolor=row_bg, text_size=size.small)
+    table.cell(st, 1, 2, str.tostring(math.round(wr)) + "%", text_color=wr > 55 ? color.lime : wr > 45 ? color.yellow : color.red, bgcolor=row_bg, text_size=size.small)
+    table.cell(st, 0, 3, "Profit Factor",  text_color=color.gray,  bgcolor=row_bg, text_size=size.small)
+    table.cell(st, 1, 3, str.tostring(math.round(pf * 10) / 10), text_color=pf > 1.5 ? color.lime : pf > 1 ? color.yellow : color.red, bgcolor=row_bg, text_size=size.small)
+    table.cell(st, 0, 4, "Trades",         text_color=color.gray,  bgcolor=row_bg, text_size=size.small)
+    table.cell(st, 1, 4, str.tostring(strategy.closedtrades), text_color=color.gray, bgcolor=row_bg, text_size=size.small)
+    table.cell(st, 0, 5, "Score thresh",   text_color=color.gray,  bgcolor=row_bg, text_size=size.small)
+    table.cell(st, 1, 5, str.tostring(conf_thresh), text_color=color.yellow, bgcolor=row_bg, text_size=size.small)

@@ -1,0 +1,36 @@
+For genuine real-tick US equities, your options ranked by cost/effort:
+
+1. Alpaca Live Account — fund $1 → free IEX WebSocket
+Cost: $1 (deposit)
+
+Your paper key returns 401 on data. Fund a live account with $1:
+
+wss://stream.data.alpaca.markets/v2/iex — real-time trades + quotes
+1000+ US stocks, no monthly fee
+IEX = ~15% of consolidated tape (real trades, not delayed)
+Rust can subscribe natively via tokio-tungstenite — already in Cargo.toml
+This is the play. One-time $1. Real tick. Integrates directly into the Rust scanner WS.
+
+2. Massive (Polygon.io) — Stocks Starter
+Cost: unknown — check your dashboard
+
+You have MASSIVE_API_KEY already. Their Currencies plan ($49/mo) covers crypto/FX. Stocks is a separate SKU. If they have a Stocks Starter plan it'll be ~$29-49/mo and gives wss://socket.polygon.io/stocks — real-time SIP (full consolidated tape, all exchanges).
+
+Check: does your Massive dashboard show a Stocks plan?
+
+3. Finnhub WebSocket
+Cost: $0 free tier, but delayed
+
+You have FINNHUB_KEY. Free tier: wss://ws.finnhub.io exists but gives 15-min delayed for stocks. Real-time costs ~$50/mo. Not worth it vs Alpaca.
+
+4. Tradier Brokerage
+Cost: $0 API for account holders
+
+Open a Tradier account (no minimum), get streaming SSE/WS quotes for free. Less known but legit.
+
+Recommendation
+Fund Alpaca live with $1 → build Alpaca WS → Rust. Then TradeI has:
+
+Crypto: Binance WS 1m klines (already in scanner, just switch from REST polling to WS)
+Stocks: Alpaca IEX WS real trades
+Want me to build the Binance WS + Alpaca WS upgrade to the Rust scanner now?

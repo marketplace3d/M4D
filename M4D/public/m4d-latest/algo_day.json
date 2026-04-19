@@ -1,0 +1,389 @@
+{
+  "session_id": "2026-03-28_BTC",
+  "symbol": "BTC",
+  "bar_count": 200,
+  "warmup": 30,
+  "generated_at": "2026-03-28T03:38:27Z",
+  "per_algo": {
+    "EF": {
+      "long_bars": 64,
+      "short_bars": 54,
+      "flat_bars": 52
+    },
+    "HK": {
+      "long_bars": 16,
+      "short_bars": 15,
+      "flat_bars": 139
+    },
+    "GO": {
+      "long_bars": 0,
+      "short_bars": 0,
+      "flat_bars": 170
+    },
+    "RV": {
+      "long_bars": 24,
+      "short_bars": 28,
+      "flat_bars": 118
+    },
+    "AI": {
+      "long_bars": 6,
+      "short_bars": 4,
+      "flat_bars": 160
+    },
+    "SE": {
+      "long_bars": 0,
+      "short_bars": 0,
+      "flat_bars": 170
+    },
+    "CA": {
+      "long_bars": 94,
+      "short_bars": 15,
+      "flat_bars": 61
+    },
+    "8E": {
+      "long_bars": 79,
+      "short_bars": 86,
+      "flat_bars": 5
+    },
+    "TF": {
+      "long_bars": 12,
+      "short_bars": 40,
+      "flat_bars": 118
+    },
+    "NS": {
+      "long_bars": 1,
+      "short_bars": 2,
+      "flat_bars": 167
+    },
+    "IC": {
+      "long_bars": 0,
+      "short_bars": 0,
+      "flat_bars": 170
+    },
+    "DV": {
+      "long_bars": 1,
+      "short_bars": 52,
+      "flat_bars": 117
+    },
+    "WN": {
+      "long_bars": 3,
+      "short_bars": 73,
+      "flat_bars": 94
+    },
+    "WS": {
+      "long_bars": 16,
+      "short_bars": 2,
+      "flat_bars": 152
+    },
+    "MM": {
+      "long_bars": 5,
+      "short_bars": 0,
+      "flat_bars": 165
+    },
+    "VK": {
+      "long_bars": 0,
+      "short_bars": 0,
+      "flat_bars": 170
+    },
+    "HL": {
+      "long_bars": 0,
+      "short_bars": 0,
+      "flat_bars": 170
+    },
+    "SA": {
+      "long_bars": 6,
+      "short_bars": 20,
+      "flat_bars": 144
+    },
+    "DP": {
+      "long_bars": 0,
+      "short_bars": 0,
+      "flat_bars": 170
+    },
+    "RT": {
+      "long_bars": 0,
+      "short_bars": 0,
+      "flat_bars": 170
+    },
+    "OR": {
+      "long_bars": 0,
+      "short_bars": 0,
+      "flat_bars": 170
+    },
+    "BQ": {
+      "long_bars": 3,
+      "short_bars": 1,
+      "flat_bars": 166
+    },
+    "VT": {
+      "long_bars": 0,
+      "short_bars": 0,
+      "flat_bars": 170
+    },
+    "J": {
+      "long_bars": 1,
+      "short_bars": 4,
+      "flat_bars": 165
+    },
+    "CI": {
+      "long_bars": 4,
+      "short_bars": 3,
+      "flat_bars": 163
+    },
+    "MS": {
+      "long_bars": 15,
+      "short_bars": 16,
+      "flat_bars": 139
+    },
+    "WH": {
+      "long_bars": 1,
+      "short_bars": 1,
+      "flat_bars": 168
+    },
+    "CC": {
+      "long_bars": 38,
+      "short_bars": 55,
+      "flat_bars": 77
+    }
+  },
+  "last_bar_index": 199,
+  "last_bar_time": 1700011940,
+  "last_bar_votes": {
+    "DP": {
+      "payload": {
+        "body_ratio": 0.6127000254000583,
+        "vol_ratio": 1.4329228775113416
+      },
+      "strength": 0.0,
+      "vote": 0
+    },
+    "VT": {
+      "payload": {
+        "nearest_round": 42235.76917962104,
+        "range_ratio": 1.0020594113015613,
+        "vol_ratio": 1.4329228775113416
+      },
+      "strength": 0.0,
+      "vote": 0
+    },
+    "SA": {
+      "payload": {
+        "vah": 42233.505,
+        "val": 41612.25,
+        "vpoc": 41767.56375
+      },
+      "strength": 0.0,
+      "vote": 0
+    },
+    "WH": {
+      "payload": {
+        "expanding": false,
+        "velocity": -0.2383358985884641
+      },
+      "strength": 0.0,
+      "vote": 0
+    },
+    "J": {
+      "payload": {
+        "bank_a": "1L/0S",
+        "bank_b": "2L/0S",
+        "bank_c": "0L/1S",
+        "long": 3,
+        "score": 2,
+        "short": 1
+      },
+      "strength": 0.07407407407407407,
+      "vote": 0
+    },
+    "NS": {
+      "payload": {
+        "delta_sigma": 1.5101061849004918
+      },
+      "strength": 0.0,
+      "vote": 0
+    },
+    "BQ": {
+      "payload": {
+        "squeeze": false
+      },
+      "strength": 0.0,
+      "vote": 0
+    },
+    "GO": {
+      "payload": {
+        "scan": "no_fresh_ob"
+      },
+      "strength": 0.0,
+      "vote": 0
+    },
+    "8E": {
+      "payload": {
+        "close": 42374.87,
+        "ema8": 42310.359644073105,
+        "z_atr": 0.32838815993376375
+      },
+      "strength": 0.10946271997792124,
+      "vote": 1
+    },
+    "HK": {
+      "payload": {
+        "close": 42374.87,
+        "or_mid": 42274.7,
+        "vol_ratio": 1.488888888888889
+      },
+      "strength": 0.0,
+      "vote": 0
+    },
+    "CI": {
+      "payload": {
+        "scan": "no_fvg"
+      },
+      "strength": 0.0,
+      "vote": 0
+    },
+    "EF": {
+      "payload": {
+        "mfi": 54.517431730149845,
+        "slope": -7.413431557417844
+      },
+      "strength": 0.0,
+      "vote": 0
+    },
+    "MS": {
+      "payload": {
+        "last_sh": 42437.27,
+        "last_sl": 42157.63,
+        "structure": "neutral"
+      },
+      "strength": 0.0,
+      "vote": 0
+    },
+    "AI": {
+      "payload": {
+        "fvg_count": 0
+      },
+      "strength": 0.0,
+      "vote": 0
+    },
+    "WS": {
+      "payload": {
+        "phase": "ranging",
+        "sc_low": 42287.45
+      },
+      "strength": 0.0,
+      "vote": 0
+    },
+    "VK": {
+      "payload": {
+        "close": 42374.87,
+        "kc_lower": 41764.64461065466,
+        "kc_upper": 42550.87329182242,
+        "vol_ratio": 1.4329228775113416
+      },
+      "strength": 0.0,
+      "vote": 0
+    },
+    "SE": {
+      "payload": {
+        "gap_pct": -0.0017661642060221277,
+        "vol_ratio": 1.4329228775113416
+      },
+      "strength": 0.0,
+      "vote": 0
+    },
+    "TF": {
+      "payload": {
+        "daily": 0,
+        "monthly": 0,
+        "mtf_align": 1,
+        "weekly": 1
+      },
+      "strength": 0.0,
+      "vote": 0
+    },
+    "CC": {
+      "payload": {
+        "ema21": 42145.624668960314,
+        "ema34": 42018.0224069336,
+        "ema8": 42310.359644073105,
+        "stack": "bull"
+      },
+      "strength": 0.34494175101835317,
+      "vote": 1
+    },
+    "HL": {
+      "payload": {
+        "pivots": 2
+      },
+      "strength": 0.0,
+      "vote": 0
+    },
+    "RT": {
+      "payload": {
+        "reason": "warmup"
+      },
+      "strength": 0.0,
+      "vote": 0
+    },
+    "MM": {
+      "payload": {
+        "close": 42374.87,
+        "pivot": 42440.59,
+        "vcp_stage": 1
+      },
+      "strength": 0.0,
+      "vote": 0
+    },
+    "OR": {
+      "payload": {
+        "reason": "warmup"
+      },
+      "strength": 0.0,
+      "vote": 0
+    },
+    "CA": {
+      "payload": {
+        "age": 25,
+        "draw_atr": 1.0203851104668602,
+        "ifvg": "bearish_draw",
+        "level": 41773.52
+      },
+      "strength": 0.3401283701556201,
+      "vote": -1
+    },
+    "RV": {
+      "payload": {
+        "brick_size": 196.445438044749,
+        "bricks": 6,
+        "dir": "bull",
+        "streak": 5
+      },
+      "strength": 0.5,
+      "vote": 1
+    },
+    "WN": {
+      "payload": {
+        "close": 42374.87,
+        "ma30": 42003.341000000015,
+        "stage": 3
+      },
+      "strength": 0.0,
+      "vote": 0
+    },
+    "DV": {
+      "payload": {
+        "acc_score": 1,
+        "rs_line": 1.0145614374441525
+      },
+      "strength": 0.0,
+      "vote": 0
+    },
+    "IC": {
+      "payload": {
+        "scan": "no_virgin_fvg"
+      },
+      "strength": 0.0,
+      "vote": 0
+    }
+  }
+}

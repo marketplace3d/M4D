@@ -1,0 +1,92 @@
+// MSS-01 — Market Structure Shift · CHoCH Entry
+// Weight: 13%
+// Logic: CHoCH confirmed (LH after uptrend / HL after downtrend) · 2x ATR displacement candle
+//        · pullback to 61.8% · volume contraction on pullback
+// Edge: Identifies trend transition before retail — early positioning in new leg
+
+//@version=5
+indicator("MSS-01 · CHoCH Entry", overlay=true)
+
+// ── Inputs ────────────────────────────────────────────────────────────────────
+swing_len       = input.int(5,    "Swing pivot length",      minval=2, maxval=20)
+disp_atr_mult   = input.float(2.0,"Displacement ATR mult",   minval=1.0, maxval=5.0, step=0.1)
+fib_618         = input.float(0.618,"Pullback Fib level",    minval=0.382, maxval=0.786, step=0.001)
+vol_contract_m  = input.float(0.7, "Volume contraction mult",minval=0.3, maxval=0.95, step=0.05)
+atr_period      = input.int(14,   "ATR period")
+
+// ── ATR ───────────────────────────────────────────────────────────────────────
+atr = ta.atr(atr_period)
+
+// ── Swing highs and lows ──────────────────────────────────────────────────────
+swing_high = ta.pivothigh(high, swing_len, swing_len)
+swing_low  = ta.pivotlow(low,   swing_len, swing_len)
+
+// Track last two pivot highs and lows
+var float ph1 = na  // most recent
+var float ph2 = na  // previous
+var float pl1 = na
+var float pl2 = na
+
+if not na(swing_high)
+    ph2 := ph1
+    ph1 := swing_high
+
+if not na(swing_low)
+    pl2 := pl1
+    pl1 := swing_low
+
+// ── Trend state ───────────────────────────────────────────────────────────────
+// Uptrend: HH + HL | Downtrend: LH + LL
+var int trend = 0  // 1=up -1=down
+
+if not na(ph1) and not na(ph2) and not na(pl1)
+    if ph1 > ph2 and pl1 > pl2
+        trend := 1
+    else if ph1 < ph2 and pl1 < pl2
+        trend := -1
+
+// ── CHoCH detection ───────────────────────────────────────────────────────────
+// Bearish CHoCH: uptrend → price makes LH (below last PH)
+// Bullish CHoCH: downtrend → price makes HL (above last PL)
+bear_choch = trend[1] == 1 and not na(ph1) and high < ph1 and (open - close) > disp_atr_mult * atr
+bull_choch = trend[1] == -1 and not na(pl1) and low > pl1 and (close - open) > disp_atr_mult * atr
+
+// ── Displacement candle ───────────────────────────────────────────────────────
+bull_disp_ok = (close - open) > disp_atr_mult * atr
+bear_disp_ok = (open - close) > disp_atr_mult * atr
+
+// ── Fibonacci 61.8% pullback zone ────────────────────────────────────────────
+var float disp_high = na
+var float disp_low  = na
+var float pb_level  = na
+
+if bull_choch and bull_disp_ok
+    disp_high := high
+    disp_low  := low
+    pb_level  := disp_high - (disp_high - disp_low) * fib_618
+
+if bear_choch and bear_disp_ok
+    disp_high := high
+    disp_low  := low
+    pb_level  := disp_low + (disp_high - disp_low) * fib_618
+
+// ── Volume contraction on pullback ────────────────────────────────────────────
+vol_avg      = ta.sma(volume, 20)
+vol_contract = volume < vol_avg * vol_contract_m
+
+// ── Entry: price touches PB level with vol contraction ────────────────────────
+long_entry  = not na(pb_level) and trend == -1 and low <= pb_level and close >= pb_level and vol_contract
+short_entry = not na(pb_level) and trend ==  1 and high >= pb_level and close <= pb_level and vol_contract
+
+plotshape(long_entry,  "CHoCH Long",  style=shape.flag,    location=location.belowbar, color=color.green,  size=size.small)
+plotshape(short_entry, "CHoCH Short", style=shape.flag,     location=location.abovebar, color=color.red,    size=size.small)
+
+// Highlight CHoCH candles
+bgcolor(bull_choch ? color.new(color.green, 90) : na, title="Bull CHoCH bg")
+bgcolor(bear_choch ? color.new(color.red,   90) : na, title="Bear CHoCH bg")
+
+plot(pb_level, "61.8% PB", color=color.new(color.gold, 40), style=plot.style_linebr, linewidth=1)
+
+// ── Alerts ────────────────────────────────────────────────────────────────────
+alertcondition(long_entry,  "MSS-01 LONG",  "MSS-01: CHoCH Long · {{ticker}} · {{close}}")
+alertcondition(short_entry, "MSS-01 SHORT", "MSS-01: CHoCH Short · {{ticker}} · {{close}}")

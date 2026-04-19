@@ -1,0 +1,298 @@
+{
+  "equal_weight": {
+    "sharpe": 5.079,
+    "n_trades": 120522,
+    "hit_rate": 0.525,
+    "threshold": 4
+  },
+  "sharpe_weighted": {
+    "sharpe": 5.686,
+    "n_trades": 158822,
+    "hit_rate": 0.528,
+    "threshold": 0.04
+  },
+  "hard_routed": {
+    "sharpe": 6.139,
+    "n_trades": 22533,
+    "hit_rate": 0.529,
+    "threshold": 0.15
+  },
+  "soft_routed": {
+    "sharpe": 8.094,
+    "n_trades": 11696,
+    "hit_rate": 0.531,
+    "threshold": 0.35
+  },
+  "hard_routing_delta": 0.453,
+  "hard_routing_verdict": "IMPROVED",
+  "soft_routing_delta": 2.408,
+  "soft_routing_verdict": "IMPROVED",
+  "signal_routing": {
+    "SUPERTREND": [
+      "TRENDING"
+    ],
+    "EMA_CROSS": [
+      "TRENDING"
+    ],
+    "EMA_STACK": [
+      "TRENDING",
+      "BREAKOUT"
+    ],
+    "MACD_CROSS": [
+      "TRENDING"
+    ],
+    "GOLDEN": [
+      "TRENDING",
+      "BREAKOUT"
+    ],
+    "TREND_SMA": [
+      "TRENDING"
+    ],
+    "PSAR": [
+      "TRENDING"
+    ],
+    "ADX_TREND": [
+      "TRENDING",
+      "BREAKOUT"
+    ],
+    "PULLBACK": [
+      "TRENDING"
+    ],
+    "RSI_CROSS": [
+      "RANGING",
+      "RISK-OFF"
+    ],
+    "RSI_STRONG": [
+      "RANGING",
+      "RISK-OFF"
+    ],
+    "STOCH_CROSS": [
+      "RANGING",
+      "RISK-OFF"
+    ],
+    "MFI_CROSS": [
+      "RANGING",
+      "RISK-OFF"
+    ],
+    "CMF_POS": [
+      "RANGING",
+      "RISK-OFF",
+      "TRENDING"
+    ],
+    "OBV_TREND": [
+      "RANGING",
+      "RISK-OFF",
+      "TRENDING",
+      "BREAKOUT"
+    ],
+    "VOL_BO": [
+      "BREAKOUT",
+      "TRENDING"
+    ],
+    "BB_BREAK": [
+      "BREAKOUT"
+    ],
+    "KC_BREAK": [
+      "BREAKOUT"
+    ],
+    "SQZPOP": [
+      "BREAKOUT"
+    ],
+    "ATR_EXP": [
+      "BREAKOUT",
+      "TRENDING"
+    ],
+    "DON_BO": [
+      "BREAKOUT",
+      "TRENDING"
+    ],
+    "NEW_HIGH": [
+      "BREAKOUT",
+      "TRENDING"
+    ],
+    "RANGE_BO": [
+      "BREAKOUT"
+    ],
+    "VOL_SURGE": [
+      "BREAKOUT",
+      "TRENDING"
+    ],
+    "CONSEC_BULL": [
+      "TRENDING",
+      "BREAKOUT"
+    ],
+    "ROC_MOM": [
+      "TRENDING"
+    ],
+    "CONSOL_BO": [
+      "BREAKOUT"
+    ]
+  },
+  "soft_regime_mult": {
+    "SUPERTREND": {
+      "TRENDING": 1.5,
+      "BREAKOUT": 1.5,
+      "RANGING": 0.05,
+      "RISK-OFF": 0.05
+    },
+    "EMA_CROSS": {
+      "TRENDING": 1.5,
+      "BREAKOUT": 0.05,
+      "RANGING": 0.05,
+      "RISK-OFF": 0.05
+    },
+    "EMA_STACK": {
+      "TRENDING": 1.5,
+      "BREAKOUT": 1.5,
+      "RANGING": 0.05,
+      "RISK-OFF": 0.2
+    },
+    "MACD_CROSS": {
+      "TRENDING": 1.5,
+      "BREAKOUT": 0.05,
+      "RANGING": 0.05,
+      "RISK-OFF": 0.1
+    },
+    "GOLDEN": {
+      "TRENDING": 1.2,
+      "BREAKOUT": 0.05,
+      "RANGING": 0.3,
+      "RISK-OFF": 1.5
+    },
+    "TREND_SMA": {
+      "TRENDING": 1.5,
+      "BREAKOUT": 1.5,
+      "RANGING": 0.05,
+      "RISK-OFF": 0.1
+    },
+    "PSAR": {
+      "TRENDING": 1.5,
+      "BREAKOUT": 0.05,
+      "RANGING": 0.05,
+      "RISK-OFF": 0.1
+    },
+    "ADX_TREND": {
+      "TRENDING": 1.5,
+      "BREAKOUT": 0.05,
+      "RANGING": 0.3,
+      "RISK-OFF": 0.3
+    },
+    "PULLBACK": {
+      "TRENDING": 1.5,
+      "BREAKOUT": 0.05,
+      "RANGING": 0.1,
+      "RISK-OFF": 0.1
+    },
+    "RSI_CROSS": {
+      "TRENDING": 0.1,
+      "BREAKOUT": 0.1,
+      "RANGING": 1.5,
+      "RISK-OFF": 1.5
+    },
+    "RSI_STRONG": {
+      "TRENDING": 0.1,
+      "BREAKOUT": 0.1,
+      "RANGING": 1.5,
+      "RISK-OFF": 1.5
+    },
+    "STOCH_CROSS": {
+      "TRENDING": 0.1,
+      "BREAKOUT": 0.1,
+      "RANGING": 1.5,
+      "RISK-OFF": 1.5
+    },
+    "MFI_CROSS": {
+      "TRENDING": 0.1,
+      "BREAKOUT": 0.1,
+      "RANGING": 1.5,
+      "RISK-OFF": 1.5
+    },
+    "CMF_POS": {
+      "TRENDING": 0.8,
+      "BREAKOUT": 0.1,
+      "RANGING": 1.2,
+      "RISK-OFF": 1.2
+    },
+    "OBV_TREND": {
+      "TRENDING": 1.0,
+      "BREAKOUT": 0.1,
+      "RANGING": 1.0,
+      "RISK-OFF": 1.0
+    },
+    "VOL_BO": {
+      "TRENDING": 1.2,
+      "BREAKOUT": 1.5,
+      "RANGING": 0.1,
+      "RISK-OFF": 0.1
+    },
+    "BB_BREAK": {
+      "TRENDING": 0.3,
+      "BREAKOUT": 1.5,
+      "RANGING": 0.3,
+      "RISK-OFF": 0.1
+    },
+    "KC_BREAK": {
+      "TRENDING": 0.3,
+      "BREAKOUT": 1.5,
+      "RANGING": 0.3,
+      "RISK-OFF": 0.1
+    },
+    "SQZPOP": {
+      "TRENDING": 0.3,
+      "BREAKOUT": 1.5,
+      "RANGING": 0.05,
+      "RISK-OFF": 0.1
+    },
+    "ATR_EXP": {
+      "TRENDING": 1.2,
+      "BREAKOUT": 1.5,
+      "RANGING": 0.2,
+      "RISK-OFF": 0.1
+    },
+    "DON_BO": {
+      "TRENDING": 1.2,
+      "BREAKOUT": 1.5,
+      "RANGING": 0.1,
+      "RISK-OFF": 0.1
+    },
+    "NEW_HIGH": {
+      "TRENDING": 1.2,
+      "BREAKOUT": 1.5,
+      "RANGING": 0.1,
+      "RISK-OFF": 0.1
+    },
+    "RANGE_BO": {
+      "TRENDING": 0.3,
+      "BREAKOUT": 1.5,
+      "RANGING": 0.3,
+      "RISK-OFF": 0.1
+    },
+    "VOL_SURGE": {
+      "TRENDING": 1.2,
+      "BREAKOUT": 0.1,
+      "RANGING": 0.1,
+      "RISK-OFF": 0.3
+    },
+    "CONSEC_BULL": {
+      "TRENDING": 1.2,
+      "BREAKOUT": 0.1,
+      "RANGING": 0.1,
+      "RISK-OFF": 0.1
+    },
+    "ROC_MOM": {
+      "TRENDING": 1.5,
+      "BREAKOUT": 0.05,
+      "RANGING": 0.1,
+      "RISK-OFF": 0.3
+    },
+    "CONSOL_BO": {
+      "TRENDING": 0.3,
+      "BREAKOUT": 1.5,
+      "RANGING": 0.1,
+      "RISK-OFF": 0.1
+    }
+  },
+  "bars_routed_pct": 35.67,
+  "n_oos_bars": 986573,
+  "generated_at": "2026-04-19T19:42:43"
+}

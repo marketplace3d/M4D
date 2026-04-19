@@ -1,0 +1,1082 @@
+// ICT-MASTER — All ICT Layers Combined (17 scripts → 1)
+// OBs (array, RJB, PPDD, HVB) · FVGs (partial fill) · Structure (BOS/CHoCH)
+// Sessions + Kill Zones + ORB · INST levels (PDH/PDL/PWH/PWL/EQH/EQL/BSL/SSL)
+// Premium/Discount + OTE · VWAP + SD + POC · Regime · Delta · CONF score table
+// Targets T1/T2/T3 · Stop hunt · CHoCH entries · ORB breakout
+//
+// M4D ICT system — all signals, one chart.
+
+//@version=5
+indicator("M4D · ICT MASTER", overlay=true,
+          max_boxes_count=400, max_lines_count=400, max_labels_count=300)
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// INPUTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── Master toggles ─────────────────────────────────────────────────────────
+grp_on = "── Layers ──"
+show_ob      = input.bool(true,  "Order Blocks",           group=grp_on)
+show_fvg     = input.bool(true,  "Fair Value Gaps",        group=grp_on)
+show_struct  = input.bool(true,  "BOS / CHoCH structure",  group=grp_on)
+show_sess    = input.bool(true,  "Session boxes",          group=grp_on)
+show_kz      = input.bool(true,  "Kill zone tint",         group=grp_on)
+show_levels  = input.bool(true,  "INST levels (PDH/PWH/EQ/BSL)", group=grp_on)
+show_pd      = input.bool(true,  "Premium / Discount + OTE",     group=grp_on)
+show_vwap    = input.bool(true,  "VWAP + SD bands",        group=grp_on)
+show_poc     = input.bool(true,  "POC line",               group=grp_on)
+show_regime  = input.bool(true,  "Regime tint",            group=grp_on)
+show_targets = input.bool(true,  "T1/T2/T3 targets",       group=grp_on)
+show_table   = input.bool(true,  "Score table",            group=grp_on)
+show_sigs    = input.bool(true,  "Entry signals",          group=grp_on)
+
+// ── OB ─────────────────────────────────────────────────────────────────────
+grp_ob = "Order Blocks"
+max_obs      = input.int(6,     "Max OBs per side",           minval=1,  maxval=12,  group=grp_ob)
+max_age      = input.int(80,    "Max zone age (bars)",        minval=10, maxval=500, group=grp_ob)
+ob_min_atr   = input.float(0.3, "Min OB height (ATR×)",      minval=0.05, maxval=2.0, step=0.05, group=grp_ob)
+ob_inst_only = input.bool(false, "INST OBs only (score ≥70)", group=grp_ob)
+use_wicks    = input.bool(false, "Use full wick range",       group=grp_ob)
+col_ob_bull  = input.color(color.green, "Bull OB",           group=grp_ob)
+col_ob_bear  = input.color(color.red,   "Bear OB",           group=grp_ob)
+show_rjb     = input.bool(true,  "Rejection Blocks (RJB)",   group=grp_ob)
+show_ppdd    = input.bool(true,  "PPDD (post-sweep OB)",     group=grp_ob)
+show_hvb     = input.bool(true,  "HVB bar colour",           group=grp_ob)
+
+// ── FVG ────────────────────────────────────────────────────────────────────
+grp_fvg = "FVG"
+fvg_min_atr  = input.float(0.1,  "Min FVG height (ATR×)",   minval=0.02, maxval=1.0, step=0.02, group=grp_fvg)
+fvg_keep     = input.bool(true,   "Keep ghost zones",        group=grp_fvg)
+col_fvg_bull = input.color(color.teal,   "Bull FVG",         group=grp_fvg)
+col_fvg_bear = input.color(color.orange, "Bear FVG",         group=grp_fvg)
+
+// ── Structure ───────────────────────────────────────────────────────────────
+grp_str = "Structure"
+pivot_len    = input.int(5,    "Pivot length",                minval=2, maxval=20,  group=grp_str)
+disp_mult    = input.float(1.5,"Displacement ATR mult",       minval=0.5, maxval=5.0, step=0.1, group=grp_str)
+htf_tf       = input.timeframe("60", "HTF structure TF",      group=grp_str)
+show_hh_lbl  = input.bool(true, "Show HH/HL/LH/LL labels",  group=grp_str)
+
+// ── Sessions ────────────────────────────────────────────────────────────────
+grp_sess = "Sessions"
+sess_tz      = input.string("America/New_York", "Timezone",
+               options=["America/New_York","UTC","Europe/London","Asia/Tokyo"], group=grp_sess)
+show_asia    = input.bool(false, "Asia session box",          group=grp_sess)
+show_london  = input.bool(true,  "London session box",        group=grp_sess)
+show_ny      = input.bool(true,  "NY session box",            group=grp_sess)
+show_orb     = input.bool(true,  "ORB levels",                group=grp_sess)
+col_london   = input.color(color.new(color.green,  88), "London box", group=grp_sess)
+col_ny_box   = input.color(color.new(color.orange, 88), "NY box",     group=grp_sess)
+col_asia     = input.color(color.new(color.blue,   88), "Asia box",   group=grp_sess)
+
+// ── INST levels ─────────────────────────────────────────────────────────────
+grp_lv = "INST Levels"
+show_pdhl    = input.bool(true, "PDH / PDL",                  group=grp_lv)
+show_pwhl    = input.bool(true, "PWH / PWL",                  group=grp_lv)
+show_eq      = input.bool(true, "Equal Highs / Lows (EQH/EQL)", group=grp_lv)
+eq_tol_atr   = input.float(0.2, "EQ tolerance (ATR×)",        minval=0.05, maxval=1.0, step=0.05, group=grp_lv)
+show_bsl     = input.bool(true, "BSL / SSL (stop pools)",     group=grp_lv)
+liq_lb       = input.int(30,    "BSL/SSL lookback",           minval=10, maxval=200, group=grp_lv)
+ext_right    = input.int(100,   "Extend lines (bars)",        minval=10, maxval=500, group=grp_lv)
+col_pdh      = input.color(color.new(color.red,   25), "PDH / PWH", group=grp_lv)
+col_pdl      = input.color(color.new(color.green, 25), "PDL / PWL", group=grp_lv)
+col_eqh      = input.color(color.new(color.red,   40), "EQH",       group=grp_lv)
+col_eql      = input.color(color.new(color.green, 40), "EQL",       group=grp_lv)
+col_bsl      = input.color(color.new(color.aqua,    35), "BSL",     group=grp_lv)
+col_ssl      = input.color(color.new(color.fuchsia, 35), "SSL",     group=grp_lv)
+col_swept    = input.color(color.new(color.gray,  70),  "Swept",    group=grp_lv)
+
+// ── P/D ─────────────────────────────────────────────────────────────────────
+grp_pd = "Premium / Discount"
+pd_swing_len = input.int(20,    "Swing lookback for P/D",    minval=5, maxval=100, group=grp_pd)
+show_ote     = input.bool(true, "OTE zone (61.8–79%)",       group=grp_pd)
+
+// ── Volume / Delta ──────────────────────────────────────────────────────────
+grp_vol = "Volume / Delta"
+poc_len      = input.int(50,    "POC lookback (bars)",       minval=20, maxval=300, group=grp_vol)
+delta_len    = input.int(20,    "Delta lookback (bars)",     minval=5,  maxval=100, group=grp_vol)
+hvb_ema_p    = input.int(12,    "HVB vol EMA period",        minval=3,  maxval=50,  group=grp_vol)
+hvb_mult_v   = input.float(1.5, "HVB vol multiplier",       minval=1.0, maxval=5.0, step=0.1, group=grp_vol)
+
+// ── Targets ─────────────────────────────────────────────────────────────────
+grp_tgt = "Targets"
+max_tgts     = input.int(3,    "Max targets per side",       minval=1, maxval=5, group=grp_tgt)
+approach_atr = input.float(0.3,"T1 approach zone (ATR)",    minval=0.1, maxval=2.0, step=0.1, group=grp_tgt)
+col_t1       = input.color(color.new(color.yellow, 10), "T1", group=grp_tgt)
+col_t2       = input.color(color.new(color.orange, 30), "T2", group=grp_tgt)
+col_t3       = input.color(color.new(color.gray,   50), "T3", group=grp_tgt)
+
+// ── Params ──────────────────────────────────────────────────────────────────
+grp_p = "Params"
+atr_p        = input.int(14,   "ATR period",                 group=grp_p)
+bias_tf      = input.timeframe("D", "HTF bias TF",           group=grp_p)
+conf_thresh  = input.int(60,   "CONF threshold (0–100)",     minval=30, maxval=95, group=grp_p)
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SHARED BASELINE
+// ═══════════════════════════════════════════════════════════════════════════════
+atr      = ta.atr(atr_p)
+vol_avg  = ta.sma(volume, 20)
+rvol     = volume / vol_avg
+rvol_ok  = rvol >= 1.2
+vol_exp  = volume > vol_avg * 1.3
+rsi      = ta.rsi(close, 14)
+vwap_v   = ta.vwap(hlc3)
+vwap_dev = ta.stdev(hlc3, 20)
+vwap_hi  = vwap_v + vwap_dev
+vwap_lo  = vwap_v - vwap_dev
+
+// POC
+poc_val = ta.highest(close * volume, poc_len) / ta.highest(volume, poc_len)
+poc_up  = close >= poc_val
+poc_xu  = ta.crossover(close,  poc_val)
+poc_xd  = ta.crossunder(close, poc_val)
+
+// HTF bias
+htf_close = request.security(syminfo.tickerid, bias_tf, close, lookahead=barmerge.lookahead_off)
+htf_open  = request.security(syminfo.tickerid, bias_tf, open,  lookahead=barmerge.lookahead_off)
+htf_bull  = htf_close > htf_open and close > vwap_v
+htf_bear  = htf_close < htf_open and close < vwap_v
+
+// HVB
+vol_ema = ta.ema(volume, hvb_ema_p)
+hvb     = volume > vol_ema * hvb_mult_v
+
+// Delta
+bar_delta    = (close - low) / math.max(high - low, syminfo.mintick) * 2 - 1
+rolling_d    = math.sum(bar_delta * volume, delta_len)
+delta_slope  = rolling_d - rolling_d[5]
+bull_delta   = delta_slope > 0 and rvol_ok
+bear_delta   = delta_slope < 0 and rvol_ok
+price_hh     = high > ta.highest(high, delta_len)[1]
+delta_lh     = rolling_d < ta.highest(rolling_d, delta_len)[1]
+bear_div     = price_hh and delta_lh and not bull_delta
+price_ll     = low < ta.lowest(low, delta_len)[1]
+delta_hl     = rolling_d > ta.lowest(rolling_d, delta_len)[1]
+bull_div     = price_ll and delta_hl and not bear_delta
+
+// Regime (inline REGIME-01)
+[diplus, diminus, adx_v] = ta.dmi(14, 14)
+[bb_mid, bb_upper, bb_lower] = ta.bb(close, 20, 2.0)
+bb_width   = (bb_upper - bb_lower) / bb_mid * 100
+ema_f      = ta.ema(close, 21)
+ema_s      = ta.ema(close, 55)
+atr_sum_r  = math.sum(ta.atr(1), 14)
+hl_range_r = ta.highest(high, 14) - ta.lowest(low, 14)
+chop_r     = 100 * math.log10(atr_sum_r / math.max(hl_range_r, syminfo.mintick)) / math.log10(14)
+r_bull     = adx_v > 25 and diplus > diminus and ema_f > ema_s and chop_r < 50
+r_bear     = adx_v > 25 and diminus > diplus and ema_f < ema_s and chop_r < 50
+r_range    = adx_v < 20 and chop_r > 55
+r_str      = r_bull ? "TREND ▲" : r_bear ? "TREND ▼" : r_range ? "RANGE" : "NEUTRAL"
+r_col      = r_bull ? color.lime  : r_bear ? color.red : r_range ? color.gray : color.silver
+
+// Kill zones (ET = America/New_York)
+h_et  = hour(time, "America/New_York")
+m_et  = minute(time, "America/New_York")
+hm_et = h_et * 100 + m_et
+in_kz_lo = hm_et >= 300  and hm_et < 500
+in_kz_ny = hm_et >= 930  and hm_et < 1100
+in_kz_lc = hm_et >= 1000 and hm_et < 1200
+in_any_kz = in_kz_lo or in_kz_ny or in_kz_lc
+in_kz_any_prev = in_kz_lo[1] or in_kz_ny[1] or in_kz_lc[1]
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SESSION BOXES + ORB LEVELS
+// ═══════════════════════════════════════════════════════════════════════════════
+// Sessions keyed on ET time
+in_asia_sess   = hm_et >= 2000 or hm_et < 0    // Asia: 20:00–00:00 ET prior day (approx)
+in_london_sess = hm_et >= 300  and hm_et < 800
+in_ny_sess     = hm_et >= 930  and hm_et < 1600
+
+var float asia_h   = na; var float asia_l   = na; var bool asia_open   = false; var box asia_box   = na
+var float lon_h    = na; var float lon_l    = na; var bool lon_open    = false; var box lon_box    = na
+var float ny_h     = na; var float ny_l     = na; var bool ny_open     = false; var box ny_box     = na
+
+// Asia
+if show_sess and show_asia
+    if in_asia_sess and not in_asia_sess[1]
+        if not na(asia_box) then box.delete(asia_box)
+        asia_h := high; asia_l := low; asia_open := true
+        asia_box := box.new(bar_index, high, bar_index, low,
+                             border_color=color.new(col_asia, 30), bgcolor=col_asia, border_width=1)
+    if asia_open and in_asia_sess
+        asia_h := math.max(asia_h, high); asia_l := math.min(asia_l, low)
+        box.set_top(asia_box, asia_h); box.set_bottom(asia_box, asia_l); box.set_right(asia_box, bar_index)
+    if not in_asia_sess and in_asia_sess[1]
+        asia_open := false
+
+// London
+if show_sess and show_london
+    if in_london_sess and not in_london_sess[1]
+        if not na(lon_box) then box.delete(lon_box)
+        lon_h := high; lon_l := low; lon_open := true
+        lon_box := box.new(bar_index, high, bar_index, low,
+                            border_color=color.new(col_london, 30), bgcolor=col_london, border_width=1)
+        label.new(bar_index, high + atr * 0.3, "LN",
+                  color=color.new(color.black, 80), textcolor=color.green,
+                  style=label.style_label_down, size=size.tiny)
+    if lon_open and in_london_sess
+        lon_h := math.max(lon_h, high); lon_l := math.min(lon_l, low)
+        box.set_top(lon_box, lon_h); box.set_bottom(lon_box, lon_l); box.set_right(lon_box, bar_index)
+    if not in_london_sess and in_london_sess[1]
+        lon_open := false
+
+// NY
+if show_sess and show_ny
+    if in_ny_sess and not in_ny_sess[1]
+        if not na(ny_box) then box.delete(ny_box)
+        ny_h := high; ny_l := low; ny_open := true
+        ny_box := box.new(bar_index, high, bar_index, low,
+                           border_color=color.new(col_ny_box, 30), bgcolor=col_ny_box, border_width=1)
+        label.new(bar_index, high + atr * 0.3, "NY",
+                  color=color.new(color.black, 80), textcolor=color.orange,
+                  style=label.style_label_down, size=size.tiny)
+    if ny_open and in_ny_sess
+        ny_h := math.max(ny_h, high); ny_l := math.min(ny_l, low)
+        box.set_top(ny_box, ny_h); box.set_bottom(ny_box, ny_l); box.set_right(ny_box, bar_index)
+    if not in_ny_sess and in_ny_sess[1]
+        ny_open := false
+
+// Kill zone background
+kz_bg_col = in_kz_ny ? color.new(color.orange, 90) :
+             in_kz_lo ? color.new(color.green,  90) :
+             in_kz_lc ? color.new(color.red,    93) : na
+bgcolor(show_kz and in_any_kz ? kz_bg_col : na, title="Kill Zone")
+if show_kz and in_any_kz and not in_kz_any_prev
+    kz_lbl = in_kz_ny ? "NY" : in_kz_lo ? "LN" : "LC"
+    label.new(bar_index, high + atr * 0.4, kz_lbl,
+              color=color.new(color.black, 80), textcolor=color.yellow,
+              style=label.style_label_down, size=size.tiny)
+
+// ORB levels (first bar of NY open)
+var float orb_h = na; var float orb_l = na; var bool orb_done = false
+var line ln_orb_h = na; var line ln_orb_l = na; var line ln_orb_eq = na
+
+if dayofweek != dayofweek[1]
+    orb_done := false
+
+if show_orb and hm_et == 930 and not orb_done
+    orb_h := high; orb_l := low; orb_done := true
+    if not na(ln_orb_h) then line.delete(ln_orb_h)
+    if not na(ln_orb_l) then line.delete(ln_orb_l)
+    if not na(ln_orb_eq) then line.delete(ln_orb_eq)
+    orb_rng = orb_h - orb_l
+    ln_orb_h  := line.new(bar_index, orb_h, bar_index + 300, orb_h,
+                           color=color.new(color.yellow, 40), width=2, extend=extend.right)
+    ln_orb_l  := line.new(bar_index, orb_l, bar_index + 300, orb_l,
+                           color=color.new(color.yellow, 40), width=2, extend=extend.right)
+    ln_orb_eq := line.new(bar_index, (orb_h + orb_l) / 2, bar_index + 300, (orb_h + orb_l) / 2,
+                           color=color.new(color.yellow, 65), width=1, style=line.style_dashed, extend=extend.right)
+    label.new(bar_index, orb_h, "ORH", color=color.new(color.black, 85),
+              textcolor=color.yellow, style=label.style_label_left, size=size.tiny)
+    label.new(bar_index, orb_l, "ORL", color=color.new(color.black, 85),
+              textcolor=color.yellow, style=label.style_label_left, size=size.tiny)
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ICT-01 ORDER BLOCKS — Array-based, multi-OB, RJB, PPDD
+// ═══════════════════════════════════════════════════════════════════════════════
+// INST scoring: base 30 + vol 20 + delta_abs 25 + FVG 15 + KZ 10 = 100
+ob_score(vexp, fvg_f, kz_f) => math.min(100, 30 + (vexp ? 20 : 0) + 25 + (fvg_f ? 15 : 0) + (kz_f ? 10 : 0))
+
+// Decay helpers
+ob_fill_c(b, r, inst) => color.new(b, inst ? 88 : math.min(97, math.round(90.0 + r * 7.0)))
+ob_bdr_c(b,  r, inst) => color.new(b, inst ? 55 : math.min(97, math.round(65.0 + r * 32.0)))
+
+// FVG on same displacement bar
+bull_fvg_here = high[2] < low
+bear_fvg_here = low[2]  > high
+
+// OB detection (Super OB method)
+is_bull_ob = show_ob and close[1] < open[1] and close > open and close > high[1] and
+             math.abs(open[1] - close[1]) >= atr * ob_min_atr
+is_bear_ob = show_ob and close[1] > open[1] and close < open and close < low[1] and
+             math.abs(open[1] - close[1]) >= atr * ob_min_atr
+
+// Pivot tracking for PPDD (post-sweep OB)
+pvt_look    = 3
+ph_v        = ta.pivothigh(high, pvt_look, pvt_look)
+pl_v        = ta.pivotlow(low,   pvt_look, pvt_look)
+pivot_top   = ta.valuewhen(not na(ph_v), high[pvt_look], 0)
+pivot_bot   = ta.valuewhen(not na(pl_v), low[pvt_look],  0)
+
+// Bull OB arrays
+var box[]  bull_boxes = array.new_box()
+var int[]  bull_bars  = array.new_int()
+var bool[] bull_inst  = array.new_bool()
+var bool[] bull_ghost = array.new_bool()
+
+// Bear OB arrays
+var box[]  bear_boxes = array.new_box()
+var int[]  bear_bars  = array.new_int()
+var bool[] bear_inst  = array.new_bool()
+var bool[] bear_ghost = array.new_bool()
+
+// RJB arrays
+var box[] rjb_bull = array.new_box()
+var box[] rjb_bear = array.new_box()
+
+// Bull OB creation
+if is_bull_ob
+    sc   = ob_score(vol_exp, bull_fvg_here, in_any_kz)
+    inst = sc >= 70
+    if not ob_inst_only or inst
+        ob_top = use_wicks ? high[1]               : math.max(open[1], close[1])
+        ob_bot = use_wicks ? math.min(low[1], low) : math.min(open[1], close[1])
+        bx = box.new(bar_index - 1, ob_top, bar_index + 1, ob_bot,
+                     border_color=ob_bdr_c(col_ob_bull, 0.0, inst),
+                     bgcolor=ob_fill_c(col_ob_bull, 0.0, inst), border_width=1)
+        array.push(bull_boxes, bx); array.push(bull_bars, bar_index)
+        array.push(bull_inst, inst); array.push(bull_ghost, false)
+        if inst
+            label.new(bar_index - 1, ob_top, "INST",
+                      color=color.new(color.black, 55), textcolor=color.new(col_ob_bull, 5),
+                      style=label.style_label_down, size=size.tiny)
+        if array.size(bull_boxes) > max_obs
+            box.delete(array.shift(bull_boxes)); array.shift(bull_bars)
+            array.shift(bull_inst); array.shift(bull_ghost)
+
+// Bear OB creation
+if is_bear_ob
+    sc   = ob_score(vol_exp, bear_fvg_here, in_any_kz)
+    inst = sc >= 70
+    if not ob_inst_only or inst
+        ob_top = use_wicks ? math.max(high[1], high) : math.max(open[1], close[1])
+        ob_bot = use_wicks ? low[1]                   : math.min(open[1], close[1])
+        bx = box.new(bar_index - 1, ob_top, bar_index + 1, ob_bot,
+                     border_color=ob_bdr_c(col_ob_bear, 0.0, inst),
+                     bgcolor=ob_fill_c(col_ob_bear, 0.0, inst), border_width=1)
+        array.push(bear_boxes, bx); array.push(bear_bars, bar_index)
+        array.push(bear_inst, inst); array.push(bear_ghost, false)
+        if inst
+            label.new(bar_index - 1, ob_bot, "INST",
+                      color=color.new(color.black, 55), textcolor=color.new(col_ob_bear, 5),
+                      style=label.style_label_up, size=size.tiny)
+        if array.size(bear_boxes) > max_obs
+            box.delete(array.shift(bear_boxes)); array.shift(bear_bars)
+            array.shift(bear_inst); array.shift(bear_ghost)
+
+// RJB — Rejection Blocks
+if show_ob and show_rjb and is_bull_ob
+    rjb1 = low > (close[1] - 0.2 * (close[1] - low[1]))
+    rjb2 = low < low[1]
+    if rjb1 and not rjb2
+        rbx = box.new(bar_index - 1, close[1], bar_index + max_age, low[1],
+                      border_color=color.new(color.lime, 55), bgcolor=color.new(color.lime, 90),
+                      border_width=1, border_style=line.style_dashed)
+        array.push(rjb_bull, rbx)
+        if array.size(rjb_bull) > max_obs
+            box.delete(array.shift(rjb_bull))
+    if rjb2
+        rbx = box.new(bar_index, open, bar_index + max_age, low,
+                      border_color=color.new(color.lime, 55), bgcolor=color.new(color.lime, 90),
+                      border_width=1, border_style=line.style_dashed)
+        array.push(rjb_bull, rbx)
+        if array.size(rjb_bull) > max_obs
+            box.delete(array.shift(rjb_bull))
+
+if show_ob and show_rjb and is_bear_ob
+    rjb1 = high < (close[1] + 0.2 * (high[1] - close[1]))
+    rjb2 = high > high[1]
+    if rjb1 and not rjb2
+        rbx = box.new(bar_index - 1, high[1], bar_index + max_age, close[1],
+                      border_color=color.new(color.orange, 55), bgcolor=color.new(color.orange, 90),
+                      border_width=1, border_style=line.style_dashed)
+        array.push(rjb_bear, rbx)
+        if array.size(rjb_bear) > max_obs
+            box.delete(array.shift(rjb_bear))
+    if rjb2
+        rbx = box.new(bar_index, open, bar_index + max_age, high,
+                      border_color=color.new(color.orange, 55), bgcolor=color.new(color.orange, 90),
+                      border_width=1, border_style=line.style_dashed)
+        array.push(rjb_bear, rbx)
+        if array.size(rjb_bear) > max_obs
+            box.delete(array.shift(rjb_bear))
+
+// PPDD — post-sweep OB markers
+bull_ppdd = show_ob and show_ppdd and is_bull_ob and not na(pivot_bot) and
+            math.min(low, low[1]) < pivot_bot and close > pivot_bot
+bear_ppdd = show_ob and show_ppdd and is_bear_ob and not na(pivot_top) and
+            math.max(high, high[1]) > pivot_top and close < pivot_top
+
+// Update Bull OBs (decay + extend + invalidation)
+bull_ob_active = false
+for i = 0 to array.size(bull_boxes) - 1
+    bx    = array.get(bull_boxes, i)
+    b_bar = array.get(bull_bars,  i)
+    inst  = array.get(bull_inst,  i)
+    ghost = array.get(bull_ghost, i)
+    if not ghost
+        age    = bar_index - b_bar
+        ratio  = math.min(1.0, age / float(max_age))
+        ob_bot = box.get_bottom(bx); ob_top = box.get_top(bx)
+        if close < ob_bot or age >= max_age
+            array.set(bull_ghost, i, true)
+            box.set_bgcolor(bx, color.new(col_ob_bull, 97))
+            box.set_border_color(bx, color.new(col_ob_bull, 97))
+        else
+            box.set_right(bx, bar_index + 1)
+            box.set_bgcolor(bx,      ob_fill_c(col_ob_bull, ratio, inst))
+            box.set_border_color(bx, ob_bdr_c(col_ob_bull,  ratio, inst))
+            if close > ob_bot and close < ob_top + atr * 0.5
+                bull_ob_active := true
+
+// Update Bear OBs
+bear_ob_active = false
+for i = 0 to array.size(bear_boxes) - 1
+    bx    = array.get(bear_boxes, i)
+    b_bar = array.get(bear_bars,  i)
+    inst  = array.get(bear_inst,  i)
+    ghost = array.get(bear_ghost, i)
+    if not ghost
+        age    = bar_index - b_bar
+        ratio  = math.min(1.0, age / float(max_age))
+        ob_top = box.get_top(bx); ob_bot = box.get_bottom(bx)
+        if close > ob_top or age >= max_age
+            array.set(bear_ghost, i, true)
+            box.set_bgcolor(bx, color.new(col_ob_bear, 97))
+            box.set_border_color(bx, color.new(col_ob_bear, 97))
+        else
+            box.set_right(bx, bar_index + 1)
+            box.set_bgcolor(bx,      ob_fill_c(col_ob_bear, ratio, inst))
+            box.set_border_color(bx, ob_bdr_c(col_ob_bear,  ratio, inst))
+            if close < ob_top and close > ob_bot - atr * 0.5
+                bear_ob_active := true
+
+// Extend RJB boxes
+for i = 0 to array.size(rjb_bull) - 1
+    bx = array.get(rjb_bull, i)
+    if close < box.get_bottom(bx)
+        box.set_bgcolor(bx, color.new(color.lime, 97))
+        box.set_border_color(bx, color.new(color.lime, 97))
+    else
+        box.set_right(bx, bar_index + 1)
+
+for i = 0 to array.size(rjb_bear) - 1
+    bx = array.get(rjb_bear, i)
+    if close > box.get_top(bx)
+        box.set_bgcolor(bx, color.new(color.orange, 97))
+        box.set_border_color(bx, color.new(color.orange, 97))
+    else
+        box.set_right(bx, bar_index + 1)
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ICT-02 FVG — Partial fill + decay
+// ═══════════════════════════════════════════════════════════════════════════════
+fvg_fill_c(b, r, t) => color.new(b, t ? 82 : math.min(97, math.round(92.0 + r * 5.0)))
+fvg_bdr_c(b, r, t)  => color.new(b, t ? 40 : math.min(97, math.round(60.0 + r * 37.0)))
+
+fvg_ms       = atr * fvg_min_atr
+bf_raw_top   = low;    bf_raw_bot  = high[2]
+brf_raw_top  = low[2]; brf_raw_bot = high
+is_bull_fvg  = show_fvg and bf_raw_top  > bf_raw_bot  and (bf_raw_top  - bf_raw_bot)  >= fvg_ms
+is_bear_fvg  = show_fvg and brf_raw_top > brf_raw_bot and (brf_raw_top - brf_raw_bot) >= fvg_ms
+
+var float bf_top = na; var float bf_bot = na; var float bf_ctr = na; var float bf_wm = na
+var float bf_ct  = na; var float bf_cb  = na; var int   bf_bar = na
+var bool  bf_tch = false; var bool bf_ghost = false; var box bf_box = na
+
+var float brf_top = na; var float brf_bot = na; var float brf_ctr = na; var float brf_wm = na
+var float brf_ct  = na; var float brf_cb  = na; var int   brf_bar = na
+var bool  brf_tch = false; var bool brf_ghost = false; var box brf_box = na
+
+if is_bull_fvg
+    if not na(bf_box) then box.delete(bf_box)
+    bf_top := bf_raw_top; bf_bot := bf_raw_bot
+    bf_ctr := (bf_top + bf_bot) / 2.0; bf_wm := bf_bot
+    bf_ct  := bf_top;  bf_cb  := bf_bot; bf_bar := bar_index
+    bf_tch := false;   bf_ghost := false
+    bf_box := box.new(bar_index - 2, bf_top, bar_index + max_age, bf_bot,
+                      border_color=fvg_bdr_c(col_fvg_bull, 0.0, false),
+                      bgcolor=fvg_fill_c(col_fvg_bull, 0.0, false), border_width=1)
+
+if is_bear_fvg
+    if not na(brf_box) then box.delete(brf_box)
+    brf_top := brf_raw_top; brf_bot := brf_raw_bot
+    brf_ctr := (brf_top + brf_bot) / 2.0; brf_wm := brf_top
+    brf_ct  := brf_top; brf_cb  := brf_bot; brf_bar := bar_index
+    brf_tch := false;   brf_ghost := false
+    brf_box := box.new(bar_index - 2, brf_top, bar_index + max_age, brf_bot,
+                       border_color=fvg_bdr_c(col_fvg_bear, 0.0, false),
+                       bgcolor=fvg_fill_c(col_fvg_bear, 0.0, false), border_width=1)
+
+// Update Bull FVG
+if not na(bf_box) and not na(bf_bar)
+    age = bar_index - bf_bar; ratio = math.min(1.0, age / float(max_age))
+    if high >= bf_cb and low <= bf_ct then bf_tch := true
+    if close > bf_bot and close < bf_top then bf_wm := math.max(bf_wm, close)
+    cen_cl = close >= bf_ctr and close < bf_top
+    ful_cl = close >= bf_top
+    if ful_cl and not bf_ghost
+        bf_ghost := true
+        if fvg_keep
+            box.set_bgcolor(bf_box, color.new(col_fvg_bull, 97))
+            box.set_border_color(bf_box, color.new(col_fvg_bull, 97))
+        else
+            box.delete(bf_box); bf_box := na
+    else if cen_cl and not bf_ghost
+        bf_ct := bf_wm; box.set_top(bf_box, bf_ct)
+        box.set_border_color(bf_box, color.new(col_fvg_bull, 10))
+        box.set_bgcolor(bf_box, fvg_fill_c(col_fvg_bull, ratio * 0.5, true))
+    else if not bf_ghost
+        box.set_bgcolor(bf_box,      fvg_fill_c(col_fvg_bull, ratio, bf_tch))
+        box.set_border_color(bf_box, fvg_bdr_c(col_fvg_bull,  ratio, bf_tch))
+        if age >= max_age
+            bf_ghost := true
+            if fvg_keep
+                box.set_bgcolor(bf_box, color.new(col_fvg_bull, 97))
+                box.set_border_color(bf_box, color.new(col_fvg_bull, 97))
+            else
+                box.delete(bf_box); bf_box := na
+
+// Update Bear FVG
+if not na(brf_box) and not na(brf_bar)
+    age = bar_index - brf_bar; ratio = math.min(1.0, age / float(max_age))
+    if high >= brf_cb and low <= brf_ct then brf_tch := true
+    if close < brf_top and close > brf_bot then brf_wm := math.min(brf_wm, close)
+    cen_cl = close <= brf_ctr and close > brf_bot
+    ful_cl = close <= brf_bot
+    if ful_cl and not brf_ghost
+        brf_ghost := true
+        if fvg_keep
+            box.set_bgcolor(brf_box, color.new(col_fvg_bear, 97))
+            box.set_border_color(brf_box, color.new(col_fvg_bear, 97))
+        else
+            box.delete(brf_box); brf_box := na
+    else if cen_cl and not brf_ghost
+        brf_cb := brf_wm; box.set_bottom(brf_box, brf_cb)
+        box.set_border_color(brf_box, color.new(col_fvg_bear, 10))
+        box.set_bgcolor(brf_box, fvg_fill_c(col_fvg_bear, ratio * 0.5, true))
+    else if not brf_ghost
+        box.set_bgcolor(brf_box,      fvg_fill_c(col_fvg_bear, ratio, brf_tch))
+        box.set_border_color(brf_box, fvg_bdr_c(col_fvg_bear,  ratio, brf_tch))
+        if age >= max_age
+            brf_ghost := true
+            if fvg_keep
+                box.set_bgcolor(brf_box, color.new(col_fvg_bear, 97))
+                box.set_border_color(brf_box, color.new(col_fvg_bear, 97))
+            else
+                box.delete(brf_box); brf_box := na
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BOS-01 STRUCTURE — Pivots, BOS, CHoCH, displacement
+// ═══════════════════════════════════════════════════════════════════════════════
+s_ph = ta.pivothigh(high, pivot_len, pivot_len)
+s_pl = ta.pivotlow(low,   pivot_len, pivot_len)
+
+var float s_ph1 = na; var float s_ph2 = na
+var int   s_ph1_bar = na
+var float s_pl1 = na; var float s_pl2 = na
+var int   s_pl1_bar = na; var int s_pl2_bar = na; var int s_ph2_bar = na
+
+if not na(s_ph)
+    s_ph2 := s_ph1; s_ph2_bar := s_ph1_bar
+    s_ph1 := s_ph;  s_ph1_bar := bar_index - pivot_len
+if not na(s_pl)
+    s_pl2 := s_pl1; s_pl2_bar := s_pl1_bar
+    s_pl1 := s_pl;  s_pl1_bar := bar_index - pivot_len
+
+var int s_trend = 0
+if not na(s_ph1) and not na(s_ph2) and not na(s_pl1) and not na(s_pl2)
+    if s_ph1 > s_ph2 and s_pl1 > s_pl2 then s_trend := 1
+    if s_ph1 < s_ph2 and s_pl1 < s_pl2 then s_trend := -1
+
+s_is_hh = not na(s_ph1) and not na(s_ph2) and s_ph1 > s_ph2
+s_is_lh = not na(s_ph1) and not na(s_ph2) and s_ph1 < s_ph2
+s_is_hl = not na(s_pl1) and not na(s_pl2) and s_pl1 > s_pl2
+s_is_ll = not na(s_pl1) and not na(s_pl2) and s_pl1 < s_pl2
+
+bull_choch = show_struct and s_trend[1] == -1 and not na(s_ph1) and close > s_ph1
+bear_choch = show_struct and s_trend[1] ==  1 and not na(s_pl1) and close < s_pl1
+bull_bos   = show_struct and s_trend  ==  1 and not na(s_ph2) and close > s_ph2 and close[1] <= s_ph2
+bear_bos   = show_struct and s_trend  == -1 and not na(s_pl2) and close < s_pl2 and close[1] >= s_pl2
+
+bull_disp_s = (close - open) > disp_mult * atr
+bear_disp_s = (open - close) > disp_mult * atr
+
+// BOS lines
+if bull_bos and not na(s_ph2_bar)
+    line.new(s_ph2_bar, s_ph2, bar_index, s_ph2,
+             color=color.new(color.lime, 20), width=2, style=line.style_solid)
+    label.new(bar_index, s_ph2, "BOS", color=color.new(color.black, 80),
+              textcolor=color.lime, style=label.style_label_down, size=size.tiny)
+if bear_bos and not na(s_pl2_bar)
+    line.new(s_pl2_bar, s_pl2, bar_index, s_pl2,
+             color=color.new(color.red, 20), width=2, style=line.style_solid)
+    label.new(bar_index, s_pl2, "BOS", color=color.new(color.black, 80),
+              textcolor=color.red, style=label.style_label_up, size=size.tiny)
+
+// CHoCH lines
+if bull_choch and not na(s_ph1_bar)
+    line.new(s_ph1_bar, s_ph1, bar_index, s_ph1,
+             color=color.new(color.aqua, 20), width=2, style=line.style_dashed)
+    label.new(bar_index, close, "CHoCH▲", color=color.new(color.black, 80),
+              textcolor=color.aqua, style=label.style_label_left, size=size.small)
+if bear_choch and not na(s_pl1_bar)
+    line.new(s_pl1_bar, s_pl1, bar_index, s_pl1,
+             color=color.new(color.fuchsia, 20), width=2, style=line.style_dashed)
+    label.new(bar_index, close, "CHoCH▼", color=color.new(color.black, 80),
+              textcolor=color.fuchsia, style=label.style_label_left, size=size.small)
+
+// HH / HL / LH / LL labels
+if show_struct and show_hh_lbl
+    if not na(s_ph)
+        lbl_t = s_is_hh ? "HH" : "LH"
+        lbl_c = s_is_hh ? color.lime : color.red
+        label.new(bar_index - pivot_len, s_ph, lbl_t,
+                  color=color.new(color.black, 85), textcolor=lbl_c,
+                  style=label.style_label_down, size=size.tiny)
+    if not na(s_pl)
+        lbl_t = s_is_hl ? "HL" : "LL"
+        lbl_c = s_is_hl ? color.lime : color.red
+        label.new(bar_index - pivot_len, s_pl, lbl_t,
+                  color=color.new(color.black, 85), textcolor=lbl_c,
+                  style=label.style_label_up, size=size.tiny)
+
+// Displacement highlight
+if show_struct and bull_disp_s
+    label.new(bar_index, low, "⚡", color=color.new(color.black, 85),
+              textcolor=color.lime, style=label.style_label_up, size=size.tiny)
+if show_struct and bear_disp_s
+    label.new(bar_index, high, "⚡", color=color.new(color.black, 85),
+              textcolor=color.red, style=label.style_label_down, size=size.tiny)
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// INST-01 LEVELS — PDH/PDL, PWH/PWL, EQH/EQL, BSL/SSL
+// ═══════════════════════════════════════════════════════════════════════════════
+var float l_pdh = na; var float l_pdl = na
+var float l_day_h = na; var float l_day_l = na
+var line ln_pdh = na; var line ln_pdl = na
+var label lb_pdh = na; var label lb_pdl = na
+
+var float l_pwh = na; var float l_pwl = na
+var float l_wk_h = na; var float l_wk_l = na
+var line ln_pwh = na; var line ln_pwl = na
+
+new_day = dayofweek != dayofweek[1]
+if new_day
+    if not na(l_day_h)
+        l_pdh := l_day_h; l_pdl := l_day_l
+    l_day_h := high; l_day_l := low
+    if show_levels and show_pdhl and not na(l_pdh)
+        if not na(ln_pdh) then line.delete(ln_pdh)
+        if not na(ln_pdl) then line.delete(ln_pdl)
+        if not na(lb_pdh) then label.delete(lb_pdh)
+        if not na(lb_pdl) then label.delete(lb_pdl)
+        ln_pdh := line.new(bar_index, l_pdh, bar_index + ext_right, l_pdh, color=col_pdh, width=2, extend=extend.right)
+        ln_pdl := line.new(bar_index, l_pdl, bar_index + ext_right, l_pdl, color=col_pdl, width=2, extend=extend.right)
+        lb_pdh := label.new(bar_index + 2, l_pdh, "PDH", color=color.new(color.black, 90), textcolor=col_pdh, style=label.style_label_left, size=size.small)
+        lb_pdl := label.new(bar_index + 2, l_pdl, "PDL", color=color.new(color.black, 90), textcolor=col_pdl, style=label.style_label_left, size=size.small)
+else
+    l_day_h := math.max(l_day_h, high); l_day_l := math.min(l_day_l, low)
+
+// Accent PDH/PDL when swept
+if show_levels and show_pdhl
+    if not na(ln_pdh) and not na(l_pdh)
+        line.set_color(ln_pdh, high > l_pdh ? color.new(color.gray, 70) : col_pdh)
+    if not na(ln_pdl) and not na(l_pdl)
+        line.set_color(ln_pdl, low < l_pdl ? color.new(color.gray, 70) : col_pdl)
+
+new_week = weekofyear != weekofyear[1]
+if new_week
+    if not na(l_wk_h)
+        l_pwh := l_wk_h; l_pwl := l_wk_l
+    l_wk_h := high; l_wk_l := low
+    if show_levels and show_pwhl and not na(l_pwh)
+        if not na(ln_pwh) then line.delete(ln_pwh)
+        if not na(ln_pwl) then line.delete(ln_pwl)
+        ln_pwh := line.new(bar_index, l_pwh, bar_index + ext_right, l_pwh,
+                            color=color.new(col_pdh, 50), width=1, style=line.style_dashed, extend=extend.right)
+        ln_pwl := line.new(bar_index, l_pwl, bar_index + ext_right, l_pwl,
+                            color=color.new(col_pdl, 50), width=1, style=line.style_dashed, extend=extend.right)
+        label.new(bar_index + 2, l_pwh, "PWH", color=color.new(color.black, 90), textcolor=color.new(col_pdh, 50), style=label.style_label_left, size=size.tiny)
+        label.new(bar_index + 2, l_pwl, "PWL", color=color.new(color.black, 90), textcolor=color.new(col_pdl, 50), style=label.style_label_left, size=size.tiny)
+else
+    l_wk_h := math.max(l_wk_h, high); l_wk_l := math.min(l_wk_l, low)
+
+// EQH / EQL
+var float last_eph1 = na; var float last_eph2 = na
+var float last_epl1 = na; var float last_epl2 = na
+var line ln_eqh = na; var line ln_eql = na
+var label lb_eqh = na; var label lb_eql = na
+
+e_ph = ta.pivothigh(high, 5, 5)
+e_pl = ta.pivotlow(low,   5, 5)
+if not na(e_ph) then last_eph2 := last_eph1, last_eph1 := e_ph
+if not na(e_pl) then last_epl2 := last_epl1, last_epl1 := e_pl
+
+eq_tol    = atr * eq_tol_atr
+eq_h_val  = not na(last_eph1) and not na(last_eph2) and math.abs(last_eph1 - last_eph2) <= eq_tol ?
+             (last_eph1 + last_eph2) / 2 : na
+eq_l_val  = not na(last_epl1) and not na(last_epl2) and math.abs(last_epl1 - last_epl2) <= eq_tol ?
+             (last_epl1 + last_epl2) / 2 : na
+
+if show_levels and show_eq and not na(eq_h_val) and (na(ln_eqh) or line.get_y1(ln_eqh) != eq_h_val)
+    if not na(ln_eqh) then line.delete(ln_eqh)
+    if not na(lb_eqh) then label.delete(lb_eqh)
+    ln_eqh := line.new(bar_index - 5, eq_h_val, bar_index + ext_right, eq_h_val,
+                        color=col_eqh, width=2, style=line.style_solid, extend=extend.right)
+    lb_eqh := label.new(bar_index + 2, eq_h_val + eq_tol * 0.5, "EQH",
+                         color=color.new(color.black, 90), textcolor=col_eqh,
+                         style=label.style_label_left, size=size.small)
+
+if show_levels and show_eq and not na(eq_l_val) and (na(ln_eql) or line.get_y1(ln_eql) != eq_l_val)
+    if not na(ln_eql) then line.delete(ln_eql)
+    if not na(lb_eql) then label.delete(lb_eql)
+    ln_eql := line.new(bar_index - 5, eq_l_val, bar_index + ext_right, eq_l_val,
+                        color=col_eql, width=2, style=line.style_solid, extend=extend.right)
+    lb_eql := label.new(bar_index + 2, eq_l_val - eq_tol * 0.5, "EQL",
+                         color=color.new(color.black, 90), textcolor=col_eql,
+                         style=label.style_label_left, size=size.small)
+
+// Accent EQ when swept
+if show_levels and show_eq
+    if not na(ln_eqh) and not na(eq_h_val)
+        line.set_color(ln_eqh, high > eq_h_val + eq_tol ? color.new(color.gray, 70) : col_eqh)
+    if not na(ln_eql) and not na(eq_l_val)
+        line.set_color(ln_eql, low < eq_l_val - eq_tol  ? color.new(color.gray, 70) : col_eql)
+
+// BSL / SSL
+bsl_val = ta.highest(high, liq_lb)
+ssl_val = ta.lowest(low,   liq_lb)
+var line ln_bsl = na; var line ln_ssl = na
+var label lb_bsl = na; var label lb_ssl = na
+
+bsl_chg = na(ln_bsl) or math.abs(line.get_y1(ln_bsl) - bsl_val) > atr * 0.1
+ssl_chg = na(ln_ssl) or math.abs(line.get_y1(ln_ssl) - ssl_val) > atr * 0.1
+
+if show_levels and show_bsl and bsl_chg
+    if not na(ln_bsl) then line.delete(ln_bsl)
+    if not na(lb_bsl) then label.delete(lb_bsl)
+    ln_bsl := line.new(bar_index, bsl_val, bar_index + ext_right, bsl_val,
+                        color=col_bsl, width=1, style=line.style_dashed, extend=extend.right)
+    lb_bsl := label.new(bar_index + 2, bsl_val, "BSL",
+                         color=color.new(color.black, 90), textcolor=col_bsl,
+                         style=label.style_label_left, size=size.tiny)
+
+if show_levels and show_bsl and ssl_chg
+    if not na(ln_ssl) then line.delete(ln_ssl)
+    if not na(lb_ssl) then label.delete(lb_ssl)
+    ln_ssl := line.new(bar_index, ssl_val, bar_index + ext_right, ssl_val,
+                        color=col_ssl, width=1, style=line.style_dashed, extend=extend.right)
+    lb_ssl := label.new(bar_index + 2, ssl_val, "SSL",
+                         color=color.new(color.black, 90), textcolor=col_ssl,
+                         style=label.style_label_left, size=size.tiny)
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PREMIUM / DISCOUNT + OTE
+// ═══════════════════════════════════════════════════════════════════════════════
+sw_h     = ta.highest(high, pd_swing_len)
+sw_l     = ta.lowest(low,   pd_swing_len)
+pd_rng   = sw_h - sw_l
+pd_eq    = sw_l + pd_rng * 0.5
+in_prem  = close > pd_eq
+in_disc  = close < pd_eq
+
+// OTE (61.8–79% pullback)
+pd_ph = ta.pivothigh(high, pd_swing_len / 2, pd_swing_len / 2)
+pd_pl = ta.pivotlow(low,   pd_swing_len / 2, pd_swing_len / 2)
+var float pd_last_ph = na; var float pd_last_pl = na
+if not na(pd_ph) then pd_last_ph := pd_ph
+if not na(pd_pl) then pd_last_pl := pd_pl
+pd_sw_rng = not na(pd_last_ph) and not na(pd_last_pl) ? pd_last_ph - pd_last_pl : na
+ote_bull_top = not na(pd_sw_rng) ? pd_last_ph - pd_sw_rng * 0.618 : na
+ote_bull_bot = not na(pd_sw_rng) ? pd_last_ph - pd_sw_rng * 0.79  : na
+in_ote_bull  = not na(ote_bull_top) and close <= ote_bull_top and close >= ote_bull_bot and in_disc
+
+var box pd_bx_prem = na; var box pd_bx_disc = na; var box pd_bx_ote = na; var line pd_ln_eq = na
+
+if show_pd and barstate.islast and not na(pd_eq)
+    if not na(pd_bx_prem)  then box.delete(pd_bx_prem)
+    if not na(pd_bx_disc)  then box.delete(pd_bx_disc)
+    if not na(pd_bx_ote)   then box.delete(pd_bx_ote)
+    if not na(pd_ln_eq)    then line.delete(pd_ln_eq)
+    pd_bx_prem := box.new(bar_index - pd_swing_len, sw_h, bar_index + 50, pd_eq,
+                           bgcolor=color.new(color.red,   92), border_color=color.new(color.red,   60), border_width=1)
+    pd_bx_disc := box.new(bar_index - pd_swing_len, pd_eq, bar_index + 50, sw_l,
+                           bgcolor=color.new(color.green, 92), border_color=color.new(color.green, 60), border_width=1)
+    pd_ln_eq   := line.new(bar_index - pd_swing_len, pd_eq, bar_index + 50, pd_eq,
+                            color=color.new(color.white, 40), width=2, extend=extend.right)
+    label.new(bar_index + 2, pd_eq, "EQ 50%", color=color.new(color.black, 85),
+              textcolor=color.white, style=label.style_label_left, size=size.tiny)
+    if show_ote and in_disc and not na(ote_bull_top)
+        pd_bx_ote := box.new(bar_index - 10, ote_bull_top, bar_index + 50, ote_bull_bot,
+                              bgcolor=color.new(color.yellow, 84), border_color=color.new(color.yellow, 40), border_width=2)
+        label.new(bar_index + 2, ote_bull_top, "OTE 61–79%", color=color.new(color.black, 85),
+                  textcolor=color.yellow, style=label.style_label_left, size=size.tiny)
+
+bgcolor(show_pd and in_ote_bull ? color.new(color.yellow, 93) : na, title="OTE tint")
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SIGNAL SHAPES — LIQ-01, MSS-01, OR-01, PPDD, HVB
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// LIQ-01 Stop Hunt
+eq_high_liq = ta.highest(high, 20)[1]
+eq_low_liq  = ta.lowest(low,   20)[1]
+tick_sz     = syminfo.mintick
+rsi14       = ta.rsi(close, 14)
+sw_rng_liq  = 3 * tick_sz
+swept_low   = low  <= eq_low_liq  + sw_rng_liq and close > eq_low_liq  and volume > vol_avg * 2.0
+swept_high  = high >= eq_high_liq - sw_rng_liq and close < eq_high_liq and volume > vol_avg * 2.0
+p_ll_rsi    = low < ta.lowest(low,  5)[1] and rsi14 > ta.lowest(rsi14,  5)[1]
+p_hh_rsi    = high > ta.highest(high, 5)[1] and rsi14 < ta.highest(rsi14, 5)[1]
+liq_long    = show_sigs and swept_low  and p_ll_rsi
+liq_short   = show_sigs and swept_high and p_hh_rsi
+
+// MSS-01 CHoCH entry (61.8% PB)
+var float mss_pb = na
+if bull_choch and bull_disp_s
+    mss_pb := high - (high - low) * 0.618
+if bear_choch and bear_disp_s
+    mss_pb := low  + (high - low) * 0.618
+mss_long  = show_sigs and not na(mss_pb) and s_trend == -1 and low <= mss_pb and close >= mss_pb and volume < vol_avg * 0.7
+mss_short = show_sigs and not na(mss_pb) and s_trend ==  1 and high >= mss_pb and close <= mss_pb and volume < vol_avg * 0.7
+
+// OR-01 ORB breakout
+bull_orb = show_sigs and orb_done and close > orb_h and rvol >= 1.5 and htf_bull
+bear_orb = show_sigs and orb_done and close < orb_l and rvol >= 1.5 and htf_bear
+
+// OB CONF signals (from active OB proximity + vol)
+long_ob_sig  = show_sigs and bull_ob_active and vol_exp
+short_ob_sig = show_sigs and bear_ob_active and vol_exp
+
+// Shapes
+plotshape(bull_ppdd,  "PPDD ▲",    style=shape.triangleup,   location=location.belowbar, color=color.new(color.lime,   0), size=size.small)
+plotshape(bear_ppdd,  "PPDD ▼",    style=shape.triangledown, location=location.abovebar, color=color.new(color.red,    0), size=size.small)
+plotshape(liq_long,   "LIQ ▲",     style=shape.arrowup,      location=location.belowbar, color=color.lime,                size=size.normal)
+plotshape(liq_short,  "LIQ ▼",     style=shape.arrowdown,    location=location.abovebar, color=color.fuchsia,             size=size.normal)
+plotshape(mss_long,   "MSS ▲",     style=shape.flag,         location=location.belowbar, color=color.aqua,                size=size.small)
+plotshape(mss_short,  "MSS ▼",     style=shape.flag,         location=location.abovebar, color=color.orange,              size=size.small)
+plotshape(bull_orb,   "ORB ▲",     style=shape.triangleup,   location=location.belowbar, color=color.new(color.aqua,  20), size=size.small)
+plotshape(bear_orb,   "ORB ▼",     style=shape.triangledown, location=location.abovebar, color=color.new(color.yellow,20), size=size.small)
+plotshape(long_ob_sig, "OB LONG",  style=shape.circle,       location=location.belowbar, color=color.teal,                size=size.tiny)
+plotshape(short_ob_sig,"OB SHORT", style=shape.circle,       location=location.abovebar, color=color.orange,              size=size.tiny)
+plotshape(bull_div,   "Δ div ▲",   style=shape.xcross,       location=location.belowbar, color=color.new(color.aqua,    15), size=size.tiny)
+plotshape(bear_div,   "Δ div ▼",   style=shape.xcross,       location=location.abovebar, color=color.new(color.fuchsia, 15), size=size.tiny)
+
+// HVB bar colour
+barcolor(show_hvb and hvb and close > open ? color.new(col_ob_bull, 35) : na, title="HVB Bull")
+barcolor(show_hvb and hvb and close < open ? color.new(col_ob_bear, 35) : na, title="HVB Bear")
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// VWAP + POC + SWING PLOTS
+// ═══════════════════════════════════════════════════════════════════════════════
+plot(show_vwap ? vwap_v  : na, "VWAP",     color=color.new(color.white,  35), linewidth=1)
+plot(show_vwap ? vwap_hi : na, "VWAP+SD",  color=color.new(color.silver, 60), linewidth=1, style=plot.style_linebr)
+plot(show_vwap ? vwap_lo : na, "VWAP-SD",  color=color.new(color.silver, 60), linewidth=1, style=plot.style_linebr)
+plot(show_poc  ? poc_val : na, "POC",       color=color.new(poc_up ? color.lime : color.fuchsia, 20), linewidth=2, style=plot.style_linebr)
+
+// FVG center lines
+plot(not na(bf_box)  and not bf_ghost  ? bf_ctr  : na, "Bull FVG ctr", color=color.new(color.teal,   55), style=plot.style_linebr, linewidth=1)
+plot(not na(brf_box) and not brf_ghost ? brf_ctr : na, "Bear FVG ctr", color=color.new(color.orange, 55), style=plot.style_linebr, linewidth=1)
+
+// Swing levels
+plot(s_ph1, "Last PH", color=color.new(color.red,   60), style=plot.style_linebr, linewidth=1)
+plot(s_pl1, "Last PL", color=color.new(color.green, 60), style=plot.style_linebr, linewidth=1)
+
+// Regime tint
+bgcolor(show_regime and r_bull ? color.new(color.green, 97) : na, title="Trend Bull tint")
+bgcolor(show_regime and r_bear ? color.new(color.red,   97) : na, title="Trend Bear tint")
+bgcolor(show_regime and r_range ? color.new(color.blue, 98) : na, title="Range tint")
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TARGET-01 — T1/T2/T3 heat-seek projections (on last bar)
+// ═══════════════════════════════════════════════════════════════════════════════
+var line[] tgt_lines  = array.new_line()
+var label[] tgt_labels = array.new_label()
+
+if show_targets and barstate.islast
+    for l in tgt_lines  line.delete(l)
+    for l in tgt_labels label.delete(l)
+    array.clear(tgt_lines); array.clear(tgt_labels)
+
+    t_above = array.new_float(); t_above_s = array.new_float(); t_above_n = array.new_string()
+    t_below = array.new_float(); t_below_s = array.new_float(); t_below_n = array.new_string()
+
+    add_tgt(lvl, nm, sc, is_up) =>
+        if not na(lvl)
+            arr = is_up ? t_above : t_below
+            sc_a = is_up ? t_above_s : t_below_s
+            nm_a = is_up ? t_above_n : t_below_n
+            is_dup = false
+            for i = 0 to array.size(arr) - 1
+                if math.abs(array.get(arr, i) - lvl) < atr * 0.5
+                    if sc > array.get(sc_a, i)
+                        array.set(sc_a, i, sc); array.set(nm_a, i, nm)
+                    is_dup := true
+                    break
+            if not is_dup
+                if is_up
+                    array.push(t_above, lvl); array.push(t_above_s, sc); array.push(t_above_n, nm)
+                else
+                    array.push(t_below, lvl); array.push(t_below_s, sc); array.push(t_below_n, nm)
+
+    if not na(l_pdh)    and l_pdh    > close then add_tgt(l_pdh,    "PDH",  90, true)
+    if not na(l_pwh)    and l_pwh    > close then add_tgt(l_pwh,    "PWH",  85, true)
+    if not na(eq_h_val) and eq_h_val > close then add_tgt(eq_h_val, "EQH",  80, true)
+    if bsl_val > close then add_tgt(bsl_val, "BSL",  75, true)
+    if not na(s_ph1)    and s_ph1    > close then add_tgt(s_ph1,    "SWH",  55, true)
+    if not na(bf_ctr)   and not bf_ghost  and bf_ctr  > close then add_tgt(bf_ctr,  "FVG↑", 70, true)
+
+    if not na(l_pdl)    and l_pdl    < close then add_tgt(l_pdl,    "PDL",  90, false)
+    if not na(l_pwl)    and l_pwl    < close then add_tgt(l_pwl,    "PWL",  85, false)
+    if not na(eq_l_val) and eq_l_val < close then add_tgt(eq_l_val, "EQL",  80, false)
+    if ssl_val < close then add_tgt(ssl_val, "SSL",  75, false)
+    if not na(s_pl1)    and s_pl1    < close then add_tgt(s_pl1,    "SWL",  55, false)
+    if not na(brf_ctr)  and not brf_ghost and brf_ctr < close then add_tgt(brf_ctr, "FVG↓", 70, false)
+
+    // Sort above ascending (nearest first)
+    sz = array.size(t_above)
+    for i = 0 to sz - 2
+        for j = 0 to sz - 2 - i
+            if array.get(t_above, j) > array.get(t_above, j + 1)
+                tl = array.get(t_above, j);   array.set(t_above,   j, array.get(t_above,   j+1)); array.set(t_above,   j+1, tl)
+                ts = array.get(t_above_s, j); array.set(t_above_s, j, array.get(t_above_s, j+1)); array.set(t_above_s, j+1, ts)
+                tn = array.get(t_above_n, j); array.set(t_above_n, j, array.get(t_above_n, j+1)); array.set(t_above_n, j+1, tn)
+
+    // Sort below descending (nearest first)
+    sb = array.size(t_below)
+    for i = 0 to sb - 2
+        for j = 0 to sb - 2 - i
+            if array.get(t_below, j) < array.get(t_below, j + 1)
+                tl = array.get(t_below, j);   array.set(t_below,   j, array.get(t_below,   j+1)); array.set(t_below,   j+1, tl)
+                ts = array.get(t_below_s, j); array.set(t_below_s, j, array.get(t_below_s, j+1)); array.set(t_below_s, j+1, ts)
+                tn = array.get(t_below_n, j); array.set(t_below_n, j, array.get(t_below_n, j+1)); array.set(t_below_n, j+1, tn)
+
+    draw_tgt(lvl, nm, rank) =>
+        col = rank == 1 ? col_t1 : rank == 2 ? col_t2 : col_t3
+        wid = rank == 1 ? 2 : 1
+        sty = rank == 1 ? line.style_solid : line.style_dashed
+        ln  = line.new(bar_index - 10, lvl, bar_index + 60, lvl,
+                        color=col, width=wid, style=sty, extend=extend.right)
+        lb  = label.new(bar_index + 2, lvl, "T" + str.tostring(rank) + " " + nm,
+                         color=color.new(color.black, 80), textcolor=col,
+                         style=lvl > close ? label.style_label_down : label.style_label_up,
+                         size=size.small)
+        array.push(tgt_lines, ln); array.push(tgt_labels, lb)
+
+    for i = 0 to math.min(max_tgts - 1, array.size(t_above) - 1)
+        draw_tgt(array.get(t_above, i), array.get(t_above_n, i), i + 1)
+    for i = 0 to math.min(max_tgts - 1, array.size(t_below) - 1)
+        draw_tgt(array.get(t_below, i), array.get(t_below_n, i), i + 1)
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CONFLUENCE SCORE TABLE — CONF-01 weighted (top-right)
+// ═══════════════════════════════════════════════════════════════════════════════
+// Weights: OB=18 FVG=12 LIQ=15 ORB=10 MSS=13 VWAP=8 VOL=24 (sum=100)
+fvg_bull_near = not na(bf_box)  and not bf_ghost  and close < bf_ctr  and math.abs(close - bf_ctr)  < atr * 1.5
+fvg_bear_near = not na(brf_box) and not brf_ghost and close > brf_ctr and math.abs(close - brf_ctr) < atr * 1.5
+
+var bool active_bfvg = false; var int bfvg_age = 0
+var bool active_brfvg = false; var int brfvg_age = 0
+if is_bull_fvg then active_bfvg := true,  bfvg_age := 0
+if is_bear_fvg then active_brfvg := true, brfvg_age := 0
+if active_bfvg  then bfvg_age  += 1
+if active_brfvg then brfvg_age += 1
+if bfvg_age  > max_age then active_bfvg  := false
+if brfvg_age > max_age then active_brfvg := false
+fvg_bw = active_bfvg  ? (bfvg_age  > 40 ? 6.0 : 12.0) : 0.0
+fvg_brw= active_brfvg ? (brfvg_age > 40 ? 6.0 : 12.0) : 0.0
+
+vwap_reclaim_bull = ta.crossover(close,  vwap_v) and volume > vol_avg * 1.2
+vwap_reclaim_bear = ta.crossunder(close, vwap_v) and volume > vol_avg * 1.2
+
+bull_score = (bull_ob_active     ? 18 : 0) + fvg_bw  +
+             (liq_long           ? 15 : 0) +
+             (bull_orb           ? 10 : 0) +
+             (bull_choch         ? 13 : 0) +
+             (vwap_reclaim_bull  ?  8 : 0) +
+             (bull_delta         ? 24 : 0)
+
+bear_score = (bear_ob_active     ? 18 : 0) + fvg_brw +
+             (liq_short          ? 15 : 0) +
+             (bear_orb           ? 10 : 0) +
+             (bear_choch         ? 13 : 0) +
+             (vwap_reclaim_bear  ?  8 : 0) +
+             (bear_delta         ? 24 : 0)
+
+bull_conf = bull_score >= conf_thresh
+bear_conf = bear_score >= conf_thresh
+
+best_sc  = math.max(bull_score, bear_score)
+sig_str  = bull_score > bear_score ? "LONG" : bear_score > bull_score ? "SHORT" : "WAIT"
+sig_col  = bull_score > bear_score ? color.lime : bear_score > bull_score ? color.red : color.gray
+
+// CONF entry triangles (only at true confluence)
+long_entry  = show_sigs and bull_conf and (bull_ob_active or fvg_bull_near) and vol_exp
+short_entry = show_sigs and bear_conf and (bear_ob_active or fvg_bear_near) and vol_exp
+
+plotshape(long_entry,  "CONF LONG ▲",  style=shape.triangleup,   location=location.belowbar, color=color.lime, size=size.normal)
+plotshape(short_entry, "CONF SHORT ▼", style=shape.triangledown, location=location.abovebar, color=color.red,  size=size.normal)
+
+// T1 approach alerts
+t1_up   = not na(l_pdh) and l_pdh > close ? l_pdh : not na(eq_h_val) and eq_h_val > close ? eq_h_val : bsl_val
+t1_dn   = not na(l_pdl) and l_pdl < close ? l_pdl : not na(eq_l_val) and eq_l_val < close ? eq_l_val : ssl_val
+t1_bull_app = not na(t1_up) and t1_up - close < atr * approach_atr and htf_bull
+t1_bear_app = not na(t1_dn) and close - t1_dn < atr * approach_atr and htf_bear
+
+// Score table
+var table tbl = table.new(position.top_right, 2, 13,
+                           bgcolor=color.new(color.black, 72),
+                           border_color=color.new(color.gray, 60), border_width=1,
+                           frame_color=color.new(color.gray, 50), frame_width=1)
+
+if show_table and barstate.islast
+    table.cell(tbl, 0, 0,  "ICT MASTER", text_color=color.new(color.silver, 20), text_size=size.tiny, bgcolor=color.new(color.black, 55))
+    table.cell(tbl, 1, 0,  r_str,         text_color=r_col,                       text_size=size.tiny, bgcolor=color.new(color.black, 55))
+    table.cell(tbl, 0, 1,  "SIGNAL",      text_color=color.new(color.silver, 40), text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 1, 1,  sig_str,       text_color=sig_col,                      text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 0, 2,  "SCORE",       text_color=color.new(color.silver, 40), text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 1, 2,  str.tostring(math.round(best_sc)) + "/100",
+               text_color=best_sc >= conf_thresh ? color.lime : best_sc >= 40 ? color.yellow : color.gray,
+               text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 0, 3,  "OB",          text_color=color.new(color.silver, 40), text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 1, 3,  (bull_ob_active or bear_ob_active) ? "✓" : "–",
+               text_color=(bull_ob_active or bear_ob_active) ? color.lime : color.gray, text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 0, 4,  "FVG",         text_color=color.new(color.silver, 40), text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 1, 4,  (fvg_bull_near or fvg_bear_near) ? "✓" : "–",
+               text_color=(fvg_bull_near or fvg_bear_near) ? color.lime : color.gray, text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 0, 5,  "LIQ",         text_color=color.new(color.silver, 40), text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 1, 5,  (liq_long or liq_short) ? "✓" : "–",
+               text_color=(liq_long or liq_short) ? color.lime : color.gray, text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 0, 6,  "CHoCH",       text_color=color.new(color.silver, 40), text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 1, 6,  bull_choch ? "▲" : bear_choch ? "▼" : "–",
+               text_color=bull_choch ? color.lime : bear_choch ? color.red : color.gray, text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 0, 7,  "DELTA",       text_color=color.new(color.silver, 40), text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 1, 7,  bull_delta ? "▲" : bear_delta ? "▼" : "–",
+               text_color=bull_delta ? color.lime : bear_delta ? color.red : color.gray, text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 0, 8,  "RVOL",        text_color=color.new(color.silver, 40), text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 1, 8,  str.tostring(math.round(rvol * 10.0) / 10.0) + "×",
+               text_color=rvol_ok ? color.lime : color.gray, text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 0, 9,  "HTF",         text_color=color.new(color.silver, 40), text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 1, 9,  htf_bull ? "▲" : htf_bear ? "▼" : "–",
+               text_color=htf_bull ? color.lime : htf_bear ? color.red : color.gray, text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 0, 10, "POC",         text_color=color.new(color.silver, 40), text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 1, 10, poc_up ? "ABOVE" : "BELOW",
+               text_color=poc_up ? color.lime : color.fuchsia, text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 0, 11, "P/D",         text_color=color.new(color.silver, 40), text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 1, 11, in_prem ? "PREM" : in_disc ? "DISC" : "EQ",
+               text_color=in_prem ? color.red : in_disc ? color.green : color.gray, text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 0, 12, "KZ",          text_color=color.new(color.silver, 40), text_size=size.tiny, bgcolor=color.new(color.black, 78))
+    table.cell(tbl, 1, 12, in_any_kz ? (in_kz_ny ? "NY KILL" : in_kz_lo ? "LN KILL" : "LC") : "–",
+               text_color=in_any_kz ? color.yellow : color.gray, text_size=size.tiny, bgcolor=color.new(color.black, 78))
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ALERTS
+// ═══════════════════════════════════════════════════════════════════════════════
+alertcondition(long_entry,  "ICT-MASTER LONG",
+    "LONG score=" + str.tostring(math.round(bull_score)) + " · {{ticker}} · {{close}}")
+alertcondition(short_entry, "ICT-MASTER SHORT",
+    "SHORT score=" + str.tostring(math.round(bear_score)) + " · {{ticker}} · {{close}}")
+alertcondition(bull_choch,  "ICT-MASTER CHoCH ▲", "CHoCH Bullish · {{ticker}} · {{close}}")
+alertcondition(bear_choch,  "ICT-MASTER CHoCH ▼", "CHoCH Bearish · {{ticker}} · {{close}}")
+alertcondition(bull_ppdd,   "ICT-MASTER PPDD ▲",  "PPDD Bull sweep OB · {{ticker}}")
+alertcondition(bear_ppdd,   "ICT-MASTER PPDD ▼",  "PPDD Bear sweep OB · {{ticker}}")
+alertcondition(liq_long,    "ICT-MASTER LIQ ▲",   "Stop Hunt Long · {{ticker}} · {{close}}")
+alertcondition(liq_short,   "ICT-MASTER LIQ ▼",   "Stop Hunt Short · {{ticker}} · {{close}}")
+alertcondition(poc_xu,      "ICT-MASTER POC X↑",  "Price crossed above POC · {{ticker}}")
+alertcondition(poc_xd,      "ICT-MASTER POC X↓",  "Price crossed below POC · {{ticker}}")
+alertcondition(t1_bull_app, "ICT-MASTER T1 ▲",    "T1 approach bull · {{ticker}} · {{close}}")
+alertcondition(t1_bear_app, "ICT-MASTER T1 ▼",    "T1 approach bear · {{ticker}} · {{close}}")
+alertcondition(bull_bos,    "ICT-MASTER BOS ▲",   "BOS Bull · {{ticker}}")
+alertcondition(bear_bos,    "ICT-MASTER BOS ▼",   "BOS Bear · {{ticker}}")

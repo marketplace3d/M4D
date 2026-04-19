@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>M4D opt — Axum + CDN React</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0d1117; color: #e6edf3; margin: 1rem; }
+    code { background: #21262d; padding: 0.15rem 0.35rem; border-radius: 4px; }
+    h1 { font-size: 1.1rem; letter-spacing: 0.04em; }
+    a { color: #58a6ff; }
+  </style>
+</head>
+<body>
+  <p><a href="/opt/ping">/opt/ping</a> JSON · <a href="/mission/">/mission/</a> full MISSION React (same dist as Django).</p>
+  <p>JSON API: <a href="/v1/algo-day">/v1/algo-day</a> · <a href="/health">/health</a></p>
+  <p style="font-size:0.7rem;color:#8b949e">One build for Axum + Django + <code>preview:embed</code>: <code>npm run build:embed</code></p>
+  <div id="root"></div>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script>
+    (function () {
+      var e = React.createElement;
+      var useState = React.useState;
+      var useEffect = React.useEffect;
+      function App() {
+        var _a = useState("…"), ping = _a[0], setPing = _a[1];
+        useEffect(function () {
+          fetch("/opt/ping")
+            .then(function (r) { return r.json(); })
+            .then(function (j) { return setPing(JSON.stringify(j)); })
+            .catch(function () { return setPing("error"); });
+        }, []);
+        return e("div", null,
+          e("h1", null, "M4D low-latency surface (Axum)"),
+          e("p", null, "Ping: ", e("code", null, ping))
+        );
+      }
+      var root = ReactDOM.createRoot(document.getElementById("root"));
+      root.render(e(App));
+    })();
+  </script>
+</body>
+</html>

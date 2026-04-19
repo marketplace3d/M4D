@@ -1,0 +1,219 @@
+// INST-01 — Institutional Levels (NO DECAY — stays until swept)
+// PDH/PDL · PWH/PWL · Equal highs/lows · Buyside/Sellside liquidity pools
+// These are the significant levels that STAY VISIBLE — institutional anchors
+// When swept: line changes to accent (white/dim) to mark the sweep event
+// Contributes to TARGET-01 heat-seek target ranker as high-priority nodes
+
+//@version=5
+indicator("INST-01 · Institutional Levels", overlay=true, max_lines_count=50, max_labels_count=50)
+
+// ── Inputs ────────────────────────────────────────────────────────────────────
+show_pdhl      = input.bool(true,  "PDH / PDL")
+show_pwhl      = input.bool(true,  "PWH / PWL")
+show_eq        = input.bool(true,  "Equal Highs / Lows (EQ)")
+eq_lookback    = input.int(20,     "EQ scan lookback",    minval=5,  maxval=100)
+eq_tolerance   = input.float(0.2,  "EQ tolerance (ATR mult)", minval=0.05, maxval=1.0, step=0.05)
+show_buyside   = input.bool(true,  "Buyside / Sellside liquidity")
+liq_lookback   = input.int(30,     "Liquidity pool lookback", minval=10, maxval=200)
+show_labels    = input.bool(true,  "Show level labels")
+extend_right   = input.int(100,    "Extend lines right (bars)", minval=10, maxval=500)
+
+// Colours
+col_pdh  = input.color(color.new(color.red,   25), "PDH / PWH")
+col_pdl  = input.color(color.new(color.green, 25), "PDL / PWL")
+col_eq_h = input.color(color.new(color.red,   35), "Equal Highs")
+col_eq_l = input.color(color.new(color.green, 35), "Equal Lows")
+col_buy  = input.color(color.new(color.aqua,  30), "Buyside liq")
+col_sell = input.color(color.new(color.fuchsia,30),"Sellside liq")
+col_swept= input.color(color.new(color.gray,  70), "Swept level accent")
+
+// ── ATR ───────────────────────────────────────────────────────────────────────
+atr = ta.atr(14)
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+draw_level(lvl, col, lbl, is_swept) =>
+    c = is_swept ? col_swept : col
+    ln = line.new(bar_index, lvl, bar_index + extend_right, lvl,
+                  color=c, width= is_swept ? 1 : 2,
+                  style= is_swept ? line.style_dotted : line.style_solid,
+                  extend=extend.right)
+    if show_labels
+        label.new(bar_index + 2, lvl, lbl,
+                  color=color.new(color.black, 90), textcolor=c,
+                  style=label.style_label_left, size=size.small)
+
+// ── PDH / PDL ─────────────────────────────────────────────────────────────────
+// Previous session high/low — reset each day
+var float pdh = na; var float pdl = na
+var float prev_high = na; var float prev_low = na
+var line ln_pdh = na; var line ln_pdl = na
+var label lb_pdh = na; var label lb_pdl = na
+
+new_day = dayofweek != dayofweek[1]
+
+if new_day
+    // Commit yesterday's high/low as PDH/PDL
+    if not na(prev_high)
+        pdh := prev_high
+        pdl := prev_low
+    prev_high := high
+    prev_low  := low
+    // Redraw
+    if show_pdhl
+        if not na(ln_pdh) then line.delete(ln_pdh)
+        if not na(ln_pdl) then line.delete(ln_pdl)
+        if not na(lb_pdh) then label.delete(lb_pdh)
+        if not na(lb_pdl) then label.delete(lb_pdl)
+        if not na(pdh)
+            ln_pdh := line.new(bar_index, pdh, bar_index + extend_right, pdh,
+                                color=col_pdh, width=2, extend=extend.right)
+            lb_pdh := show_labels ? label.new(bar_index + 2, pdh, "PDH",
+                                               color=color.new(color.black, 90), textcolor=col_pdh,
+                                               style=label.style_label_left, size=size.small) : na
+        if not na(pdl)
+            ln_pdl := line.new(bar_index, pdl, bar_index + extend_right, pdl,
+                                color=col_pdl, width=2, extend=extend.right)
+            lb_pdl := show_labels ? label.new(bar_index + 2, pdl, "PDL",
+                                               color=color.new(color.black, 90), textcolor=col_pdl,
+                                               style=label.style_label_left, size=size.small) : na
+else
+    prev_high := math.max(prev_high, high)
+    prev_low  := math.min(prev_low,  low)
+
+// Accent PDH/PDL when swept
+if not na(ln_pdh) and not na(pdh)
+    swept_up = high > pdh
+    line.set_color(ln_pdh, swept_up ? col_swept : col_pdh)
+    line.set_style(ln_pdh, swept_up ? line.style_dotted : line.style_solid)
+
+if not na(ln_pdl) and not na(pdl)
+    swept_dn = low < pdl
+    line.set_color(ln_pdl, swept_dn ? col_swept : col_pdl)
+    line.set_style(ln_pdl, swept_dn ? line.style_dotted : line.style_solid)
+
+// ── PWH / PWL ─────────────────────────────────────────────────────────────────
+var float pwh = na; var float pwl = na
+var float week_high = na; var float week_low = na
+var line ln_pwh = na; var line ln_pwl = na
+
+new_week = weekofyear != weekofyear[1]
+
+if new_week
+    if not na(week_high)
+        pwh := week_high
+        pwl := week_low
+    week_high := high
+    week_low  := low
+    if show_pwhl
+        if not na(ln_pwh) then line.delete(ln_pwh)
+        if not na(ln_pwl) then line.delete(ln_pwl)
+        if not na(pwh)
+            ln_pwh := line.new(bar_index, pwh, bar_index + extend_right, pwh,
+                                color=color.new(col_pdh, 50), width=1,
+                                style=line.style_dashed, extend=extend.right)
+        if not na(pwl)
+            ln_pwl := line.new(bar_index, pwl, bar_index + extend_right, pwl,
+                                color=color.new(col_pdl, 50), width=1,
+                                style=line.style_dashed, extend=extend.right)
+else
+    week_high := math.max(week_high, high)
+    week_low  := math.min(week_low,  low)
+
+// ── Equal Highs / Equal Lows ──────────────────────────────────────────────────
+// Two swing highs/lows within ATR tolerance = EQ level (liquidity resting there)
+var line ln_eq_h = na; var line ln_eq_l = na
+var label lb_eq_h = na; var label lb_eq_l = na
+
+ph = ta.pivothigh(high, 5, 5)
+pl = ta.pivotlow(low,   5, 5)
+var float last_ph1 = na; var float last_ph2 = na
+var float last_pl1 = na; var float last_pl2 = na
+
+if not na(ph) then last_ph2 := last_ph1, last_ph1 := ph
+if not na(pl) then last_pl2 := last_pl1, last_pl1 := pl
+
+tol = atr * eq_tolerance
+
+is_eq_high = not na(last_ph1) and not na(last_ph2) and math.abs(last_ph1 - last_ph2) <= tol
+is_eq_low  = not na(last_pl1) and not na(last_pl2) and math.abs(last_pl1 - last_pl2) <= tol
+
+eq_h_level = is_eq_high ? (last_ph1 + last_ph2) / 2 : na
+eq_l_level = is_eq_low  ? (last_pl1 + last_pl2) / 2 : na
+
+if show_eq and not na(eq_h_level) and (na(ln_eq_h) or line.get_y1(ln_eq_h) != eq_h_level)
+    if not na(ln_eq_h) then line.delete(ln_eq_h)
+    if not na(lb_eq_h) then label.delete(lb_eq_h)
+    ln_eq_h := line.new(bar_index - 5, eq_h_level, bar_index + extend_right, eq_h_level,
+                         color=col_eq_h, width=2, style=line.style_solid, extend=extend.right)
+    lb_eq_h := show_labels ? label.new(bar_index + 2, eq_h_level + tol * 0.5, "EQH",
+                                        color=color.new(color.black, 90), textcolor=col_eq_h,
+                                        style=label.style_label_left, size=size.small) : na
+
+if show_eq and not na(eq_l_level) and (na(ln_eq_l) or line.get_y1(ln_eq_l) != eq_l_level)
+    if not na(ln_eq_l) then line.delete(ln_eq_l)
+    if not na(lb_eq_l) then label.delete(lb_eq_l)
+    ln_eq_l := line.new(bar_index - 5, eq_l_level, bar_index + extend_right, eq_l_level,
+                         color=col_eq_l, width=2, style=line.style_solid, extend=extend.right)
+    lb_eq_l := show_labels ? label.new(bar_index + 2, eq_l_level - tol * 0.5, "EQL",
+                                        color=color.new(color.black, 90), textcolor=col_eq_l,
+                                        style=label.style_label_left, size=size.small) : na
+
+// Accent when swept
+if not na(ln_eq_h) and not na(eq_h_level)
+    swept = high > eq_h_level + tol
+    line.set_color(ln_eq_h, swept ? col_swept : col_eq_h)
+
+if not na(ln_eq_l) and not na(eq_l_level)
+    swept = low < eq_l_level - tol
+    line.set_color(ln_eq_l, swept ? col_swept : col_eq_l)
+
+// ── Buyside / Sellside liquidity ──────────────────────────────────────────────
+// Buyside: cluster of highs in lookback — stops resting above (target for bears to hunt)
+// Sellside: cluster of lows — stops resting below (target for bulls to hunt)
+buy_side  = ta.highest(high, liq_lookback)   // buyside = above recent range high
+sell_side = ta.lowest(low,   liq_lookback)   // sellside = below recent range low
+
+var line ln_buy = na; var line ln_sell = na
+var label lb_buy = na; var label lb_sell = na
+
+// Redraw when level changes meaningfully
+buy_changed  = na(ln_buy)  or math.abs(line.get_y1(ln_buy)  - buy_side)  > atr * 0.1
+sell_changed = na(ln_sell) or math.abs(line.get_y1(ln_sell) - sell_side) > atr * 0.1
+
+if show_buyside and buy_changed
+    if not na(ln_buy)  then line.delete(ln_buy)
+    if not na(lb_buy)  then label.delete(lb_buy)
+    ln_buy := line.new(bar_index, buy_side,  bar_index + extend_right, buy_side,
+                        color=col_buy, width=1, style=line.style_dashed, extend=extend.right)
+    lb_buy := show_labels ? label.new(bar_index + 2, buy_side,
+                                       "BSL", color=color.new(color.black,90), textcolor=col_buy,
+                                       style=label.style_label_left, size=size.tiny) : na
+
+if show_buyside and sell_changed
+    if not na(ln_sell) then line.delete(ln_sell)
+    if not na(lb_sell) then label.delete(lb_sell)
+    ln_sell := line.new(bar_index, sell_side, bar_index + extend_right, sell_side,
+                         color=col_sell, width=1, style=line.style_dashed, extend=extend.right)
+    lb_sell := show_labels ? label.new(bar_index + 2, sell_side,
+                                        "SSL", color=color.new(color.black,90), textcolor=col_sell,
+                                        style=label.style_label_left, size=size.tiny) : na
+
+// ── Alert: level swept ────────────────────────────────────────────────────────
+pdh_swept  = not na(pdh)  and high > pdh
+pdl_swept  = not na(pdl)  and low  < pdl
+eqh_swept  = not na(eq_h_level) and high > eq_h_level
+eql_swept  = not na(eq_l_level) and low  < eq_l_level
+bsl_swept  = high > buy_side  and volume > vol_avg * 1.5
+ssl_swept  = low  < sell_side and volume > vol_avg * 1.5
+
+var float vol_avg = ta.sma(volume, 20)
+
+any_bull_sweep = pdl_swept or eql_swept or ssl_swept
+any_bear_sweep = pdh_swept or eqh_swept or bsl_swept
+
+alertcondition(any_bull_sweep, "INST-01 BULL SWEEP", "INST-01: Institutional level swept BULLISH · {{ticker}} · {{close}}")
+alertcondition(any_bear_sweep, "INST-01 BEAR SWEEP", "INST-01: Institutional level swept BEARISH · {{ticker}} · {{close}}")
+alertcondition(pdh_swept,      "INST-01 PDH",        "INST-01: PDH swept · {{ticker}} · PDH=" + str.tostring(pdh))
+alertcondition(pdl_swept,      "INST-01 PDL",        "INST-01: PDL swept · {{ticker}} · PDL=" + str.tostring(pdl))
+alertcondition(eqh_swept,      "INST-01 EQH",        "INST-01: Equal Highs swept · {{ticker}}")
+alertcondition(eql_swept,      "INST-01 EQL",        "INST-01: Equal Lows swept · {{ticker}}")

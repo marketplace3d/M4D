@@ -1,0 +1,213 @@
+{
+  "generated_at": "2026-04-19T07:25:27",
+  "ts": 1776601527,
+  "lookback_bars": 2016,
+  "participation_cap": 0.01,
+  "by_tier": {
+    "DEEP": [
+      "BTC",
+      "ETH"
+    ],
+    "NORMAL": [
+      "SOL",
+      "BNB",
+      "XRP",
+      "DOGE"
+    ],
+    "THIN": [
+      "ADA",
+      "AVAX",
+      "DOT",
+      "LINK",
+      "MATIC",
+      "UNI",
+      "LTC"
+    ],
+    "DRY": [
+      "OP",
+      "ARB"
+    ]
+  },
+  "symbols": {
+    "BTC": {
+      "symbol": "BTC",
+      "max_lot_usd": 1428192.97,
+      "avg_volume_usd_5m": 3705540.9,
+      "med_volume_usd_5m": 2380321.62,
+      "participation_cap": 0.01,
+      "scale_bars": 60,
+      "liquidity_tier": "DEEP",
+      "vol_p25_usd": 1297842.76,
+      "vol_p75_usd": 4380336.94,
+      "n_bars": 2016
+    },
+    "ETH": {
+      "symbol": "ETH",
+      "max_lot_usd": 672168.06,
+      "avg_volume_usd_5m": 1939374.72,
+      "med_volume_usd_5m": 1120280.1,
+      "participation_cap": 0.01,
+      "scale_bars": 60,
+      "liquidity_tier": "DEEP",
+      "vol_p25_usd": 545265.45,
+      "vol_p75_usd": 2135376.09,
+      "n_bars": 2016
+    },
+    "SOL": {
+      "symbol": "SOL",
+      "max_lot_usd": 328109.0,
+      "avg_volume_usd_5m": 882366.66,
+      "med_volume_usd_5m": 546848.33,
+      "participation_cap": 0.01,
+      "scale_bars": 60,
+      "liquidity_tier": "NORMAL",
+      "vol_p25_usd": 285555.61,
+      "vol_p75_usd": 1048036.16,
+      "n_bars": 2016
+    },
+    "BNB": {
+      "symbol": "BNB",
+      "max_lot_usd": 96185.68,
+      "avg_volume_usd_5m": 268286.57,
+      "med_volume_usd_5m": 160309.47,
+      "participation_cap": 0.01,
+      "scale_bars": 60,
+      "liquidity_tier": "NORMAL",
+      "vol_p25_usd": 94635.09,
+      "vol_p75_usd": 292538.91,
+      "n_bars": 2016
+    },
+    "XRP": {
+      "symbol": "XRP",
+      "max_lot_usd": 152510.8,
+      "avg_volume_usd_5m": 388621.81,
+      "med_volume_usd_5m": 254184.66,
+      "participation_cap": 0.01,
+      "scale_bars": 60,
+      "liquidity_tier": "NORMAL",
+      "vol_p25_usd": 129355.44,
+      "vol_p75_usd": 452229.19,
+      "n_bars": 2016
+    },
+    "ADA": {
+      "symbol": "ADA",
+      "max_lot_usd": 33742.05,
+      "avg_volume_usd_5m": 101298.94,
+      "med_volume_usd_5m": 56236.74,
+      "participation_cap": 0.01,
+      "scale_bars": 60,
+      "liquidity_tier": "THIN",
+      "vol_p25_usd": 28694.93,
+      "vol_p75_usd": 111082.52,
+      "n_bars": 2016
+    },
+    "AVAX": {
+      "symbol": "AVAX",
+      "max_lot_usd": 17899.51,
+      "avg_volume_usd_5m": 54337.21,
+      "med_volume_usd_5m": 29832.51,
+      "participation_cap": 0.01,
+      "scale_bars": 60,
+      "liquidity_tier": "THIN",
+      "vol_p25_usd": 14702.01,
+      "vol_p75_usd": 58513.97,
+      "n_bars": 2016
+    },
+    "DOGE": {
+      "symbol": "DOGE",
+      "max_lot_usd": 62663.84,
+      "avg_volume_usd_5m": 183623.93,
+      "med_volume_usd_5m": 104439.74,
+      "participation_cap": 0.01,
+      "scale_bars": 60,
+      "liquidity_tier": "NORMAL",
+      "vol_p25_usd": 52845.13,
+      "vol_p75_usd": 212850.53,
+      "n_bars": 2016
+    },
+    "DOT": {
+      "symbol": "DOT",
+      "max_lot_usd": 7871.01,
+      "avg_volume_usd_5m": 21610.22,
+      "med_volume_usd_5m": 13118.34,
+      "participation_cap": 0.01,
+      "scale_bars": 60,
+      "liquidity_tier": "THIN",
+      "vol_p25_usd": 6758.23,
+      "vol_p75_usd": 24444.23,
+      "n_bars": 2016
+    },
+    "LINK": {
+      "symbol": "LINK",
+      "max_lot_usd": 24107.41,
+      "avg_volume_usd_5m": 66365.27,
+      "med_volume_usd_5m": 40179.02,
+      "participation_cap": 0.01,
+      "scale_bars": 60,
+      "liquidity_tier": "THIN",
+      "vol_p25_usd": 15938.59,
+      "vol_p75_usd": 78782.0,
+      "n_bars": 2016
+    },
+    "MATIC": {
+      "symbol": "MATIC",
+      "max_lot_usd": 25618.84,
+      "avg_volume_usd_5m": 77862.83,
+      "med_volume_usd_5m": 42698.06,
+      "participation_cap": 0.01,
+      "scale_bars": 60,
+      "liquidity_tier": "THIN",
+      "vol_p25_usd": 19531.47,
+      "vol_p75_usd": 86871.65,
+      "n_bars": 2016
+    },
+    "OP": {
+      "symbol": "OP",
+      "max_lot_usd": 3805.17,
+      "avg_volume_usd_5m": 9932.1,
+      "med_volume_usd_5m": 6341.95,
+      "participation_cap": 0.01,
+      "scale_bars": 60,
+      "liquidity_tier": "DRY",
+      "vol_p25_usd": 3069.51,
+      "vol_p75_usd": 11498.23,
+      "n_bars": 2016
+    },
+    "ARB": {
+      "symbol": "ARB",
+      "max_lot_usd": 4901.51,
+      "avg_volume_usd_5m": 13917.11,
+      "med_volume_usd_5m": 8169.19,
+      "participation_cap": 0.01,
+      "scale_bars": 60,
+      "liquidity_tier": "DRY",
+      "vol_p25_usd": 3813.46,
+      "vol_p75_usd": 15922.48,
+      "n_bars": 2016
+    },
+    "UNI": {
+      "symbol": "UNI",
+      "max_lot_usd": 10909.49,
+      "avg_volume_usd_5m": 50730.76,
+      "med_volume_usd_5m": 18182.49,
+      "participation_cap": 0.01,
+      "scale_bars": 60,
+      "liquidity_tier": "THIN",
+      "vol_p25_usd": 8683.3,
+      "vol_p75_usd": 39765.53,
+      "n_bars": 2016
+    },
+    "LTC": {
+      "symbol": "LTC",
+      "max_lot_usd": 18309.42,
+      "avg_volume_usd_5m": 52712.31,
+      "med_volume_usd_5m": 30515.7,
+      "participation_cap": 0.01,
+      "scale_bars": 60,
+      "liquidity_tier": "THIN",
+      "vol_p25_usd": 18132.0,
+      "vol_p75_usd": 55038.6,
+      "n_bars": 2016
+    }
+  }
+}

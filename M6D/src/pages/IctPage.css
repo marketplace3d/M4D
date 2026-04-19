@@ -1,0 +1,209 @@
+.ict-page {
+  --ict-accent: #a78bfa;
+  --ict-accent2: #7c3aed;
+  --ict-panel-bg: #07060f;
+  --ict-panel-w: 220px;
+}
+
+.ict-brand {
+  color: var(--ict-accent) !important;
+}
+
+.ict-tag {
+  color: var(--ict-accent) !important;
+  opacity: 0.7;
+}
+
+/* ── Layout ── */
+
+/* Chart-first layout: stage fills available space, controls sit below */
+.ict-stage {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Controls row pinned below chart — compact, no top branding */
+.ict-controls-bottom {
+  flex-shrink: 0;
+  border-top: 1px solid #161b22;
+  border-bottom: none;
+}
+
+.ict-foot {
+  font-size: 9px !important;
+  padding: 3px 8px !important;
+  gap: 6px;
+  display: flex;
+  opacity: 0.45;
+}
+
+.ict-chart-stage {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── Alpha panel ── */
+
+.ict-panel {
+  position: relative;
+  width: var(--ict-panel-w);
+  min-width: var(--ict-panel-w);
+  background: var(--ict-panel-bg);
+  border-left: 1px solid #1a1530;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 10px 6px;
+  overflow-y: auto;
+  gap: 4px;
+  transition: width 0.2s, min-width 0.2s;
+}
+
+.ict-panel--collapsed {
+  width: 20px;
+  min-width: 20px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.ict-panel__toggle {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  background: #1a1530;
+  border: none;
+  color: var(--ict-accent);
+  cursor: pointer;
+  font-size: 14px;
+  width: 18px;
+  padding: 4px 0;
+  line-height: 1;
+  z-index: 2;
+}
+
+.ict-panel--collapsed .ict-panel__toggle {
+  width: 20px;
+}
+
+.ict-panel__head {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--ict-accent);
+  margin-bottom: 1px;
+  padding-left: 20px;
+}
+
+.ict-panel__sub {
+  font-size: 8px;
+  color: #4a3870;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+  padding-left: 20px;
+}
+
+/* ── Alpha rows ── */
+
+.ict-alpha-row {
+  display: grid;
+  grid-template-columns: 52px 1fr 60px 28px;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 4px 4px 20px;
+  border-radius: 4px;
+  cursor: default;
+}
+
+.ict-alpha-row--active {
+  background: #14102a;
+  border: 1px solid #2d1f60;
+}
+
+.ict-alpha-id {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--ict-accent);
+  opacity: 0.8;
+}
+
+.ict-alpha-name {
+  font-size: 8px;
+  color: #8b7fc0;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ict-alpha-bar {
+  height: 3px;
+  background: #1a1530;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.ict-alpha-bar__fill {
+  height: 100%;
+  background: var(--ict-accent2);
+  border-radius: 2px;
+}
+
+.ict-alpha-row--active .ict-alpha-bar__fill {
+  background: var(--ict-accent);
+}
+
+.ict-alpha-w {
+  font-size: 8px;
+  color: #6b5ea0;
+  text-align: right;
+}
+
+/* ── Confluence score ── */
+
+.ict-panel__conf {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding: 6px 8px 6px 20px;
+  background: #0e0b20;
+  border: 1px solid #2d1f60;
+  border-radius: 6px;
+}
+
+.ict-conf-label {
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  color: var(--ict-accent);
+  font-weight: 700;
+}
+
+.ict-conf-score {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ict-accent);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── Footer ── */
+
+.ict-panel__footer {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+  padding-left: 20px;
+}
+
+.ict-panel__link {
+  font-size: 8px;
+  color: #4a3870;
+  letter-spacing: 0.06em;
+  text-decoration: none;
+}
+
+.ict-panel__link:hover {
+  color: var(--ict-accent);
+}

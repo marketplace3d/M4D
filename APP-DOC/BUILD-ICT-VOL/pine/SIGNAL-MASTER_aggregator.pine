@@ -1,0 +1,205 @@
+// SIGNAL-MASTER — Unified Signal Aggregator
+// Combines all ICT alpha signals into a single structured output
+// Outputs: composite score, regime-gated final signal, JSON-formatted alert for Python webhook
+// This is the single script to add for alert-based algo execution
+//
+// ALERT FORMAT (for Python → Claude API):
+// { "ticker": "EURUSD", "signal": "LONG", "score": 82, "regime": "TREND_BULL",
+//   "components": {"ob":1,"fvg":1,"liq":0,"orb":0,"choch":1,"vwap":0,"vol":1},
+//   "price": 1.08234, "atr": 0.00082, "sl": 1.08152, "tp1": 1.08316, "time": 1712345678 }
+
+//@version=5
+indicator("SIGNAL-MASTER · ICT Aggregator", overlay=false)
+
+// ── Inputs ────────────────────────────────────────────────────────────────────
+conf_thresh   = input.int(60,    "CONF threshold (0–100)",   minval=30, maxval=95)
+use_regime    = input.bool(true, "Gate signals by regime")
+use_kill_zone = input.bool(true, "Kill zone bonus")
+htf_tf        = input.timeframe("D", "HTF bias")
+sl_atr_mult   = input.float(1.5, "SL ATR mult",              minval=0.5, maxval=5.0, step=0.1)
+tp_rr         = input.float(2.0, "TP R:R",                   minval=1.0, maxval=10.0, step=0.5)
+show_table    = input.bool(true, "Show master table")
+
+// ── Core inputs ───────────────────────────────────────────────────────────────
+atr      = ta.atr(14)
+vol_avg  = ta.sma(volume, 20)
+vwap_d   = ta.vwap(hlc3)
+rsi      = ta.rsi(close, 14)
+
+// ── HTF bias ──────────────────────────────────────────────────────────────────
+htf_close = request.security(syminfo.tickerid, htf_tf, close, lookahead=barmerge.lookahead_off)
+htf_open  = request.security(syminfo.tickerid, htf_tf, open,  lookahead=barmerge.lookahead_off)
+htf_bull  = htf_close > htf_open and close > vwap_d
+htf_bear  = htf_close < htf_open and close < vwap_d
+
+// ── Kill zone ─────────────────────────────────────────────────────────────────
+h_et     = (hour - 5 + 24) % 24
+in_kz    = use_kill_zone and ((h_et >= 3 and h_et < 5) or (h_et >= 9 and h_et < 11))
+kz_bonus = in_kz ? 8 : 0
+
+// ── Regime ────────────────────────────────────────────────────────────────────
+[_, _, adx]  = ta.dmi(14, 14)
+atr_sum      = math.sum(ta.atr(1), 14)
+hl_range     = ta.highest(high, 14) - ta.lowest(low, 14)
+chop         = 100 * math.log10(atr_sum / math.max(hl_range, syminfo.mintick)) / math.log10(14)
+is_trending  = adx > 25 and chop < 50
+is_ranging   = adx < 20 and chop > 60
+is_volatile  = atr > ta.percentile_nearest_rank(atr, 100, 80)
+regime_ok_bull = not is_volatile and (not use_regime or is_trending)
+regime_ok_bear = not is_volatile and (not use_regime or is_trending)
+
+// ── All signal proxies ────────────────────────────────────────────────────────
+
+// W1: ICT-01 OB (18%) — displacement + absorption
+bull_disp  = (close - open) > 1.5 * atr
+bear_disp  = (open - close) > 1.5 * atr
+bar_cp     = (close - low) / math.max(high - low, syminfo.mintick)
+ob_absorb  = volume > vol_avg * 1.5
+bull_ob    = bull_disp and ob_absorb and bar_cp[1] > 0.5 and htf_bull
+bear_ob    = bear_disp and ob_absorb and bar_cp[1] < 0.5 and htf_bear
+
+// W2: ICT-02 FVG (12%) — open imbalance
+var bool active_bfvg = false; var bool active_brfvg = false
+var int  bfvg_age = 0;        var int brfvg_age = 0
+if low > high[2]  then active_bfvg  := true, bfvg_age  := 0
+if high < low[2]  then active_brfvg := true, brfvg_age := 0
+if active_bfvg    then bfvg_age  += 1
+if active_brfvg   then brfvg_age += 1
+if bfvg_age  > 80 then active_bfvg  := false
+if brfvg_age > 80 then active_brfvg := false
+fvg_w_bull = active_bfvg  ? (bfvg_age  > 40 ? 6 : 12) : 0
+fvg_w_bear = active_brfvg ? (brfvg_age > 40 ? 6 : 12) : 0
+
+// W3: LIQ-01 Stop Hunt (15%)
+eq_h = ta.highest(high, 20)[1]; eq_l = ta.lowest(low, 20)[1]
+bull_liq = low <= eq_l + 3 * syminfo.mintick and close > eq_l and volume > vol_avg * 2
+bear_liq = high >= eq_h - 3 * syminfo.mintick and close < eq_h and volume > vol_avg * 2
+
+// W4: OR-01 ORB (10%)
+bull_orb = close > vwap_d and volume > vol_avg * 1.5 and htf_bull
+bear_orb = close < vwap_d and volume > vol_avg * 1.5 and htf_bear
+
+// W5: MSS-01 CHoCH (13%)
+ph5 = ta.pivothigh(high, 5, 5); pl5 = ta.pivotlow(low, 5, 5)
+var float lph = na; var float lpl = na
+if not na(ph5) then lph := ph5
+if not na(pl5) then lpl := pl5
+bull_choch = not na(lpl) and close > lpl and bull_disp and htf_bull
+bear_choch = not na(lph) and close < lph and bear_disp and htf_bear
+
+// W6: VWAP-01 (8%)
+bull_vwap = ta.crossover(close,  vwap_d) and volume > vol_avg * 1.2
+bear_vwap = ta.crossunder(close, vwap_d) and volume > vol_avg * 1.2
+
+// W7: VOL-01 Delta (24%)
+bar_delta    = (bar_cp * 2 - 1) * volume
+roll_delta   = math.sum(bar_delta, 20)
+delta_slope  = roll_delta - roll_delta[5]
+poc_approx   = ta.highest(volume * close, 50) / ta.highest(volume, 50)
+bull_vol     = delta_slope > 0 and volume > vol_avg * 1.2 and close > poc_approx
+bear_vol     = delta_slope < 0 and volume > vol_avg * 1.2 and close < poc_approx
+
+// ── Weighted score ────────────────────────────────────────────────────────────
+bull_score = (bull_ob    ? 18 : 0) + fvg_w_bull + (bull_liq  ? 15 : 0) +
+             (bull_orb   ? 10 : 0) + (bull_choch ? 13 : 0) + (bull_vwap ? 8 : 0) +
+             (bull_vol   ? 24 : 0) + kz_bonus
+
+bear_score = (bear_ob    ? 18 : 0) + fvg_w_bear + (bear_liq  ? 15 : 0) +
+             (bear_orb   ? 10 : 0) + (bear_choch ? 13 : 0) + (bear_vwap ? 8 : 0) +
+             (bear_vol   ? 24 : 0) + kz_bonus
+
+// ── Regime gate ───────────────────────────────────────────────────────────────
+final_bull = bull_score >= conf_thresh and htf_bull and regime_ok_bull and not is_ranging
+final_bear = bear_score >= conf_thresh and htf_bear and regime_ok_bear and not is_ranging
+
+// ── SL / TP ───────────────────────────────────────────────────────────────────
+sl_bull = close - atr * sl_atr_mult
+tp_bull = close + atr * sl_atr_mult * tp_rr
+sl_bear = close + atr * sl_atr_mult
+tp_bear = close - atr * sl_atr_mult * tp_rr
+
+// ── Plot ──────────────────────────────────────────────────────────────────────
+plot(bull_score, "Bull Score", color=color.new(color.green, 20), linewidth=2)
+plot(bear_score, "Bear Score", color=color.new(color.red,   20), linewidth=2)
+hline(conf_thresh, "Threshold", color=color.yellow, linestyle=hline.style_dashed)
+hline(0, "Zero", color=color.gray, linestyle=hline.style_dotted)
+
+bgcolor(final_bull ? color.new(color.green, 88) : na, title="LONG signal")
+bgcolor(final_bear ? color.new(color.red,   88) : na, title="SHORT signal")
+
+plotshape(final_bull, "LONG",  style=shape.triangleup,  location=location.bottom, color=color.lime,    size=size.normal)
+plotshape(final_bear, "SHORT", style=shape.triangledown, location=location.top,   color=color.fuchsia, size=size.normal)
+
+// ── Master table ──────────────────────────────────────────────────────────────
+if show_table and barstate.islast
+    var table mt = table.new(position.top_right, 3, 12, border_width=1, frame_color=color.new(color.gray, 70))
+    hdr_bg = color.new(color.black, 55)
+    row_bg = color.new(color.black, 72)
+
+    table.cell(mt, 0, 0,  "ICT SIGNAL",  text_color=color.gray,    bgcolor=hdr_bg, text_size=size.small)
+    table.cell(mt, 1, 0,  "BULL",        text_color=color.green,   bgcolor=hdr_bg, text_size=size.small)
+    table.cell(mt, 2, 0,  "BEAR",        text_color=color.red,     bgcolor=hdr_bg, text_size=size.small)
+
+    rows = array.from("OB    18%","FVG   12%","HUNT  15%","ORB   10%","CHoCH 13%","VWAP   8%","VOL Δ 24%","KZ bonus")
+    bv   = array.from(bull_ob, active_bfvg, bull_liq, bull_orb, bull_choch, bull_vwap, bull_vol, in_kz)
+    brv  = array.from(bear_ob, active_brfvg,bear_liq, bear_orb, bear_choch, bear_vwap, bear_vol, in_kz)
+    for i = 0 to 7
+        b  = array.get(bv, i); br = array.get(brv, i)
+        table.cell(mt, 0, i+1, array.get(rows, i), text_color=color.gray,  bgcolor=row_bg, text_size=size.small)
+        table.cell(mt, 1, i+1, b  ? "▲" : "–", text_color=b  ? color.lime    : color.new(color.gray,50), bgcolor=row_bg, text_size=size.small)
+        table.cell(mt, 2, i+1, br ? "▼" : "–", text_color=br ? color.fuchsia : color.new(color.gray,50), bgcolor=row_bg, text_size=size.small)
+
+    // Score + regime
+    bs_col = bull_score >= conf_thresh ? color.lime    : bull_score > 40 ? color.yellow : color.gray
+    br_col = bear_score >= conf_thresh ? color.fuchsia : bear_score > 40 ? color.yellow : color.gray
+    reg_lbl = is_volatile ? "VOLATILE" : is_trending ? "TREND" : is_ranging ? "RANGE" : "NEUTRAL"
+    reg_col = is_volatile ? color.red  : is_trending ? color.lime : is_ranging ? color.blue : color.gray
+    table.cell(mt, 0, 9,  "SCORE",    text_color=color.white,  bgcolor=color.new(color.black, 50), text_size=size.small)
+    table.cell(mt, 1, 9,  str.tostring(math.round(bull_score)), text_color=bs_col, bgcolor=color.new(color.black, 50), text_size=size.normal)
+    table.cell(mt, 2, 9,  str.tostring(math.round(bear_score)), text_color=br_col, bgcolor=color.new(color.black, 50), text_size=size.normal)
+    table.cell(mt, 0, 10, "REGIME",   text_color=color.gray,   bgcolor=row_bg, text_size=size.small)
+    table.cell(mt, 1, 10, reg_lbl,    text_color=reg_col,      bgcolor=row_bg, text_size=size.small)
+    table.cell(mt, 2, 10, in_kz ? "KILL ZONE" : "–", text_color=in_kz ? color.yellow : color.gray, bgcolor=row_bg, text_size=size.small)
+    table.cell(mt, 0, 11, "SIGNAL",   text_color=color.white,  bgcolor=color.new(color.black, 45), text_size=size.small)
+    sig_txt = final_bull ? "LONG" : final_bear ? "SHORT" : "WAIT"
+    sig_col = final_bull ? color.lime : final_bear ? color.fuchsia : color.gray
+    table.cell(mt, 1, 11, sig_txt,    text_color=sig_col,      bgcolor=color.new(color.black, 45), text_size=size.normal)
+    table.cell(mt, 2, 11, "ATR=" + str.tostring(math.round(atr * 10000) / 10000), text_color=color.gray, bgcolor=color.new(color.black, 45), text_size=size.tiny)
+
+// ── Alerts (JSON-structured for Python webhook) ───────────────────────────────
+ob_b  = bull_ob    ? 1 : 0; ob_br = bear_ob    ? 1 : 0
+fvg_b = active_bfvg? 1 : 0; fvg_br= active_brfvg?1: 0
+liq_b = bull_liq   ? 1 : 0; liq_br= bear_liq   ? 1 : 0
+orb_b = bull_orb   ? 1 : 0; orb_br= bear_orb   ? 1 : 0
+ch_b  = bull_choch ? 1 : 0; ch_br = bear_choch ? 1 : 0
+vw_b  = bull_vwap  ? 1 : 0; vw_br = bear_vwap  ? 1 : 0
+vo_b  = bull_vol   ? 1 : 0; vo_br = bear_vol   ? 1 : 0
+
+bull_json = '{"ticker":"' + syminfo.ticker +
+            '","signal":"LONG","score":' + str.tostring(math.round(bull_score)) +
+            ',"regime":"' + (is_trending ? "TREND" : is_ranging ? "RANGE" : "NEUTRAL") + '"' +
+            ',"components":{"ob":' + str.tostring(ob_b) +
+            ',"fvg":' + str.tostring(fvg_b) + ',"liq":' + str.tostring(liq_b) +
+            ',"orb":' + str.tostring(orb_b) + ',"choch":' + str.tostring(ch_b) +
+            ',"vwap":' + str.tostring(vw_b) + ',"vol":' + str.tostring(vo_b) + '}' +
+            ',"price":' + str.tostring(close) +
+            ',"atr":' + str.tostring(math.round(atr * 100000) / 100000) +
+            ',"sl":' + str.tostring(math.round(sl_bull * 100000) / 100000) +
+            ',"tp":' + str.tostring(math.round(tp_bull * 100000) / 100000) +
+            ',"time":' + str.tostring(timenow) + '}'
+
+bear_json = '{"ticker":"' + syminfo.ticker +
+            '","signal":"SHORT","score":' + str.tostring(math.round(bear_score)) +
+            ',"regime":"' + (is_trending ? "TREND" : is_ranging ? "RANGE" : "NEUTRAL") + '"' +
+            ',"components":{"ob":' + str.tostring(ob_br) +
+            ',"fvg":' + str.tostring(fvg_br) + ',"liq":' + str.tostring(liq_br) +
+            ',"orb":' + str.tostring(orb_br) + ',"choch":' + str.tostring(ch_br) +
+            ',"vwap":' + str.tostring(vw_br) + ',"vol":' + str.tostring(vo_br) + '}' +
+            ',"price":' + str.tostring(close) +
+            ',"atr":' + str.tostring(math.round(atr * 100000) / 100000) +
+            ',"sl":' + str.tostring(math.round(sl_bear * 100000) / 100000) +
+            ',"tp":' + str.tostring(math.round(tp_bear * 100000) / 100000) +
+            ',"time":' + str.tostring(timenow) + '}'
+
+alertcondition(final_bull, "MASTER LONG",  bull_json)
+alertcondition(final_bear, "MASTER SHORT", bear_json)

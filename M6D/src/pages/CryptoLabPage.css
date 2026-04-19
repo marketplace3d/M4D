@@ -1,0 +1,296 @@
+/* CryptoLabPage.css — vibrant live scanner UI */
+
+.cl-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #0a0a0f;
+  color: #c8c8d0;
+  font-family: 'JetBrains Mono', 'Fira Mono', monospace;
+  font-size: 12px;
+  overflow: hidden;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+.cl-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 16px;
+  background: #111118;
+  border-bottom: 1px solid #1e1e2e;
+  flex-shrink: 0;
+}
+
+.cl-header__title {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #e0e0f0;
+}
+
+.cl-header__dot {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+.cl-header__dot--live  { color: #00ff88; animation: pulse 2s infinite; }
+.cl-header__dot--dead  { color: #666; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+.cl-header__meta {
+  color: #666;
+  font-size: 11px;
+  margin-left: auto;
+}
+
+.cl-header__err  { color: #ff4466; font-size: 11px; }
+.cl-header__hint { color: #888; font-size: 11px; }
+.cl-header__hint code { color: #00b8ff; }
+
+/* ── Body ────────────────────────────────────────────────────────────────── */
+.cl-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  gap: 0;
+}
+
+/* ── Left panel ──────────────────────────────────────────────────────────── */
+.cl-left {
+  display: flex;
+  flex-direction: column;
+  width: 62%;
+  min-width: 420px;
+  overflow: hidden;
+  border-right: 1px solid #1e1e2e;
+}
+
+/* ── Ranked table ─────────────────────────────────────────────────────────── */
+.cl-table-wrap {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.cl-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.cl-table thead th {
+  position: sticky;
+  top: 0;
+  background: #111118;
+  color: #555;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  padding: 6px 8px;
+  text-align: left;
+  border-bottom: 1px solid #1e1e2e;
+  font-weight: 500;
+}
+
+.cl-table tbody tr {
+  border-bottom: 1px solid #14141e;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.cl-table tbody tr:hover { background: #16161f; }
+
+.cl-table td {
+  padding: 7px 8px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+/* Row variants */
+.cl-row--entry {
+  background: rgba(0, 255, 136, 0.07);
+  box-shadow: inset 3px 0 0 #00ff88;
+}
+.cl-row--hot    { background: rgba(0, 200, 100, 0.04); }
+.cl-row--warm   { background: rgba(245, 197, 24, 0.04); }
+.cl-row--in-trade { background: rgba(0, 120, 255, 0.05); }
+
+.cl-sym {
+  font-weight: 600;
+  font-size: 13px;
+  color: #dde;
+  min-width: 60px;
+}
+
+.cl-vote-bar {
+  font-family: monospace;
+  letter-spacing: 1px;
+  font-size: 13px;
+}
+.cl-vote-num {
+  color: #666;
+  font-size: 10px;
+  margin-left: 4px;
+}
+
+/* Badges */
+.cl-badge {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+.cl-badge--go {
+  background: rgba(0, 255, 136, 0.15);
+  color: #00ff88;
+  border: 1px solid rgba(0, 255, 136, 0.3);
+  animation: pulse 1.5s infinite;
+}
+.cl-badge--flat { color: #333; }
+.cl-badge--trade {
+  background: rgba(0, 120, 255, 0.15);
+  color: #4488ff;
+  margin-left: 4px;
+  font-size: 9px;
+}
+
+/* Colours */
+.cl-hot  { color: #00ff88; }
+.cl-warm { color: #f5c518; }
+.cl-warn { color: #ff8800; }
+.cl-pos  { color: #00e870; }
+.cl-neg  { color: #ff4466; }
+.cl-pos-row { background: rgba(0, 232, 112, 0.03); }
+.cl-neg-row { background: rgba(255, 68, 102, 0.03); }
+.cl-empty { color: #444; text-align: center; padding: 20px; font-style: italic; }
+
+/* ── Sim trade log ───────────────────────────────────────────────────────── */
+.cl-trades {
+  border-top: 1px solid #1e1e2e;
+  background: #0d0d14;
+  flex-shrink: 0;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.cl-trades__title {
+  padding: 6px 10px;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: #555;
+  background: #111118;
+  border-bottom: 1px solid #1e1e2e;
+  position: sticky;
+  top: 0;
+}
+
+.cl-trade-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.cl-trade-table thead th {
+  font-size: 9px;
+  color: #444;
+  padding: 4px 8px;
+  text-align: left;
+  letter-spacing: 0.06em;
+}
+
+.cl-trade-table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid #111;
+  font-size: 11px;
+}
+
+.cl-reason { color: #666; font-size: 10px; }
+.cl-ts     { color: #444; font-size: 10px; }
+
+/* ── Right panel: chart + detail ─────────────────────────────────────────── */
+.cl-right {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  padding: 0;
+}
+
+.cl-chart-header {
+  padding: 8px 14px;
+  font-size: 11px;
+  color: #888;
+  background: #0e0e18;
+  border-bottom: 1px solid #1e1e2e;
+  letter-spacing: 0.06em;
+  flex-shrink: 0;
+}
+.cl-chart-bars { color: #444; }
+
+.cl-chart-empty,
+.cl-chart-placeholder {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #444;
+  text-align: center;
+  line-height: 1.8;
+  padding: 20px;
+}
+
+.cl-chart-hint { font-size: 10px; color: #333; margin-top: 8px; }
+.cl-chart-hint code { color: #00b8ff; }
+
+.cl-chart-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+.cl-chart-stat { font-size: 14px; color: #aaa; }
+.cl-chart-stat strong { color: #dde; }
+.cl-chart-note { font-size: 10px; color: #444; text-align: center; line-height: 1.6; margin-top: 8px; }
+.cl-chart-note code { color: #00b8ff; }
+
+/* ── Council detail card ─────────────────────────────────────────────────── */
+.cl-detail {
+  background: #0e0e18;
+  border-top: 1px solid #1e1e2e;
+  padding: 12px 14px;
+  flex-shrink: 0;
+}
+
+.cl-detail__title {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: #555;
+  margin-bottom: 10px;
+}
+
+.cl-detail__grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.cl-detail__item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cl-detail__label {
+  font-size: 9px;
+  color: #444;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.cl-detail__val {
+  font-size: 13px;
+  color: #bbc;
+  font-weight: 600;
+}

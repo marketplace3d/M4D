@@ -1,0 +1,225 @@
+.algo-data-page {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #030508;
+  color: #e2e8f0;
+  padding: 0.5rem 0.75rem 0.75rem;
+  padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+}
+
+.algo-data-page__head {
+  flex-shrink: 0;
+  margin-bottom: 0.5rem;
+}
+
+.algo-data-page__title {
+  margin: 0;
+  font-size: 0.95rem;
+  letter-spacing: 0.2em;
+  font-weight: 800;
+  color: #22d3ee;
+}
+
+.algo-data-page__sub {
+  margin: 0.25rem 0 0;
+  font-size: 0.65rem;
+  color: #64748b;
+  letter-spacing: 0.04em;
+  max-width: 52rem;
+  line-height: 1.35;
+}
+
+.algo-data-page__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-top: 0.35rem;
+  font-size: 0.68rem;
+  color: #94a3b8;
+}
+
+.algo-data-page__src {
+  word-break: break-all;
+  opacity: 0.85;
+}
+
+.algo-data-page__msg,
+.algo-data-page__err {
+  margin: 0.5rem 0;
+  font-size: 0.8rem;
+}
+
+.algo-data-page__err {
+  color: #f87171;
+}
+
+.algo-data-page__srcpill {
+  display: inline-block;
+  padding: 0.08rem 0.35rem;
+  border-radius: 4px;
+  background: #164e63;
+  color: #a5f3fc;
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+}
+
+.algo-data-page__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid #1e293b;
+  border-radius: 8px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.algo-table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+  font-family: 'Courier New', ui-monospace, monospace;
+  font-size: 0.72rem;
+}
+
+.algo-table th,
+.algo-table td {
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid #1e293b;
+  white-space: nowrap;
+}
+
+.algo-table thead th {
+  background: #0a1018;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.algo-table__th--sticky,
+.algo-table__td--sticky {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: #0d1117;
+  box-shadow: 4px 0 12px rgba(0, 0, 0, 0.45);
+}
+
+.algo-table thead .algo-table__th--sticky {
+  z-index: 4;
+  background: #0a1018;
+}
+
+.algo-table__sort {
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+
+.algo-table__sort:hover {
+  color: #22d3ee;
+}
+
+.algo-table__sub {
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-block;
+  vertical-align: bottom;
+}
+
+.algo-table__vote--long {
+  color: #4ade80;
+  font-weight: 700;
+}
+
+.algo-table__vote--short {
+  color: #f87171;
+  font-weight: 700;
+}
+
+.algo-table__vote--flat {
+  color: #64748b;
+}
+
+.algo-table__vote--na {
+  color: #475569;
+}
+
+.mono {
+  font-family: 'Courier New', ui-monospace, monospace;
+}
+
+.algo-table__row {
+  cursor: pointer;
+}
+
+.algo-table__row:hover {
+  background: rgba(34, 211, 238, 0.06);
+}
+
+.algo-table__row--selected {
+  background: rgba(34, 211, 238, 0.12);
+}
+
+/* Context cue: marginal conviction / participation (strength + last vote) */
+.algo-table__row--warm {
+  box-shadow: inset 3px 0 0 rgba(34, 211, 238, 0.45);
+}
+
+.algo-table__row--hot {
+  box-shadow: inset 3px 0 0 rgba(251, 191, 36, 0.75);
+}
+
+.algo-table__trend {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  font-size: 0.65rem;
+  color: #64748b;
+}
+
+.algo-table__trend--loading {
+  letter-spacing: 0.15em;
+}
+
+.algo-table__trend--err {
+  color: #f87171;
+  font-weight: 800;
+}
+
+.algo-data-page__perf {
+  margin: 0 0 0.4rem;
+  font-size: 0.68rem;
+  color: #a5b4fc;
+  line-height: 1.35;
+}
+
+.algo-data-page__drill {
+  flex-shrink: 0;
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.35rem;
+  border-top: 1px solid #334155;
+}
+
+.algo-data-page__hint {
+  margin: 0;
+  font-size: 0.72rem;
+  color: #64748b;
+}
+
+.algo-data-page__drill-head {
+  font-size: 0.78rem;
+  margin-bottom: 0.35rem;
+}
+
+.algo-data-page__drill-meta {
+  margin: 0 0 0.35rem;
+  font-size: 0.65rem;
+  color: #94a3b8;
+}

@@ -1,0 +1,114 @@
+{
+  "horizon": "4h",
+  "optimal": {
+    "atr_pct_floor": 0,
+    "rvol_floor": 1.0,
+    "min_signals": 2,
+    "jedi_min": 0,
+    "trend_align": true,
+    "sharpe": 0.901,
+    "n_trades": 3687
+  },
+  "top_10": [
+    {
+      "atr_pct_floor": 0,
+      "rvol_floor": 1.0,
+      "min_signals": 2,
+      "jedi_min": 0,
+      "trend_align": true,
+      "sharpe": 0.901,
+      "n_trades": 3687
+    },
+    {
+      "atr_pct_floor": 0,
+      "rvol_floor": 1.0,
+      "min_signals": 2,
+      "jedi_min": 2,
+      "trend_align": true,
+      "sharpe": 0.901,
+      "n_trades": 3687
+    },
+    {
+      "atr_pct_floor": 20,
+      "rvol_floor": 1.0,
+      "min_signals": 2,
+      "jedi_min": 0,
+      "trend_align": true,
+      "sharpe": 0.817,
+      "n_trades": 3236
+    },
+    {
+      "atr_pct_floor": 20,
+      "rvol_floor": 1.0,
+      "min_signals": 2,
+      "jedi_min": 2,
+      "trend_align": true,
+      "sharpe": 0.817,
+      "n_trades": 3236
+    },
+    {
+      "atr_pct_floor": 30,
+      "rvol_floor": 1.0,
+      "min_signals": 2,
+      "jedi_min": 0,
+      "trend_align": true,
+      "sharpe": 0.734,
+      "n_trades": 2867
+    },
+    {
+      "atr_pct_floor": 30,
+      "rvol_floor": 1.0,
+      "min_signals": 2,
+      "jedi_min": 2,
+      "trend_align": true,
+      "sharpe": 0.734,
+      "n_trades": 2867
+    },
+    {
+      "atr_pct_floor": 0,
+      "rvol_floor": 0.0,
+      "min_signals": 2,
+      "jedi_min": 2,
+      "trend_align": true,
+      "sharpe": 0.649,
+      "n_trades": 4288
+    },
+    {
+      "atr_pct_floor": 0,
+      "rvol_floor": 0.0,
+      "min_signals": 2,
+      "jedi_min": 0,
+      "trend_align": true,
+      "sharpe": 0.642,
+      "n_trades": 4290
+    },
+    {
+      "atr_pct_floor": 0,
+      "rvol_floor": 0.0,
+      "min_signals": 1,
+      "jedi_min": 0,
+      "trend_align": true,
+      "sharpe": 0.596,
+      "n_trades": 14285
+    },
+    {
+      "atr_pct_floor": 0,
+      "rvol_floor": 0.8,
+      "min_signals": 2,
+      "jedi_min": 2,
+      "trend_align": true,
+      "sharpe": 0.588,
+      "n_trades": 3980
+    }
+  ],
+  "symbols": [
+    "6E",
+    "BTC",
+    "CL",
+    "ES",
+    "GC",
+    "NQ",
+    "RTY",
+    "SI"
+  ]
+}

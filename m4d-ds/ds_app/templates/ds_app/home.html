@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>M4D · ALGO ENGINE</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #050911;
+      --surface: #0b1120;
+      --border: #0d1f35;
+      --cyan: #22d3ee;
+      --green: #4ade80;
+      --amber: #f59e0b;
+      --red: #ef4444;
+      --purple: #818cf8;
+      --text: #e2e8f0;
+      --muted: #475569;
+      --font-mono: 'Share Tech Mono', 'Courier New', monospace;
+      --font-head: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+    }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-head);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      padding: 1.5rem 2rem 1rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: baseline;
+      gap: 1rem;
+    }
+    .logo {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      color: var(--cyan);
+      text-shadow: 0 0 24px #22d3ee55;
+    }
+    .logo-sub {
+      font-size: 0.75rem;
+      font-family: var(--font-mono);
+      color: var(--muted);
+      letter-spacing: 0.15em;
+    }
+    .hero {
+      padding: 2rem 2rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .hero-cta {
+      display: inline-block;
+      margin-top: 1rem;
+      padding: 0.7rem 2rem;
+      background: var(--cyan);
+      color: #050911;
+      font-family: var(--font-head);
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-decoration: none;
+      border-radius: 4px;
+      transition: filter 0.2s;
+    }
+    .hero-cta:hover { filter: brightness(1.12); }
+    .hero-lead {
+      font-size: 1.1rem;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      letter-spacing: 0.05em;
+      margin-top: 0.4rem;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 1px;
+      background: var(--border);
+      flex: 1;
+    }
+    .tile {
+      background: var(--surface);
+      padding: 1.4rem 1.6rem;
+      text-decoration: none;
+      color: var(--text);
+      transition: background 0.15s;
+      display: block;
+    }
+    .tile:hover { background: #0f1f3a; }
+    .tile-tag {
+      font-size: 0.65rem;
+      font-family: var(--font-mono);
+      letter-spacing: 0.2em;
+      color: var(--muted);
+      margin-bottom: 0.35rem;
+    }
+    .tile-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+    }
+    .tile-desc {
+      font-size: 0.78rem;
+      font-family: var(--font-mono);
+      color: var(--muted);
+      margin-top: 0.3rem;
+      line-height: 1.5;
+    }
+    .tile--primary .tile-title { color: var(--cyan); }
+    .tile--green  .tile-title  { color: var(--green); }
+    .tile--amber  .tile-title  { color: var(--amber); }
+    .tile--purple .tile-title  { color: var(--purple); }
+    .tile--red    .tile-title  { color: var(--red); }
+    footer {
+      padding: 0.75rem 2rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.7rem;
+      font-family: var(--font-mono);
+      color: var(--muted);
+      display: flex;
+      gap: 1.5rem;
+    }
+    footer a { color: var(--muted); text-decoration: none; }
+    footer a:hover { color: var(--cyan); }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header>
+    <span class="logo">M4D</span>
+    <span class="logo-sub">MAXCOGVIZ · ALGO ENGINE · :8050</span>
+  </header>
+
+  <div class="hero">
+    <div style="font-size:1.6rem;font-weight:700;letter-spacing:0.1em;">VISUAL BACKTEST</div>
+    <div class="hero-lead">Trades on chart · 9 signals · Sword of Record (backtesting.py)</div>
+    <a class="hero-cta" href="/boom-visual/?symbol=NVDA&tf=5m&period=60d&signal=darvas&scan=1&eod=1&first_half=1">
+      LAUNCH → NVDA 5m DARVAS
+    </a>
+    &nbsp;
+    <a class="hero-cta" style="background:var(--green);" href="/boom-visual/?symbol=SPY&tf=1d&period=6mo&signal=stage2&scan=0&eod=0">
+      LAUNCH → SPY 1D STAGE 2
+    </a>
+    &nbsp;
+    <a class="hero-cta" style="background:var(--purple);" href="/boom-visual/?symbol=TSLA&tf=15m&period=60d&signal=ob_fvg&scan=0&eod=1">
+      LAUNCH → TSLA 15m OB/FVG
+    </a>
+  </div>
+
+  <div class="grid">
+    <a class="tile tile--primary" href="/boom-visual/">
+      <div class="tile-tag">SWORD · backtesting.py</div>
+      <div class="tile-title">VISUAL BACKTEST</div>
+      <div class="tile-desc">Any signal · trades plotted on price · green ▲ entry · red ▼ exit · full trade table</div>
+    </a>
+    <a class="tile tile--green" href="/boom-backtest/?scan=1&tf=5m&signal=darvas&wide=1">
+      <div class="tile-tag">BOOM SWEEP · Sword</div>
+      <div class="tile-title">BOOM EXPANSION GRID</div>
+      <div class="tile-desc">Cartesian sweep · boom_rank_score ranking · top-N param combos</div>
+    </a>
+    <a class="tile tile--amber" href="/vectorbt-expansion/?scan=1&tf=5m&signal=darvas&format=json">
+      <div class="tile-tag">SABRE · vectorbt</div>
+      <div class="tile-title">SABRE SCREEN JSON</div>
+      <div class="tile-desc">Fast param ranking · breadth sweep · boom_rank_score · format=json for React</div>
+    </a>
+    <a class="tile tile--amber" href="/vectorbt-boom/">
+      <div class="tile-tag">SABRE · vectorbt</div>
+      <div class="tile-title">VECTORBT DARVAS GRID</div>
+      <div class="tile-desc">Darvas + vol + squeeze grid · Sabre speed · no flat_eod or BE lift</div>
+    </a>
+    <a class="tile tile--purple" href="/algo-signal/?signal=ob_fvg&symbol=NVDA&tf=15m&period=60d&min_trades=3&format=json">
+      <div class="tile-tag">ALGO SIGNALS · JSON</div>
+      <div class="tile-title">SIGNAL GRID SWEEP</div>
+      <div class="tile-desc">ob_fvg · ema_ribbon · kc_breakout · accel_range · mfi_cross · stage2 · choc_bos</div>
+    </a>
+    <a class="tile tile--green" href="/crypto/live/">
+      <div class="tile-tag">CRYPTO LAB · JSON</div>
+      <div class="tile-title">LIVE SCANNER</div>
+      <div class="tile-desc">Council votes + sim trades · MISSION dev: http://127.0.0.1:5550/#crypto · needs crypto_worker</div>
+    </a>
+    <a class="tile tile--primary" href="/mission/">
+      <div class="tile-tag">REACT · MISSION</div>
+      <div class="tile-title">CONTROL ROOM</div>
+      <div class="tile-desc">Full React app embed · 27 algo council · PulseHero · WARRIORS · KNIGHTS</div>
+    </a>
+    <a class="tile tile--green" href="/boom-tearsheet/?symbol=NVDA&tf=5m&period=60d&signal=darvas&scan=1&eod=1">
+      <div class="tile-tag">BOKEH · backtesting.py</div>
+      <div class="tile-title">TEARSHEET</div>
+      <div class="tile-desc">Interactive equity curve + drawdown + trades on chart · full session view</div>
+    </a>
+    <a class="tile tile--purple" href="/algo-optimize/?signal=ob_fvg&symbol=NVDA&tf=15m&period=60d&n_trials=80&format=json">
+      <div class="tile-tag">OPTUNA TPE · MEGA SEEK</div>
+      <div class="tile-title">OPTIMIZE</div>
+      <div class="tile-desc">80 intelligent trials beats 243 grid combos · param importance · multi-symbol breadth</div>
+    </a>
+    <a class="tile tile--red" href="/boom-backtest.pdf?scan=1&tf=5m&signal=darvas">
+      <div class="tile-tag">PDF EXPORT</div>
+      <div class="tile-title">BOOM SWEEP PDF</div>
+      <div class="tile-desc">Downloadable sweep report · top params · performance table</div>
+    </a>
+    <a class="tile" href="/ping/">
+      <div class="tile-tag">HEALTH</div>
+      <div class="tile-title">PING</div>
+      <div class="tile-desc">JSON stack health · <code style="color:#22d3ee">{"ok": true, "stack": "django"}</code></div>
+    </a>
+  </div>
+
+  <footer>
+    <span>:8050 · Django · Sword = backtesting.py · Sabre = vectorbt</span>
+    <a href="http://127.0.0.1:5550/">React :5550</a>
+    <a href="http://127.0.0.1:3330/">Rust API :3330</a>
+    <a href="http://127.0.0.1:5555/">Svelte PWA :5555</a>
+  </footer>
+</body>
+</html>

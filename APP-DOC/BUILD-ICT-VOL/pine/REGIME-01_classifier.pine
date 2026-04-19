@@ -1,0 +1,117 @@
+// REGIME-01 — Market Regime Classifier
+// Outputs: TREND-BULL / TREND-BEAR / RANGE / VOLATILE / ACCUMULATION
+// Used by CONF-01 and STRATEGY-01 to gate signals per regime
+// Regime determines: position size, stop width, signal threshold, hold duration
+
+//@version=5
+indicator("REGIME-01 · Regime Classifier", overlay=false)
+
+// ── Inputs ────────────────────────────────────────────────────────────────────
+adx_len      = input.int(14,   "ADX length")
+adx_trend_t  = input.int(25,   "ADX trend threshold",    minval=15, maxval=50)
+adx_range_t  = input.int(20,   "ADX range threshold",    minval=10, maxval=30)
+atr_vol_len  = input.int(20,   "ATR volatility lookback")
+atr_pct_t    = input.float(75, "ATR percentile → volatile", minval=50, maxval=99)
+bb_len       = input.int(20,   "Bollinger Band length")
+bb_mult      = input.float(2.0,"BB std dev")
+chop_len     = input.int(14,   "Choppiness index length")
+ema_fast     = input.int(21,   "EMA fast")
+ema_slow     = input.int(55,   "EMA slow")
+
+// ── Core indicators ───────────────────────────────────────────────────────────
+[diplus, diminus, adx] = ta.dmi(adx_len, adx_len)
+atr_val  = ta.atr(atr_vol_len)
+atr_hist = ta.percentile_nearest_rank(atr_val, 100, atr_pct_t)
+[bb_mid, bb_upper, bb_lower] = ta.bb(close, bb_len, bb_mult)
+bb_width  = (bb_upper - bb_lower) / bb_mid * 100   // BB width %
+ema_f     = ta.ema(close, ema_fast)
+ema_s     = ta.ema(close, ema_slow)
+ema_slope = (ema_s - ema_s[5]) / ema_s * 100       // % slope over 5 bars
+
+// ── Choppiness Index (100×log(ATR_sum/range) / log(n)) ────────────────────────
+// CI > 61.8 = choppy/range; CI < 38.2 = trending
+atr_sum = math.sum(ta.atr(1), chop_len)
+hl_range = ta.highest(high, chop_len) - ta.lowest(low, chop_len)
+chop_raw = 100 * math.log10(atr_sum / math.max(hl_range, syminfo.mintick)) / math.log10(chop_len)
+
+// ── Volume regime ─────────────────────────────────────────────────────────────
+vol_avg   = ta.sma(volume, 20)
+vol_ratio = ta.sma(volume, 5) / vol_avg   // recent vs average
+low_vol   = vol_ratio < 0.7               // drying up = possible reversal / accumulation
+
+// ── Regime classification ─────────────────────────────────────────────────────
+// VOLATILE: ATR in top percentile
+is_volatile = atr_val > atr_hist
+
+// TREND: ADX > threshold + EMA aligned + chop low
+is_trend_bull = adx > adx_trend_t and diplus > diminus and close > ema_f and ema_f > ema_s and chop_raw < 50
+is_trend_bear = adx > adx_trend_t and diminus > diplus and close < ema_f and ema_f < ema_s and chop_raw < 50
+
+// RANGE: ADX low + chop high + BB narrow
+bb_width_avg = ta.sma(bb_width, 20)
+is_range = adx < adx_range_t and chop_raw > 55 and bb_width < bb_width_avg * 0.9
+
+// ACCUMULATION: range + volume drying up + price near POC (approximated)
+is_accum = is_range and low_vol and math.abs(close - bb_mid) < (bb_upper - bb_lower) * 0.15
+
+// Priority: volatile > trend > accum > range > neutral
+regime_n = is_volatile    ? 5 :
+           is_trend_bull  ? 4 :
+           is_trend_bear  ? 3 :
+           is_accum       ? 2 :
+           is_range       ? 1 : 0
+
+regime_col = regime_n == 5 ? color.red    :
+             regime_n == 4 ? color.lime   :
+             regime_n == 3 ? color.fuchsia:
+             regime_n == 2 ? color.yellow :
+             regime_n == 1 ? color.gray   : color.white
+
+regime_lbl = regime_n == 5 ? "VOLATILE"   :
+             regime_n == 4 ? "TREND BULL"  :
+             regime_n == 3 ? "TREND BEAR"  :
+             regime_n == 2 ? "ACCUM"       :
+             regime_n == 1 ? "RANGE"       : "NEUTRAL"
+
+// ── Plots ─────────────────────────────────────────────────────────────────────
+plot(adx,       "ADX",       color=color.new(color.white, 30), linewidth=2)
+plot(diplus,    "DI+",       color=color.new(color.green, 40), linewidth=1)
+plot(diminus,   "DI-",       color=color.new(color.red,   40), linewidth=1)
+plot(chop_raw,  "Chop",      color=color.new(color.blue,  40), linewidth=1)
+hline(adx_trend_t, "ADX Trend",  color=color.new(color.yellow, 60), linestyle=hline.style_dashed)
+hline(adx_range_t, "ADX Range",  color=color.new(color.gray,   60), linestyle=hline.style_dotted)
+hline(61.8,        "Chop High",  color=color.new(color.red,    70), linestyle=hline.style_dotted)
+hline(38.2,        "Chop Low",   color=color.new(color.green,  70), linestyle=hline.style_dotted)
+
+bgcolor(is_volatile   ? color.new(color.red,    93) : na, title="Volatile bg")
+bgcolor(is_trend_bull ? color.new(color.green,  93) : na, title="Trend bull bg")
+bgcolor(is_trend_bear ? color.new(color.red,    93) : na, title="Trend bear bg")
+bgcolor(is_range      ? color.new(color.blue,   95) : na, title="Range bg")
+bgcolor(is_accum      ? color.new(color.yellow, 94) : na, title="Accum bg")
+
+// Regime score panel
+if barstate.islast
+    var table rt = table.new(position.top_left, 2, 7, border_width=1,
+                              frame_color=color.new(color.gray, 70))
+    table.cell(rt, 0, 0, "REGIME",         text_color=color.gray,  bgcolor=color.new(color.black, 60), text_size=size.small)
+    table.cell(rt, 1, 0, regime_lbl,       text_color=regime_col,  bgcolor=color.new(color.black, 60), text_size=size.small)
+    table.cell(rt, 0, 1, "ADX",            text_color=color.gray,  bgcolor=color.new(color.black, 70), text_size=size.small)
+    table.cell(rt, 1, 1, str.tostring(math.round(adx)), text_color=adx > adx_trend_t ? color.green : color.gray, bgcolor=color.new(color.black, 70), text_size=size.small)
+    table.cell(rt, 0, 2, "CHOP",           text_color=color.gray,  bgcolor=color.new(color.black, 70), text_size=size.small)
+    table.cell(rt, 1, 2, str.tostring(math.round(chop_raw)), text_color=chop_raw > 61.8 ? color.red : color.green, bgcolor=color.new(color.black, 70), text_size=size.small)
+    table.cell(rt, 0, 3, "BB W%",          text_color=color.gray,  bgcolor=color.new(color.black, 70), text_size=size.small)
+    table.cell(rt, 1, 3, str.tostring(math.round(bb_width * 10) / 10), text_color=color.gray, bgcolor=color.new(color.black, 70), text_size=size.small)
+    table.cell(rt, 0, 4, "RVOL",           text_color=color.gray,  bgcolor=color.new(color.black, 70), text_size=size.small)
+    table.cell(rt, 1, 4, str.tostring(math.round(vol_ratio * 10) / 10), text_color=vol_ratio > 1.2 ? color.green : color.gray, bgcolor=color.new(color.black, 70), text_size=size.small)
+    table.cell(rt, 0, 5, "EMA slope",      text_color=color.gray,  bgcolor=color.new(color.black, 70), text_size=size.small)
+    table.cell(rt, 1, 5, str.tostring(math.round(ema_slope * 100) / 100) + "%", text_color=ema_slope > 0 ? color.green : color.red, bgcolor=color.new(color.black, 70), text_size=size.small)
+    table.cell(rt, 0, 6, "VOLATILE",       text_color=color.gray,  bgcolor=color.new(color.black, 70), text_size=size.small)
+    table.cell(rt, 1, 6, is_volatile ? "YES" : "no", text_color=is_volatile ? color.red : color.gray, bgcolor=color.new(color.black, 70), text_size=size.small)
+
+// ── Regime change alert ────────────────────────────────────────────────────────
+regime_changed = regime_n != regime_n[1]
+alertcondition(regime_changed,    "REGIME-01 CHANGE", "REGIME changed → " + regime_lbl + " · {{ticker}}")
+alertcondition(is_trend_bull and not is_trend_bull[1], "REGIME-01 TREND BULL", "REGIME: Trend Bull · {{ticker}}")
+alertcondition(is_trend_bear and not is_trend_bear[1], "REGIME-01 TREND BEAR", "REGIME: Trend Bear · {{ticker}}")
+alertcondition(is_volatile   and not is_volatile[1],   "REGIME-01 VOLATILE",   "REGIME: Volatile — reduce size · {{ticker}}")
+alertcondition(is_range      and not is_range[1],      "REGIME-01 RANGE",      "REGIME: Range — mean reversion bias · {{ticker}}")

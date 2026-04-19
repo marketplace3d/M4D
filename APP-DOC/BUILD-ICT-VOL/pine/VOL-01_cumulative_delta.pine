@@ -1,0 +1,98 @@
+// VOL-01 — Cumulative Delta + Volume Profile Direction
+// Weight: feeds into CONF-01 at 24% (replaces raw confluence count)
+// Cumulative delta: directional pressure — divergence from price = warning
+// RVOL: confirms strength of move
+// POC magnet: highest volume price in lookback = gravitational target
+
+//@version=5
+indicator("VOL-01 · Cumulative Delta + Vol Profile", overlay=false)
+
+// ── Inputs ────────────────────────────────────────────────────────────────────
+delta_len      = input.int(20,    "Delta lookback (bars)",      minval=5,  maxval=100)
+poc_len        = input.int(50,    "Volume profile lookback",    minval=20, maxval=300)
+rvol_thresh    = input.float(1.2, "RVOL strength threshold",   minval=1.0, maxval=3.0, step=0.1)
+div_bars       = input.int(10,    "Divergence scan bars",       minval=5,  maxval=30)
+show_poc_cross = input.bool(true, "Alert on POC cross")
+
+// ── Bar delta proxy ────────────────────────────────────────────────────────────
+// Approximation using close position within bar range
+// 1.0 = full up-bar (all buying), -1.0 = full down-bar (all selling)
+bar_range     = math.max(high - low, syminfo.mintick)
+close_pos     = (close - low) / bar_range          // 0..1
+bar_delta     = (close_pos * 2 - 1) * volume       // signed volume
+cum_delta     = ta.cum(bar_delta)
+
+// Rolling cumulative delta (reset each N bars for readability)
+rolling_delta = math.sum(bar_delta, delta_len)
+
+// ── RVOL ──────────────────────────────────────────────────────────────────────
+vol_avg = ta.sma(volume, 20)
+rvol    = volume / vol_avg
+rvol_ok = rvol >= rvol_thresh
+
+// ── Delta slope (direction) ───────────────────────────────────────────────────
+delta_slope_fast = rolling_delta - rolling_delta[3]
+delta_slope_slow = rolling_delta - rolling_delta[delta_len]
+
+bull_delta = delta_slope_fast > 0 and delta_slope_slow > 0 and rvol_ok
+bear_delta = delta_slope_fast < 0 and delta_slope_slow < 0 and rvol_ok
+
+// ── Delta / price divergence ──────────────────────────────────────────────────
+// Bearish div: price makes HH, delta makes LH → strength fading
+// Bullish div: price makes LL, delta makes HL → selling exhausted
+price_hh = high > ta.highest(high, div_bars)[1]
+delta_lh  = rolling_delta < ta.highest(rolling_delta, div_bars)[1]
+bear_div  = price_hh and delta_lh and not bull_delta
+
+price_ll = low < ta.lowest(low, div_bars)[1]
+delta_hl  = rolling_delta > ta.lowest(rolling_delta, div_bars)[1]
+bull_div  = price_ll and delta_hl and not bear_delta
+
+// ── POC (Volume-weighted price centroid in lookback) ──────────────────────────
+// Simple: bar with highest volume in window = POC proxy
+highest_vol_price = ta.highest(volume * close, poc_len) / ta.highest(volume, poc_len)
+poc = highest_vol_price
+
+// Price vs POC
+above_poc = close > poc
+below_poc = close < poc
+poc_cross_up   = ta.crossover(close,  poc)
+poc_cross_down = ta.crossunder(close, poc)
+
+// ── Composite signal ──────────────────────────────────────────────────────────
+vol_bull = bull_delta and above_poc and not bear_div
+vol_bear = bear_delta and below_poc and not bull_div
+vol_div_warn = bull_div or bear_div
+
+// ── Plots ─────────────────────────────────────────────────────────────────────
+// Rolling delta histogram
+plot(rolling_delta,  "Rolling Delta", color=rolling_delta > 0 ? color.new(color.green, 20) : color.new(color.red, 20),
+     style=plot.style_histogram, linewidth=2)
+
+// Cumulative delta line (rescaled)
+plot(cum_delta / 1e6, "Cum Delta (M)", color=color.new(color.blue, 30), linewidth=1)
+
+// RVOL
+plot(rvol,         "RVOL",   color=color.new(color.yellow, 30), linewidth=1)
+hline(rvol_thresh, "RVOL T", color=color.new(color.yellow, 60), linestyle=hline.style_dashed)
+hline(0,           "Zero",   color=color.gray, linestyle=hline.style_dotted)
+
+// Divergence markers
+plotshape(bull_div, "Bull Div", style=shape.circle,  location=location.bottom, color=color.lime,    size=size.small)
+plotshape(bear_div, "Bear Div", style=shape.circle,  location=location.top,    color=color.fuchsia, size=size.small)
+
+// Strong signal markers
+plotshape(vol_bull, "Vol Bull", style=shape.triangleup,   location=location.bottom, color=color.green, size=size.tiny)
+plotshape(vol_bear, "Vol Bear", style=shape.triangledown,  location=location.top,   color=color.red,   size=size.tiny)
+
+bgcolor(vol_bull ? color.new(color.green, 92) : na, title="Bull vol bg")
+bgcolor(vol_bear ? color.new(color.red,   92) : na, title="Bear vol bg")
+bgcolor(vol_div_warn ? color.new(color.yellow, 94) : na, title="Divergence warn bg")
+
+// ── Alerts ────────────────────────────────────────────────────────────────────
+alertcondition(vol_bull,      "VOL-01 BULL",     "VOL-01: Bull delta + POC · {{ticker}} · RVOL=" + str.tostring(math.round(rvol * 10) / 10))
+alertcondition(vol_bear,      "VOL-01 BEAR",     "VOL-01: Bear delta + POC · {{ticker}} · RVOL=" + str.tostring(math.round(rvol * 10) / 10))
+alertcondition(bull_div,      "VOL-01 BULL DIV", "VOL-01: Bullish delta divergence · {{ticker}} · price LL, delta HL")
+alertcondition(bear_div,      "VOL-01 BEAR DIV", "VOL-01: Bearish delta divergence · {{ticker}} · price HH, delta LH")
+alertcondition(poc_cross_up   and show_poc_cross, "VOL-01 POC X UP",   "VOL-01: Price crossed above POC · {{ticker}} · POC=" + str.tostring(math.round(poc * 100) / 100))
+alertcondition(poc_cross_down and show_poc_cross, "VOL-01 POC X DOWN", "VOL-01: Price crossed below POC · {{ticker}} · POC=" + str.tostring(math.round(poc * 100) / 100))

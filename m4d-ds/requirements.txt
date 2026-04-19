@@ -1,0 +1,13 @@
+django>=5.0,<6
+numpy>=1.26,<4
+pandas>=2.0,<4
+matplotlib>=3.8,<4
+bokeh>=3.0,<4
+pillow>=9,<13
+backtesting
+vectorbt
+backtrader
+nautilus_trader
+reportlab
+yfinance
+optuna>=3.0,<5

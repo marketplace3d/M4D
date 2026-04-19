@@ -1,0 +1,688 @@
+{
+  "generated_at": "2026-04-18T16:18:05.091485",
+  "horizon": "4h",
+  "symbols": [
+    "6E",
+    "BTC",
+    "CL",
+    "ES",
+    "GC",
+    "NQ",
+    "RTY",
+    "SI"
+  ],
+  "oos_rows": 970771,
+  "traffic_lights": [
+    {
+      "name": "BASELINE",
+      "desc": "All survivors, no filters",
+      "sharpe": 1.359,
+      "delta": null,
+      "light": "yellow",
+      "verdict": "INFO"
+    },
+    {
+      "name": "REGIME ROUTING",
+      "desc": "Route signals by TRENDING/RANGING/etc",
+      "sharpe": 2.203,
+      "delta": 0.844,
+      "light": "green",
+      "verdict": "APPLY \u2014 improves edge"
+    },
+    {
+      "name": "HOUR FILTER",
+      "desc": "Remove bad-hour trades",
+      "sharpe": 2.412,
+      "delta": 0.209,
+      "light": "green",
+      "verdict": "APPLY \u2014 improves edge"
+    },
+    {
+      "name": "DAY FILTER",
+      "desc": "Remove bad-day trades",
+      "sharpe": 3.141,
+      "delta": 0.729,
+      "light": "green",
+      "verdict": "APPLY \u2014 improves edge"
+    },
+    {
+      "name": "RVOL GATE",
+      "desc": "Trades with above-avg volume only",
+      "sharpe": 3.141,
+      "delta": 0.0,
+      "light": "green",
+      "verdict": "NEUTRAL \u2014 no improvement"
+    },
+    {
+      "name": "SCALPER MODE",
+      "desc": "1h horizon, loose entry, many trades",
+      "sharpe": 1.896,
+      "delta": null,
+      "light": "green",
+      "verdict": "INFO"
+    },
+    {
+      "name": "KELLY SIZING",
+      "desc": "Half Kelly = 9.56%  Full = 19.12%",
+      "sharpe": null,
+      "delta": null,
+      "light": "grey",
+      "verdict": "INFO"
+    }
+  ],
+  "hour_analysis": {
+    "by_hour": {
+      "0": {
+        "hour": 0,
+        "sharpe": 1.836,
+        "n_trades": 3185,
+        "hit_rate": 0.522,
+        "kelly_half": 6.44,
+        "light": "green"
+      },
+      "1": {
+        "hour": 1,
+        "sharpe": 1.674,
+        "n_trades": 3271,
+        "hit_rate": 0.535,
+        "kelly_half": 6.5,
+        "light": "green"
+      },
+      "2": {
+        "hour": 2,
+        "sharpe": 2.532,
+        "n_trades": 2995,
+        "hit_rate": 0.562,
+        "kelly_half": 9.59,
+        "light": "green"
+      },
+      "3": {
+        "hour": 3,
+        "sharpe": 1.141,
+        "n_trades": 2789,
+        "hit_rate": 0.546,
+        "kelly_half": 4.58,
+        "light": "yellow"
+      },
+      "4": {
+        "hour": 4,
+        "sharpe": 0.883,
+        "n_trades": 2765,
+        "hit_rate": 0.558,
+        "kelly_half": 3.52,
+        "light": "yellow"
+      },
+      "5": {
+        "hour": 5,
+        "sharpe": 2.318,
+        "n_trades": 3334,
+        "hit_rate": 0.524,
+        "kelly_half": 6.66,
+        "light": "green"
+      },
+      "6": {
+        "hour": 6,
+        "sharpe": 1.239,
+        "n_trades": 3435,
+        "hit_rate": 0.512,
+        "kelly_half": 4.77,
+        "light": "yellow"
+      },
+      "7": {
+        "hour": 7,
+        "sharpe": 2.061,
+        "n_trades": 3488,
+        "hit_rate": 0.488,
+        "kelly_half": 5.72,
+        "light": "green"
+      },
+      "8": {
+        "hour": 8,
+        "sharpe": 5.882,
+        "n_trades": 3591,
+        "hit_rate": 0.554,
+        "kelly_half": 14.88,
+        "light": "green"
+      },
+      "9": {
+        "hour": 9,
+        "sharpe": 4.368,
+        "n_trades": 3502,
+        "hit_rate": 0.557,
+        "kelly_half": 11.26,
+        "light": "green"
+      },
+      "10": {
+        "hour": 10,
+        "sharpe": 3.608,
+        "n_trades": 3228,
+        "hit_rate": 0.544,
+        "kelly_half": 8.27,
+        "light": "green"
+      },
+      "11": {
+        "hour": 11,
+        "sharpe": 1.268,
+        "n_trades": 3556,
+        "hit_rate": 0.51,
+        "kelly_half": 3.19,
+        "light": "yellow"
+      },
+      "12": {
+        "hour": 12,
+        "sharpe": 1.076,
+        "n_trades": 3389,
+        "hit_rate": 0.508,
+        "kelly_half": 2.77,
+        "light": "yellow"
+      },
+      "13": {
+        "hour": 13,
+        "sharpe": 3.398,
+        "n_trades": 3751,
+        "hit_rate": 0.525,
+        "kelly_half": 8.64,
+        "light": "green"
+      },
+      "14": {
+        "hour": 14,
+        "sharpe": 3.736,
+        "n_trades": 3932,
+        "hit_rate": 0.536,
+        "kelly_half": 10.19,
+        "light": "green"
+      },
+      "15": {
+        "hour": 15,
+        "sharpe": 4.063,
+        "n_trades": 3389,
+        "hit_rate": 0.556,
+        "kelly_half": 11.96,
+        "light": "green"
+      },
+      "16": {
+        "hour": 16,
+        "sharpe": 3.252,
+        "n_trades": 3474,
+        "hit_rate": 0.549,
+        "kelly_half": 11.24,
+        "light": "green"
+      },
+      "17": {
+        "hour": 17,
+        "sharpe": 2.233,
+        "n_trades": 3137,
+        "hit_rate": 0.531,
+        "kelly_half": 7.35,
+        "light": "green"
+      },
+      "18": {
+        "hour": 18,
+        "sharpe": 1.366,
+        "n_trades": 3007,
+        "hit_rate": 0.51,
+        "kelly_half": 4.66,
+        "light": "yellow"
+      },
+      "19": {
+        "hour": 19,
+        "sharpe": 1.361,
+        "n_trades": 3246,
+        "hit_rate": 0.51,
+        "kelly_half": 4.27,
+        "light": "yellow"
+      },
+      "20": {
+        "hour": 20,
+        "sharpe": 0.29,
+        "n_trades": 2734,
+        "hit_rate": 0.493,
+        "kelly_half": 0.68,
+        "light": "red"
+      },
+      "21": {
+        "hour": 21,
+        "sharpe": 0.522,
+        "n_trades": 1385,
+        "hit_rate": 0.44,
+        "kelly_half": 1.8,
+        "light": "yellow"
+      },
+      "22": {
+        "hour": 22,
+        "sharpe": -0.818,
+        "n_trades": 1298,
+        "hit_rate": 0.51,
+        "kelly_half": 0.0,
+        "light": "red"
+      },
+      "23": {
+        "hour": 23,
+        "sharpe": 0.19,
+        "n_trades": 2650,
+        "hit_rate": 0.52,
+        "kelly_half": 0.61,
+        "light": "red"
+      }
+    },
+    "best_hours": [
+      0,
+      1,
+      2,
+      5,
+      7,
+      8,
+      9,
+      10,
+      13,
+      14,
+      15,
+      16,
+      17
+    ],
+    "kill_hours": [
+      20,
+      22,
+      23
+    ]
+  },
+  "day_analysis": {
+    "by_day": {
+      "0": {
+        "day": "Mon",
+        "sharpe": 2.895,
+        "n_trades": 13938,
+        "hit_rate": 0.568,
+        "kelly_half": 9.5,
+        "light": "green"
+      },
+      "1": {
+        "day": "Tue",
+        "sharpe": 2.752,
+        "n_trades": 13079,
+        "hit_rate": 0.515,
+        "kelly_half": 8.51,
+        "light": "green"
+      },
+      "2": {
+        "day": "Wed",
+        "sharpe": 3.528,
+        "n_trades": 13960,
+        "hit_rate": 0.549,
+        "kelly_half": 9.63,
+        "light": "green"
+      },
+      "3": {
+        "day": "Thu",
+        "sharpe": 0.233,
+        "n_trades": 13065,
+        "hit_rate": 0.493,
+        "kelly_half": 0.64,
+        "light": "red"
+      },
+      "4": {
+        "day": "Fri",
+        "sharpe": 3.616,
+        "n_trades": 12709,
+        "hit_rate": 0.526,
+        "kelly_half": 10.29,
+        "light": "green"
+      },
+      "5": {
+        "day": "Sat",
+        "sharpe": -5.621,
+        "n_trades": 537,
+        "hit_rate": 0.406,
+        "kelly_half": 0.0,
+        "light": "red"
+      },
+      "6": {
+        "day": "Sun",
+        "sharpe": -0.344,
+        "n_trades": 561,
+        "hit_rate": 0.481,
+        "kelly_half": 0.0,
+        "light": "red"
+      }
+    },
+    "best_days": [
+      0,
+      1,
+      2,
+      4
+    ],
+    "kill_days": [
+      3,
+      5,
+      6
+    ]
+  },
+  "regime_perf": {
+    "TRENDING": {
+      "sharpe": 6.511,
+      "n_trades": 93,
+      "pct_bars": 0.0,
+      "kelly_half": 10.8,
+      "hit_rate": 0.527,
+      "light": "green"
+    },
+    "RANGING": {
+      "sharpe": 1.931,
+      "n_trades": 38930,
+      "pct_bars": 74.5,
+      "kelly_half": 5.66,
+      "hit_rate": 0.524,
+      "light": "green"
+    },
+    "BREAKOUT": {
+      "sharpe": 1.841,
+      "n_trades": 26704,
+      "pct_bars": 16.1,
+      "kelly_half": 5.19,
+      "hit_rate": 0.525,
+      "light": "green"
+    },
+    "RISK-OFF": {
+      "sharpe": 4.054,
+      "n_trades": 8804,
+      "pct_bars": 9.5,
+      "kelly_half": 10.35,
+      "hit_rate": 0.553,
+      "light": "green"
+    }
+  },
+  "rvol_tiers": [
+    {
+      "label": "Dead  (< 0.5)",
+      "rvol_lo": 0.0,
+      "rvol_hi": 0.5,
+      "sharpe": 4.767,
+      "n_trades": 4830,
+      "light": "green"
+    },
+    {
+      "label": "Low   (0.5\u20130.8)",
+      "rvol_lo": 0.5,
+      "rvol_hi": 0.8,
+      "sharpe": 3.131,
+      "n_trades": 6960,
+      "light": "green"
+    },
+    {
+      "label": "Avg   (0.8\u20131.2)",
+      "rvol_lo": 0.8,
+      "rvol_hi": 1.2,
+      "sharpe": 3.309,
+      "n_trades": 11960,
+      "light": "green"
+    },
+    {
+      "label": "High  (1.2\u20132.0)",
+      "rvol_lo": 1.2,
+      "rvol_hi": 2.0,
+      "sharpe": 2.783,
+      "n_trades": 15608,
+      "light": "green"
+    },
+    {
+      "label": "Surge (> 2.0)",
+      "rvol_lo": 2.0,
+      "rvol_hi": 999,
+      "sharpe": 2.876,
+      "n_trades": 14328,
+      "light": "green"
+    }
+  ],
+  "kelly": {
+    "full": 19.12,
+    "half": 9.56,
+    "win_rate": 0.54,
+    "rr": 1.316,
+    "avg_win_pct": 0.6676,
+    "avg_loss_pct": 0.5071
+  },
+  "stars_current": {
+    "stars": [
+      {
+        "name": "Hour window",
+        "lit": true,
+        "detail": "Hour 0:00 \u2192 green"
+      },
+      {
+        "name": "Day quality",
+        "lit": true,
+        "detail": "Mon \u2192 green"
+      },
+      {
+        "name": "Regime power",
+        "lit": true,
+        "detail": "RANGING \u2192 green"
+      },
+      {
+        "name": "Volume surge",
+        "lit": false,
+        "detail": "RVOL 0.31 \u2265 1.2"
+      },
+      {
+        "name": "Squeeze clear",
+        "lit": true,
+        "detail": "BB > KC (breakout energy free)"
+      }
+    ],
+    "count": 4,
+    "display": "\u2605\u2605\u2605\u2605\u2606",
+    "kelly_multiplier": 1.0,
+    "suggestion": "FULL KELLY \u2014 strong alignment"
+  },
+  "scalper": {
+    "modes": [
+      {
+        "label": "Loose (all, RVOL\u22650)",
+        "sharpe": 1.244,
+        "n_trades": 439954,
+        "kelly_half": 1.44,
+        "hit_rate": 0.508,
+        "light": "yellow"
+      },
+      {
+        "label": "Active (RVOL\u22650.5)",
+        "sharpe": 1.232,
+        "n_trades": 351680,
+        "kelly_half": 1.33,
+        "hit_rate": 0.508,
+        "light": "yellow"
+      },
+      {
+        "label": "Volume (RVOL\u22651.0)",
+        "sharpe": 1.38,
+        "n_trades": 175365,
+        "kelly_half": 1.53,
+        "hit_rate": 0.509,
+        "light": "yellow"
+      },
+      {
+        "label": "Stacked (RVOL\u22650.5, 2+)",
+        "sharpe": 1.282,
+        "n_trades": 205129,
+        "kelly_half": 1.35,
+        "hit_rate": 0.508,
+        "light": "yellow"
+      },
+      {
+        "label": "Regime-routed (RVOL\u22650)",
+        "sharpe": 1.896,
+        "n_trades": 74679,
+        "kelly_half": 2.83,
+        "hit_rate": 0.504,
+        "light": "green"
+      }
+    ]
+  },
+  "hyperparam_grid": [
+    {
+      "rvol_floor": 0.0,
+      "min_signals": 1,
+      "sharpe": 2.203,
+      "n_trades": 74531,
+      "kelly_half": 7.06,
+      "light": "green"
+    },
+    {
+      "rvol_floor": 0.5,
+      "min_signals": 1,
+      "sharpe": 2.112,
+      "n_trades": 67408,
+      "kelly_half": 6.41,
+      "light": "green"
+    },
+    {
+      "rvol_floor": 0.0,
+      "min_signals": 2,
+      "sharpe": 2.092,
+      "n_trades": 71346,
+      "kelly_half": 6.41,
+      "light": "green"
+    },
+    {
+      "rvol_floor": 0.8,
+      "min_signals": 1,
+      "sharpe": 2.051,
+      "n_trades": 57811,
+      "kelly_half": 5.99,
+      "light": "green"
+    },
+    {
+      "rvol_floor": 1.0,
+      "min_signals": 1,
+      "sharpe": 2.037,
+      "n_trades": 49592,
+      "kelly_half": 5.85,
+      "light": "green"
+    },
+    {
+      "rvol_floor": 0.5,
+      "min_signals": 2,
+      "sharpe": 1.993,
+      "n_trades": 65665,
+      "kelly_half": 5.78,
+      "light": "green"
+    },
+    {
+      "rvol_floor": 0.8,
+      "min_signals": 2,
+      "sharpe": 1.937,
+      "n_trades": 56746,
+      "kelly_half": 5.55,
+      "light": "green"
+    },
+    {
+      "rvol_floor": 1.0,
+      "min_signals": 2,
+      "sharpe": 1.911,
+      "n_trades": 48831,
+      "kelly_half": 5.43,
+      "light": "green"
+    },
+    {
+      "rvol_floor": 0.8,
+      "min_signals": 3,
+      "sharpe": 1.832,
+      "n_trades": 49029,
+      "kelly_half": 5.03,
+      "light": "green"
+    },
+    {
+      "rvol_floor": 1.0,
+      "min_signals": 3,
+      "sharpe": 1.825,
+      "n_trades": 43120,
+      "kelly_half": 4.92,
+      "light": "green"
+    },
+    {
+      "rvol_floor": 0.0,
+      "min_signals": 3,
+      "sharpe": 1.821,
+      "n_trades": 58737,
+      "kelly_half": 5.33,
+      "light": "green"
+    },
+    {
+      "rvol_floor": 0.5,
+      "min_signals": 3,
+      "sharpe": 1.789,
+      "n_trades": 55196,
+      "kelly_half": 4.96,
+      "light": "green"
+    }
+  ],
+  "routing_used": {
+    "TRENDING": [
+      "TREND_SMA",
+      "MACD_CROSS",
+      "CONSEC_BULL"
+    ],
+    "RANGING": [
+      "VOL_BO",
+      "DON_BO",
+      "KC_BREAK"
+    ],
+    "BREAKOUT": [
+      "GOLDEN",
+      "DON_BO",
+      "OBV_TREND"
+    ],
+    "RISK-OFF": [
+      "SUPERTREND",
+      "TREND_SMA",
+      "DON_BO"
+    ]
+  },
+  "summary": {
+    "baseline_sharpe": 1.359,
+    "regime_sharpe": 2.203,
+    "hour_filtered_sharpe": 2.412,
+    "day_filtered_sharpe": 3.141,
+    "rvol_filtered_sharpe": 3.141,
+    "best_scalper_sharpe": 1.896,
+    "best_hours": [
+      0,
+      1,
+      2,
+      5,
+      7,
+      8,
+      9,
+      10,
+      13,
+      14,
+      15,
+      16,
+      17
+    ],
+    "kill_hours": [
+      20,
+      22,
+      23
+    ],
+    "best_days": [
+      0,
+      1,
+      2,
+      4
+    ],
+    "kill_days": [
+      3,
+      5,
+      6
+    ],
+    "top_hyperparam": {
+      "rvol_floor": 0.0,
+      "min_signals": 1,
+      "sharpe": 2.203,
+      "n_trades": 74531,
+      "kelly_half": 7.06,
+      "light": "green"
+    }
+  }
+}

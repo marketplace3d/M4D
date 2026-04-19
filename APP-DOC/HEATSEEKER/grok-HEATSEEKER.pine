@@ -1,0 +1,158 @@
+//@version=6
+indicator("HEATSEEKER V6.3 MAXCOGVIZ ULTIMATE", shorttitle="HS V6.3", overlay=true, max_boxes_count=150, max_labels_count=150, max_lines_count=150)
+
+// ── INPUTS ─────────────────────────────────────────────────────
+volWeight   = input.float(0.38, "Vol + VP Weight",      minval=0.25, maxval=0.45)
+fvgWeight   = input.float(0.25, "FVG Weight",           minval=0.20, maxval=0.35)
+obWeight    = input.float(0.14, "OB Weight",            minval=0.10, maxval=0.25)
+confWeight  = input.float(0.23, "Confluence Weight",    minval=0.20, maxval=0.35)
+fvgMinATR   = input.float(0.45, "Min FVG Size (ATR x)", minval=0.25, maxval=1.0)
+useWeekly   = input.bool(false,  "Include Weekly in Confluence")
+
+// ── CORE LEVELS & DIRECTION BIAS ───────────────────────────────
+pdh = request.security(syminfo.tickerid, "D", high[1], lookahead=barmerge.lookahead_off)
+pdl = request.security(syminfo.tickerid, "D", low[1],  lookahead=barmerge.lookahead_off)
+
+emaDiff = ta.ema(close - open, 21)
+dirBias = emaDiff > 0 ? 1 : emaDiff < 0 ? -1 : 0
+
+// ── HTF MTF CONFLUENCE ─────────────────────────────────────────
+// FIX: explicit float return type prevents int/float mismatch in aligned calc
+getStruct(simple string tf) =>
+    request.security(syminfo.tickerid, tf, close > high[1] ? 1.0 : close < low[1] ? -1.0 : 0.0, lookahead=barmerge.lookahead_off)
+
+dDir   = getStruct("D")
+h4Dir  = getStruct("240")
+h1Dir  = getStruct("60")
+m30Dir = getStruct("30")
+// FIX: cast 0.0 so both branches of ternary are float — avoids type error
+wDir   = useWeekly ? getStruct("W") : 0.0
+
+aligned       = (dDir * 3.5) + (h4Dir * 2.5) + (h1Dir * 1.8) + (m30Dir * 1.2) + (wDir * 4.0)
+confluenceMult = aligned * dirBias > 0 ? math.min(1.0 + math.abs(aligned) / 12.0, 2.0) : 0.4
+
+// ── REFINED FVG ────────────────────────────────────────────────
+atr14   = ta.atr(14)
+avgBody = ta.sma(math.abs(close - open), 20)
+
+bullFVG = low > high[2] and (low - high[2]) >= fvgMinATR * atr14 and (close[1] - open[1]) > 1.3 * avgBody[1]
+bearFVG = high < low[2] and (low[2] - high) >= fvgMinATR * atr14 and (open[1] - close[1]) > 1.3 * avgBody[1]
+
+// FIX: Pine v6 array syntax — array<box> not box[]
+var array<box> bullBoxes = array.new<box>()
+var array<box> bearBoxes = array.new<box>()
+
+if bullFVG
+    array.push(bullBoxes, box.new(left=bar_index[2], top=low, right=bar_index + 40, bottom=high[2], bgcolor=color.new(color.rgb(0, 255, 136), 82), border_color=color.rgb(0, 255, 136)))
+if bearFVG
+    array.push(bearBoxes, box.new(left=bar_index[2], top=low[2], right=bar_index + 40, bottom=high, bgcolor=color.new(color.rgb(255, 0, 136), 82), border_color=color.rgb(255, 0, 136)))
+
+// OB proxy (last bar in direction)
+obBull = dirBias > 0 ? low[1]  : na
+obBear = dirBias < 0 ? high[1] : na
+
+// ── VOLUME PROFILE FLAVOUR ─────────────────────────────────────
+rangeHigh  = ta.highest(high, 50)
+rangeLow   = ta.lowest(low, 50)
+rangeMid   = (rangeHigh + rangeLow) / 2.0
+isNewRange = ta.change(rangeHigh) != 0 or ta.change(rangeLow) != 0
+poc        = ta.valuewhen(isNewRange, rangeMid, 0)
+vah        = poc + atr14 * 1.2
+val        = poc - atr14 * 1.2
+
+// ── REGIME AWARENESS + SHAPE ───────────────────────────────────
+[diPlus, diMinus, adx] = ta.dmi(14, 14)
+rvol       = volume / ta.sma(volume, 20)
+shapeScore = (dirBias > 0 and close > poc) or (dirBias < 0 and close < poc) ? 1.0 : 0.4
+
+// FIX: no `:=` on non-var — compute in single expression with clamp inline
+regimeRaw  = (confluenceMult - 1.0) * 0.6 + shapeScore * 0.8 + (adx > 25 ? float(dirBias) * 0.8 : 0.0) + (rvol > 1.8 ? float(dirBias) * 0.4 : 0.0)
+regimeScore = math.min(math.max(regimeRaw, -1.0), 1.0)
+
+regimeLabel = math.abs(regimeScore) < 0.3 ? "RANGING" : regimeScore > 0.5 ? "BULL TREND" : regimeScore < -0.5 ? "BEAR TREND" : "TRANSITION"
+
+// ── COMBINED ALPHA SCORE ───────────────────────────────────────
+// FIX: raw max ≈ 62 → rescale ×1.61 so S-tier (85) is reachable at full confluence
+volAcc    = ta.sma(volume, 14) / ta.sma(volume, 50)
+fvgHit    = bullFVG or bearFVG ? 1.0 : 0.6
+obHit     = not na(obBull) or not na(obBear) ? 1.0 : 0.5
+
+alphaRaw  = (volAcc * 35.0 * volWeight) + (fvgHit * 25.0 * fvgWeight) + (obHit * 20.0 * obWeight) + (confluenceMult * 25.0 * confWeight) + (regimeScore * 15.0)
+// Rescale: theoretical max ~62 → map to 100
+alphaScore = int(math.min(math.max(math.round(alphaRaw * 1.61), 0), 100))
+
+tier = alphaScore >= 85 ? "S" : alphaScore >= 72 ? "A" : alphaScore >= 58 ? "B" : "C"
+
+// ── SAFETY DEFENCE ─────────────────────────────────────────────
+safetyFactor = regimeLabel == "RANGING" ? 0.5 : 1.2
+
+// ── FLAME BACKGROUND GRADIENT ──────────────────────────────────
+intensity = float(alphaScore) / 100.0 * (math.abs(regimeScore) + 0.5)
+bgCol = intensity < 0.3  ? color.new(color.rgb(0,   17,  51),  88) :
+        intensity < 0.55 ? color.new(color.rgb(0,  187, 255),  82) :
+        intensity < 0.75 ? color.new(color.rgb(255, 170,   0), 78) :
+        intensity < 0.9  ? color.new(color.rgb(255, 238,   0), 75) :
+                           color.new(color.rgb(255,  51,   0), 70)
+bgcolor(bgCol, title="Flame Regime Background")
+
+// ── HEATSEEKER TARGET LEVELS (S/A only, confirmed bars) ────────
+targetLevel = dirBias > 0 ? pdh + atr14 * 0.6 : pdl - atr14 * 0.6
+if (tier == "S" or tier == "A") and barstate.isconfirmed
+    line.new(bar_index - 5, targetLevel, bar_index + 30, targetLevel,
+             color=color.new(color.rgb(0, 255, 170), 10), width=3, extend=extend.right)
+    label.new(bar_index, targetLevel,
+              text  = (tier == "S" ? "ULTIMATE\nTARGET" : "NEXT\nTARGET") + "\nα:" + str.tostring(alphaScore),
+              style = label.style_label_left,
+              color = color.new(color.rgb(0, 255, 170), 0),
+              textcolor = color.black,
+              size  = size.normal)
+
+// ── SIGNAL ARROWS ──────────────────────────────────────────────
+plotshape(bullFVG and confluenceMult > 1.2 and regimeScore > 0.4, title="Bull Signal", location=location.belowbar, style=shape.arrowup,   color=color.lime, size=size.large)
+plotshape(bearFVG and confluenceMult > 1.2 and regimeScore < -0.4, title="Bear Signal", location=location.abovebar, style=shape.arrowdown, color=color.red,  size=size.large)
+
+// ── JEDI WISDOM ────────────────────────────────────────────────
+jediBull = regimeScore > 0.4  and alphaScore >= 72
+jediBear = regimeScore < -0.4 and alphaScore >= 72
+plotchar(jediBull ? 1.0 : na, title="JEDI BULL", char="▲", location=location.top,    color=color.new(color.rgb(0,   255, 204), 0), size=size.huge, offset=-12)
+plotchar(jediBear ? 1.0 : na, title="JEDI BEAR", char="▼", location=location.bottom, color=color.new(color.rgb(255,   0, 204), 0), size=size.huge, offset=-12)
+
+// FIX: plot(alphaScore) removed — overlay=true puts it at price level (e.g. 5000+)
+// Add as separate non-overlay pane indicator if needed.
+hline(85, "S-Tier", color=color.new(color.rgb(0, 255, 136), 40), display=display.none)
+hline(72, "A-Tier", color=color.new(color.rgb(255, 238, 0), 40), display=display.none)
+
+// ── INFO TABLE ─────────────────────────────────────────────────
+var table infoTable = table.new(position.bottom_right, 2, 5, bgcolor=color.new(color.rgb(17, 17, 34), 85), border_width=1)
+
+if barstate.islast
+    table.cell(infoTable, 0, 0, "REGIME", text_color=color.white)
+    table.cell(infoTable, 1, 0, regimeLabel, text_color=regimeScore > 0 ? color.lime : color.red)
+    table.cell(infoTable, 0, 1, "ALPHA",  text_color=color.white)
+    table.cell(infoTable, 1, 1, str.tostring(alphaScore) + " (" + tier + ")", text_color=color.yellow)
+    table.cell(infoTable, 0, 2, "SHAPE",  text_color=color.white)
+    table.cell(infoTable, 1, 2, shapeScore > 0.7 ? "P/b" : "D", text_color=color.cyan)
+    table.cell(infoTable, 0, 3, "SAFETY", text_color=color.white)
+    table.cell(infoTable, 1, 3, str.tostring(math.round(safetyFactor * 100)) + "%", text_color=safetyFactor > 1.0 ? color.lime : color.orange)
+    table.cell(infoTable, 0, 4, "TIER",   text_color=color.white)
+    table.cell(infoTable, 1, 4, tier, text_color=tier == "S" ? color.new(color.rgb(0,255,170),0) : tier == "A" ? color.yellow : color.gray)
+
+// ── ALERTS ─────────────────────────────────────────────────────
+alertcondition(tier == "S" and bullFVG and regimeScore > 0.4, "S-TIER BULL TARGET", "ULTIMATE Bull Heatseeker — All Factors Aligned")
+alertcondition(tier == "S" and bearFVG and regimeScore < -0.4, "S-TIER BEAR TARGET", "ULTIMATE Bear Heatseeker — All Factors Aligned")
+
+// ── PERFORMANCE CLEANUP ────────────────────────────────────────
+// FIX: guard against empty array before loop — for -1 to 0 would crash
+if bar_index % 40 == 0
+    if array.size(bullBoxes) > 0
+        for i = array.size(bullBoxes) - 1 to 0
+            b = array.get(bullBoxes, i)
+            if box.get_right(b) < bar_index - 80
+                box.delete(b)
+                array.remove(bullBoxes, i)
+    if array.size(bearBoxes) > 0
+        for i = array.size(bearBoxes) - 1 to 0
+            b = array.get(bearBoxes, i)
+            if box.get_right(b) < bar_index - 80
+                box.delete(b)
+                array.remove(bearBoxes, i)

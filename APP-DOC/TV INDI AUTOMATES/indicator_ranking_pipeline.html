@@ -1,0 +1,455 @@
+
+<style>
+:root { --dur: 0.18s; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-mono, monospace); }
+
+.shell {
+  padding: 1.5rem 0 2rem;
+  color: var(--color-text-primary);
+}
+
+.section-label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+  margin-bottom: 0.75rem;
+}
+
+.phase-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.phase-card {
+  background: var(--color-background-secondary);
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-md);
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: border-color var(--dur), background var(--dur);
+  position: relative;
+  overflow: hidden;
+}
+.phase-card:hover {
+  border-color: var(--color-border-primary);
+  background: var(--color-background-primary);
+}
+.phase-card .num {
+  font-size: 10px;
+  color: var(--color-text-tertiary);
+  margin-bottom: 4px;
+}
+.phase-card .title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  margin-bottom: 3px;
+}
+.phase-card .sub {
+  font-size: 10px;
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+.phase-card .accent-bar {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 2px;
+}
+.bar-blue { background: #378ADD; }
+.bar-teal { background: #1D9E75; }
+.bar-amber { background: #BA7517; }
+.bar-coral { background: #D85A30; }
+
+.arrow-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin: 2px 0;
+}
+.arrow-segment {
+  height: 1px;
+  background: var(--color-border-secondary);
+  flex: 1;
+  max-width: 100px;
+}
+.arrow-chevron {
+  font-size: 10px;
+  color: var(--color-text-tertiary);
+  margin: 0 2px;
+}
+
+.divider {
+  height: 0.5px;
+  background: var(--color-border-tertiary);
+  margin: 1.25rem 0;
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 1.25rem;
+}
+.metric-card {
+  background: var(--color-background-secondary);
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-md);
+  padding: 10px 12px;
+}
+.metric-card .m-label {
+  font-size: 10px;
+  color: var(--color-text-tertiary);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.metric-card .m-val {
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+.metric-card .m-sub {
+  font-size: 10px;
+  color: var(--color-text-secondary);
+  margin-top: 2px;
+}
+
+.dim-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  margin-bottom: 1.25rem;
+}
+.dim-table th {
+  text-align: left;
+  color: var(--color-text-tertiary);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  border-bottom: 0.5px solid var(--color-border-tertiary);
+}
+.dim-table td {
+  padding: 6px 8px;
+  color: var(--color-text-secondary);
+  border-bottom: 0.5px solid var(--color-border-tertiary);
+  vertical-align: middle;
+}
+.dim-table tr:last-child td { border-bottom: none; }
+.dim-table td:first-child { color: var(--color-text-primary); font-weight: 500; }
+
+.bar-cell { width: 110px; }
+.bar-bg {
+  height: 4px;
+  background: var(--color-border-tertiary);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.5s ease;
+}
+
+.tag {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 3px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.tag-trend    { background: #E6F1FB; color: #185FA5; }
+.tag-momentum { background: #E1F5EE; color: #0F6E56; }
+.tag-vol      { background: #FAEEDA; color: #854F0B; }
+.tag-regime   { background: #EEEDFE; color: #534AB7; }
+.tag-struct   { background: #FAECE7; color: #993C1D; }
+
+.combo-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 1.25rem;
+}
+.combo-card {
+  background: var(--color-background-secondary);
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-md);
+  padding: 12px 14px;
+}
+.combo-card .c-title {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  margin-bottom: 8px;
+}
+
+.align-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 3px;
+}
+.align-cell {
+  aspect-ratio: 1;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 500;
+  transition: opacity 0.3s;
+}
+
+.strength-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.s-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.s-label { font-size: 10px; color: var(--color-text-secondary); width: 72px; flex-shrink: 0; }
+.s-bar-bg {
+  flex: 1;
+  height: 6px;
+  background: var(--color-border-tertiary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.s-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+}
+.s-val { font-size: 10px; color: var(--color-text-tertiary); width: 28px; text-align: right; }
+
+.cta-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 0.75rem;
+}
+.btn {
+  flex: 1;
+  padding: 8px;
+  background: transparent;
+  border: 0.5px solid var(--color-border-secondary);
+  border-radius: var(--border-radius-md);
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background var(--dur), color var(--dur);
+  text-align: center;
+}
+.btn:hover {
+  background: var(--color-background-secondary);
+  color: var(--color-text-primary);
+}
+</style>
+
+<div class="shell">
+  <p class="section-label">Pipeline overview</p>
+
+  <div class="phase-row">
+    <div class="phase-card" onclick="sendPrompt('Show me the Python code for the TradingView indicator scraper and IC scorer')">
+      <div class="num">01</div>
+      <div class="title">Scrape + parse</div>
+      <div class="sub">Pull Pine Script from TV public library. Extract signal logic.</div>
+      <div class="accent-bar bar-blue"></div>
+    </div>
+    <div class="phase-card" onclick="sendPrompt('Show me the IC/ICIR scoring engine in Python with FDR correction and signal quality metrics')">
+      <div class="num">02</div>
+      <div class="title">Score signals</div>
+      <div class="sub">IC, ICIR, hit rate, decay half-life, regime breadth.</div>
+      <div class="accent-bar bar-teal"></div>
+    </div>
+    <div class="phase-card" onclick="sendPrompt('Show me the indicator clustering and redundancy filter using correlation and mutual information')">
+      <div class="num">03</div>
+      <div class="title">Cluster + rank</div>
+      <div class="sub">Correlation clustering. Remove redundant signals. Top-N per cluster.</div>
+      <div class="accent-bar bar-amber"></div>
+    </div>
+    <div class="phase-card" onclick="sendPrompt('Show me the Rust combination engine with strength and alignment dimensions')">
+      <div class="num">04</div>
+      <div class="title">Combine (Rust)</div>
+      <div class="sub">Strength × alignment stacking. Composite signal output.</div>
+      <div class="accent-bar bar-coral"></div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <p class="section-label">Scoring dimensions</p>
+
+  <div class="metric-grid">
+    <div class="metric-card">
+      <div class="m-label">Primary</div>
+      <div class="m-val">IC / ICIR</div>
+      <div class="m-sub">Information coefficient + risk-adj version. Pearson corr of signal vs fwd returns.</div>
+    </div>
+    <div class="metric-card">
+      <div class="m-label">Decay</div>
+      <div class="m-val">Half-life</div>
+      <div class="m-sub">How fast IC decays across forward horizons. Short = fast signal.</div>
+    </div>
+    <div class="metric-card">
+      <div class="m-label">Robustness</div>
+      <div class="m-val">FDR / SPA</div>
+      <div class="m-sub">Benjamini-Hochberg correction. Hansen SPA against benchmark composite.</div>
+    </div>
+  </div>
+
+  <table class="dim-table">
+    <thead>
+      <tr>
+        <th>Indicator</th>
+        <th>Type</th>
+        <th>IC</th>
+        <th>ICIR</th>
+        <th>Half-life</th>
+        <th>Regime breadth</th>
+        <th class="bar-cell">Score</th>
+      </tr>
+    </thead>
+    <tbody id="rank-table"></tbody>
+  </table>
+
+  <div class="divider"></div>
+
+  <p class="section-label">Combination engine</p>
+
+  <div class="combo-row">
+    <div class="combo-card">
+      <div class="c-title">Alignment matrix (top 5 × 5)</div>
+      <div class="align-grid" id="align-grid"></div>
+      <p style="font-size:9px;color:var(--color-text-tertiary);margin-top:8px;">Cell = pairwise signal correlation. Warm = aligned, cool = divergent.</p>
+    </div>
+    <div class="combo-card">
+      <div class="c-title">Composite strength by dimension</div>
+      <div class="strength-bars" id="strength-bars"></div>
+      <p style="font-size:9px;color:var(--color-text-tertiary);margin-top:10px;">Weighted by ICIR. Regime mask applied. Rust hot path: ~2µs per bar.</p>
+    </div>
+  </div>
+
+  <div class="cta-row">
+    <div class="btn" onclick="sendPrompt('Write the full Python indicator scoring engine: scrape Pine Script from TradingView, compute IC/ICIR across rolling windows, decay half-life, regime breadth, FDR-corrected p-values, and output a ranked CSV')">
+      Python scorer ↗
+    </div>
+    <div class="btn" onclick="sendPrompt('Write the Rust combination engine that takes ranked indicator signals, computes strength and alignment dimensions, and outputs a composite signal with per-bar latency under 5 microseconds')">
+      Rust combiner ↗
+    </div>
+    <div class="btn" onclick="sendPrompt('Show me the full pipeline end to end: Python scraper → scorer → ranker → Rust combiner → composite signal output, with a worked example on BTC 1D data')">
+      Full pipeline ↗
+    </div>
+  </div>
+</div>
+
+<script>
+const INDICATORS = [
+  { name: "Kernel Regression",   type: "trend",    ic: 0.087, icir: 1.41, hl: 18, rb: 0.82, score: 0.91 },
+  { name: "Gaussian Channel",    type: "trend",    ic: 0.079, icir: 1.28, hl: 21, rb: 0.78, score: 0.84 },
+  { name: "ADX",                 type: "regime",   ic: 0.061, icir: 1.12, hl: 12, rb: 0.71, score: 0.74 },
+  { name: "RSI divergence",      type: "momentum", ic: 0.054, icir: 0.98, hl:  8, rb: 0.65, score: 0.68 },
+  { name: "ATR regime",          type: "vol",      ic: 0.049, icir: 0.91, hl:  6, rb: 0.70, score: 0.65 },
+  { name: "MACD histogram",      type: "momentum", ic: 0.044, icir: 0.84, hl:  9, rb: 0.61, score: 0.59 },
+  { name: "VWAP deviation",      type: "struct",   ic: 0.041, icir: 0.77, hl:  7, rb: 0.58, score: 0.55 },
+  { name: "Supertrend",          type: "trend",    ic: 0.038, icir: 0.72, hl: 14, rb: 0.55, score: 0.51 },
+  { name: "Stochastic RSI",      type: "momentum", ic: 0.033, icir: 0.64, hl:  5, rb: 0.50, score: 0.44 },
+  { name: "CCI",                 type: "momentum", ic: 0.028, icir: 0.57, hl:  6, rb: 0.47, score: 0.38 },
+];
+
+const TYPE_TAG = {
+  trend: "tag-trend",
+  momentum: "tag-momentum",
+  vol: "tag-vol",
+  regime: "tag-regime",
+  struct: "tag-struct",
+};
+
+const tbody = document.getElementById("rank-table");
+INDICATORS.forEach((ind, i) => {
+  const tr = document.createElement("tr");
+  const pct = Math.round(ind.score * 100);
+  const barColor = i === 0 ? "#378ADD" : i < 3 ? "#1D9E75" : i < 6 ? "#BA7517" : "#888780";
+  tr.innerHTML = `
+    <td>${i + 1}. ${ind.name}</td>
+    <td><span class="tag ${TYPE_TAG[ind.type]}">${ind.type}</span></td>
+    <td>${ind.ic.toFixed(3)}</td>
+    <td>${ind.icir.toFixed(2)}</td>
+    <td>${ind.hl}d</td>
+    <td>
+      <div class="bar-bg" style="width:80px">
+        <div class="bar-fill" style="width:${Math.round(ind.rb*100)}%;background:${barColor}"></div>
+      </div>
+    </td>
+    <td class="bar-cell">
+      <div class="bar-bg">
+        <div class="bar-fill" style="width:${pct}%;background:${barColor}"></div>
+      </div>
+    </td>
+  `;
+  tbody.appendChild(tr);
+});
+
+// Alignment matrix (5x5, simulated pairwise correlations)
+const CORR = [
+  [1.00, 0.71, 0.24, 0.18, 0.38],
+  [0.71, 1.00, 0.19, 0.12, 0.31],
+  [0.24, 0.19, 1.00, 0.44, 0.55],
+  [0.18, 0.12, 0.44, 1.00, 0.62],
+  [0.38, 0.31, 0.55, 0.62, 1.00],
+];
+const SHORT = ["KR", "GC", "ADX", "RSI", "ATR"];
+
+function corrColor(v) {
+  if (v >= 0.7) return { bg: "#185FA5", fg: "#B5D4F4" };
+  if (v >= 0.4) return { bg: "#378ADD", fg: "#E6F1FB" };
+  if (v >= 0.2) return { bg: "#5DCAA5", fg: "#E1F5EE" };
+  return { bg: "#B4B2A9", fg: "#444441" };
+}
+
+const alignGrid = document.getElementById("align-grid");
+for (let r = 0; r < 5; r++) {
+  for (let c = 0; c < 5; c++) {
+    const v = CORR[r][c];
+    const { bg, fg } = corrColor(v);
+    const cell = document.createElement("div");
+    cell.className = "align-cell";
+    cell.style.background = bg;
+    cell.style.color = fg;
+    cell.textContent = r === c ? SHORT[r] : v.toFixed(2);
+    alignGrid.appendChild(cell);
+  }
+}
+
+// Strength bars
+const STRENGTHS = [
+  { label: "Trend",    val: 0.91, color: "#378ADD" },
+  { label: "Momentum", val: 0.54, color: "#1D9E75" },
+  { label: "Regime",   val: 0.74, color: "#534AB7" },
+  { label: "Vol",      val: 0.65, color: "#BA7517" },
+  { label: "Composite",val: 0.81, color: "#D85A30" },
+];
+
+const sbars = document.getElementById("strength-bars");
+STRENGTHS.forEach(s => {
+  const row = document.createElement("div");
+  row.className = "s-row";
+  row.innerHTML = `
+    <span class="s-label">${s.label}</span>
+    <div class="s-bar-bg">
+      <div class="s-bar-fill" style="width:${Math.round(s.val*100)}%;background:${s.color}"></div>
+    </div>
+    <span class="s-val">${s.val.toFixed(2)}</span>
+  `;
+  sbars.appendChild(row);
+});
+</script>
