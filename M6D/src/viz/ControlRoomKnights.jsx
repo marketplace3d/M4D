@@ -227,7 +227,7 @@ function ChevronTower({ dir, litCount, color }) {
   );
 }
 
-function PulseHero({ score, direction, votes, strengths, isNarrow, isWide, activityData }) {
+function PulseHero({ score, direction, votes, strengths, isNarrow, isWide, activityData, paperStatus }) {
   const totalLong = ALL_PANELS.filter(p => (votes[p.id] ?? 0) === 1).length;
   const totalShort = ALL_PANELS.filter(p => (votes[p.id] ?? 0) === -1).length;
   const conviction = Math.round(((totalLong + totalShort) / 27) * 100);
@@ -1043,6 +1043,7 @@ export default function MaxCogVizControlRoom({ useShellSync = false } = {}) {
         isNarrow={isNarrow}
         isWide={isWide}
         activityData={activityData}
+        paperStatus={paperStatus}
       />
 
       {/* Social Alpha: full #warriors only — COUNCIL page already mounts it above this embed (`useShellSync`). */}

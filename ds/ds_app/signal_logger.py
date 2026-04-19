@@ -66,11 +66,33 @@ CREATE TABLE IF NOT EXISTS signal_log (
     atr_pct         REAL,
     squeeze         INTEGER,
     {_algo_cols_ddl()},
-    jedi_raw        INTEGER,
-    jedi_score      REAL,
-    outcome_1h_pct  REAL,
-    outcome_4h_pct  REAL,
-    outcome_1d_pct  REAL,
+    jedi_raw           INTEGER,
+    jedi_score         REAL,
+    dr_high            REAL,
+    dr_low             REAL,
+    idr_high           REAL,
+    idr_low            REAL,
+    pdh                REAL,
+    pdl                REAL,
+    pwh                REAL,
+    pwl                REAL,
+    dr_proximity_pct   REAL,
+    nearest_sig_pct    REAL,
+    nearest_sig_type   TEXT,
+    level_stack        INTEGER,
+    sig_zone           TEXT,
+    ob_bull_near       INTEGER,
+    ob_bear_near       INTEGER,
+    ob_inst_score      INTEGER,
+    fvg_bull           INTEGER,
+    fvg_bear           INTEGER,
+    vwap               REAL,
+    vwap_dev_pct       REAL,
+    vwap_bias          INTEGER,
+    vwap_band          TEXT,
+    outcome_1h_pct     REAL,
+    outcome_4h_pct     REAL,
+    outcome_1d_pct     REAL,
     UNIQUE(symbol, timeframe, ts)
 );
 CREATE INDEX IF NOT EXISTS idx_sl_sym_ts ON signal_log(symbol, ts);
@@ -158,7 +180,6 @@ def compute_signals(df_raw: pd.DataFrame) -> pd.DataFrame:
     df["jedi_score"] = (df["jedi_raw"].abs() / len(ALL_ALGO_IDS)).round(4)
 
     # ── outcomes: forward return at each horizon ──────────────────────────────
-    # Compute from raw (not renamed) close — already in df["Close"]
     for label, n_bars in HORIZONS.items():
         future_close = df["Close"].shift(-n_bars)
         df[f"outcome_{label}_pct"] = ((future_close - df["Close"]) / df["Close"] * 100).round(4)
@@ -168,6 +189,41 @@ def compute_signals(df_raw: pd.DataFrame) -> pd.DataFrame:
         "Open": "open", "High": "high", "Low": "low",
         "Close": "close", "Volume": "volume",
     })
+
+    # ── DR/IDR + PDH/PDL + PWH/PWL cumulative levels (T1-C) ──────────────────
+    try:
+        from ds_app.target_levels import compute_dr_levels
+        df = compute_dr_levels(df)
+    except Exception as exc:
+        print(f"  [WARN] DR/IDR: {exc}")
+        for col in ["dr_high","dr_low","idr_high","idr_low","pdh","pdl","pwh","pwl",
+                    "dr_proximity_pct","nearest_sig_pct","level_stack"]:
+            df[col] = np.nan if col != "level_stack" else 0
+        df["nearest_sig_type"] = "CLEAR"
+        df["sig_zone"]         = "CLEAR"
+
+    # ── Order Block + FVG detection (T2-A/B) ──────────────────────────────────
+    try:
+        from ds_app.ob_signal import compute_ob_signals
+        df = compute_ob_signals(df)
+    except Exception as exc:
+        print(f"  [WARN] OB/FVG: {exc}")
+        df["ob_bull_near"]   = 0
+        df["ob_bear_near"]   = 0
+        df["ob_inst_score"]  = 0
+        df["fvg_bull"]       = 0
+        df["fvg_bear"]       = 0
+
+    # ── VWAP (T3-A) ───────────────────────────────────────────────────────────
+    try:
+        from ds_app.vwap_signal import compute_vwap
+        df = compute_vwap(df)
+    except Exception as exc:
+        print(f"  [WARN] VWAP: {exc}")
+        df["vwap"]         = np.nan
+        df["vwap_dev_pct"] = np.nan
+        df["vwap_bias"]    = 0
+        df["vwap_band"]    = "AT_VWAP"
 
     return df
 
@@ -179,6 +235,13 @@ _INSERT_COLS = (
     + [f"v_{a}" for a in ALL_ALGO_IDS]
     + [f"s_{a}" for a in ALL_ALGO_IDS]
     + ["jedi_raw", "jedi_score",
+       "dr_high", "dr_low", "idr_high", "idr_low",
+       "pdh", "pdl", "pwh", "pwl",
+       "dr_proximity_pct", "nearest_sig_pct", "nearest_sig_type",
+       "level_stack", "sig_zone",
+       "ob_bull_near", "ob_bear_near", "ob_inst_score",
+       "fvg_bull", "fvg_bear",
+       "vwap", "vwap_dev_pct", "vwap_bias", "vwap_band",
        "outcome_1h_pct", "outcome_4h_pct", "outcome_1d_pct"]
 )
 

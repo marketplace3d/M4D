@@ -96,7 +96,6 @@ CME_SYMBOLS_DEFAULT    = "ES,NQ,GC,CL,RTY"
 _NYSE_OPEN_UTC  = 14 * 60 + 30   # 870
 _NYSE_CLOSE_UTC = 21 * 60         # 1260
 
-HOUR_KILLS   = {0, 1, 3, 4, 5, 12, 13, 20, 21, 22, 23}   # crypto low-volume hours
 ATR_RANK_WIN = 200
 RVOL_WIN     = 100
 ANNUAL       = 252 * 288
@@ -293,20 +292,69 @@ def load_bars(symbol: str, n: int = BARS_NEEDED) -> pd.DataFrame | None:
     return _load_crypto_bars(symbol, n)
 
 
+# ── ICT Kill Zones — precision 30-min session windows ─────────────────────────
+# ALIVE:  London open  07:00–09:00 UTC  (liquidity sweep + trend start)
+# ALIVE:  NY open      13:30–16:00 UTC  (highest confluence window)
+# KILL:   London close 11:00–13:30 UTC  (chop + spread widening)
+# KILL:   NY close     20:30–23:00 UTC  (low volume + spread)
+# KILL:   Asia dead    00:00–06:30 UTC  (no institutional flow)
+# KILL:   DR forming   13:30–14:00 UTC  (wait for NY direction to print)
+_ICT_ALIVE: list[tuple[int, int]] = [
+    (7 * 60,       9 * 60),       # London open
+    (14 * 60,      16 * 60),      # NY open (after DR forms)
+    (16 * 60,      20 * 60 + 30), # NY continuation
+]
+_ICT_KILL: list[tuple[int, int]] = [
+    (0,            6 * 60 + 30),  # Asia dead zone
+    (11 * 60,      14 * 60),      # London close / DR forming
+    (20 * 60 + 30, 24 * 60),      # NY close
+]
+
+
+def session_gate(now_utc_mins: int) -> tuple[bool, str]:
+    """
+    Returns (allowed, session_label) for crypto/futures using ICT kill zones.
+    """
+    for start, end in _ICT_ALIVE:
+        if start <= now_utc_mins < end:
+            label = "LONDON" if now_utc_mins < 9 * 60 else ("NY_DR" if now_utc_mins < 14 * 60 else "NY_OPEN" if now_utc_mins < 16 * 60 else "NY_CONT")
+            return True, label
+    for start, end in _ICT_KILL:
+        if start <= now_utc_mins < end:
+            label = "ASIA_DEAD" if now_utc_mins < 6 * 60 + 30 else ("LONDON_CLOSE" if now_utc_mins < 14 * 60 else "NY_CLOSE")
+            return False, label
+    return False, "TRANSITION"
+
+
 def is_market_open(symbol: str) -> bool:
     """Returns True if trading is allowed for this symbol right now (UTC)."""
     from datetime import datetime, timezone
     now = datetime.now(tz=timezone.utc)
     if now.weekday() >= 5:
         return False
-    if ASSET_MODE == "CRYPTO":
-        return now.hour not in HOUR_KILLS
     if ASSET_MODE == "FUTURES":
         # block CME daily settlement 21:00–21:30 UTC
-        return not (now.hour == 21 and now.minute < 30)
+        if now.hour == 21 and now.minute < 30:
+            return False
+        mins = now.hour * 60 + now.minute
+        ok, _ = session_gate(mins)
+        return ok
+    if ASSET_MODE == "CRYPTO":
+        mins = now.hour * 60 + now.minute
+        ok, _ = session_gate(mins)
+        return ok
     # STOCKS: NYSE hours only
     mins = now.hour * 60 + now.minute
     return _NYSE_OPEN_UTC <= mins < _NYSE_CLOSE_UTC
+
+
+def get_session_label() -> str:
+    """Current ICT session label for UI surfacing."""
+    from datetime import datetime, timezone
+    now = datetime.now(tz=timezone.utc)
+    mins = now.hour * 60 + now.minute
+    _, label = session_gate(mins)
+    return label
 
 
 # ── Live soft score computation ────────────────────────────────────────────────
@@ -669,13 +717,41 @@ def run_cycle(mode_name: str = "PADAWAN", dry_run: bool = False) -> dict:
                 except Exception:
                     mtf_result, mtf_mult = "NEUTRAL", 0.75
 
-                # OBI alignment check (non-blocking — just reduce size if opposed)
+                # OBI hard gate (T1-A): OBI actively opposes direction → block entry
+                obi_label = "SKIP"
                 try:
-                    from ds_app.obi_signal import get_obi, obi_aligns
+                    from ds_app.obi_signal import get_obi
                     obi = get_obi(raw_sym)
-                    if not obi_aligns(obi["vote"], side):
-                        mtf_mult *= 0.75   # OBI opposes → additional 25% size cut
-                        mtf_result = f"{mtf_result}+OBI_OPPOSE"
+                    obi_vote  = obi.get("vote", 0)
+                    obi_label = obi.get("label", "BALANCED")
+                    obi_ratio = obi.get("obi", 0.0)
+                    direction_vote = 1 if side == "buy" else -1
+                    if obi_vote != 0 and obi_vote != direction_vote:
+                        # OBI explicitly opposing (BID_HEAVY on a SHORT or ASK_HEAVY on a LONG)
+                        result.skips.append({"symbol": raw_sym, "reason": "OBI_GATE", "obi": obi_ratio, "label": obi_label})
+                        _log_cycle(db, now, raw_sym, sc, False, f"OBI_GATE:{obi_label}:{obi_ratio:+.3f}")
+                        continue
+                    # OBI neutral or aligned: use as size modifier (aligned = boost, neutral = flat)
+                    if obi_vote == direction_vote:
+                        mtf_mult = min(mtf_mult * 1.15, 1.5)   # OBI confirms → +15% size
+                        mtf_result = f"{mtf_result}+OBI_ALIGN"
+                except Exception:
+                    obi_label = "ERROR"
+
+                # Cumulative significant levels gate + size multiplier (T1-C)
+                dr_zone   = "NO_DATA"
+                dr_prox   = None
+                lvl_mult  = 1.0
+                try:
+                    from ds_app.target_levels import dr_entry_allowed, get_current_levels, level_stack_mult
+                    dr_ok, dr_zone = dr_entry_allowed(raw_sym)
+                    lvl = get_current_levels(raw_sym)
+                    dr_prox  = lvl.get("nearest_sig_pct")
+                    lvl_mult = level_stack_mult(raw_sym)
+                    if not dr_ok:
+                        result.skips.append({"symbol": raw_sym, "reason": "DR_ZONE", "zone": dr_zone})
+                        _log_cycle(db, now, raw_sym, sc, False, f"DR_GATE:{dr_zone}")
+                        continue
                 except Exception:
                     pass
 
@@ -719,10 +795,22 @@ def run_cycle(mode_name: str = "PADAWAN", dry_run: bool = False) -> dict:
                 except Exception:
                     pass
 
+                # VWAP alignment multiplier (T3-A)
+                vwap_mult = 1.0
+                try:
+                    from ds_app.vwap_signal import get_vwap_status, vwap_size_mult
+                    vs = get_vwap_status(raw_sym)
+                    vwap_mult = vwap_size_mult(
+                        vs.get("vwap_bias", 0), side, vs.get("vwap_dev_pct", 0.0) or 0.0
+                    )
+                except Exception:
+                    pass
+
                 # MRT vol regime multiplier (0C fix — wired 2026-04-19)
                 mrt_mult = sc.get("mrt_vol_mult", 1.0)
                 effective_lot = round(
-                    halo_dec.lot_fraction * mtf_mult * ca_mult * cap_frac * oi_mult * fng_mult * liq_mult * mrt_mult, 3
+                    halo_dec.lot_fraction * mtf_mult * ca_mult * cap_frac
+                    * oi_mult * fng_mult * liq_mult * mrt_mult * lvl_mult * vwap_mult, 3
                 )
                 qty  = _lot_qty(equity, effective_lot, sc["price"], mode)
                 if not dry_run:
@@ -749,8 +837,11 @@ def run_cycle(mode_name: str = "PADAWAN", dry_run: bool = False) -> dict:
                            effective_lot, mode_name, 0.0,
                            f"score={sc['soft_score']:.3f} regime={sc['regime']} "
                            f"mrt={sc.get('mrt_vol_label','?')}×{mrt_mult:.2f} "
-                           f"mtf={mtf_result} ca={ca_regime} "
-                           f"oi={oi_mult:.2f} fng={fng_mult:.2f} cap={cap_frac:.2f} liq={liq_mult:.2f}")
+                           f"mtf={mtf_result} obi={obi_label} "
+                           f"lvl={dr_zone}×{lvl_mult:.2f}"
+                           f"{'@'+str(round(dr_prox,3))+'%' if dr_prox is not None else ''} "
+                           f"ca={ca_regime} oi={oi_mult:.2f} fng={fng_mult:.2f} "
+                           f"cap={cap_frac:.2f} liq={liq_mult:.2f}")
                 result.entries.append({
                     "symbol": raw_sym, "side": side, "score": sc["soft_score"],
                     "regime": sc["regime"], "jedi": sc["jedi_raw"], "halo": halo_dec.note,

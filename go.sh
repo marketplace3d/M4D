@@ -2,6 +2,7 @@
 # MASTER LAUNCHER — runs from repo root
 #
 #   ./go.sh          → ALL: M3D :5500 · M2D :5555 · M4D :5550 · M6D :5650 + backends
+#   ./go.sh paper    → PAPER TRADING: DS :8000 + M6D :5650 (TWS must be open on :7497)
 #   ./go.sh m3d      → M3D stack only  (site :5500 · API :3300 · DS :8800 · engine)
 #   ./go.sh m2d      → M2D only  :5555
 #   ./go.sh m4d      → M4D only  (site :5550 · api :3330 · ds :8050)
@@ -169,6 +170,44 @@ m6d)
   open_when_ready "http://127.0.0.1:5650/" 60
   wait || true
   ;;
+paper)
+  _kill_port 8000 "DS quant"; _kill_port 5650 "M6D"
+  run_ds_quant
+  run_m6d
+  echo ""
+  echo -e "  ${G}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+  echo -e "  ${Y}PAPER TRADING MODE${NC}  (TWS must be open on :7497)"
+  echo -e "  ${G}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+  echo -e "  ${C}M6D UI${NC}      http://127.0.0.1:5650/"
+  echo -e "  ${G}DS API${NC}      http://127.0.0.1:8000/"
+  echo ""
+  echo -e "  ${Y}TEST TWS:${NC}   curl http://localhost:8000/v1/ibkr/test/"
+  echo -e "  ${Y}DRY RUN:${NC}    curl -X POST 'http://localhost:8000/v1/ibkr/run/?mode=PADAWAN&asset=FUTURES&dry=1'"
+  echo -e "  ${Y}LIVE RUN:${NC}   curl -X POST 'http://localhost:8000/v1/ibkr/run/?mode=PADAWAN&asset=FUTURES'"
+  echo -e "  ${Y}STATUS:${NC}     curl http://localhost:8000/v1/ibkr/status/"
+  echo -e "  ${Y}HUNT:${NC}       ./daily_hunt.sh --quick"
+  echo ""
+  open_when_ready "http://127.0.0.1:8000/health/" 30
+  open_when_ready "http://127.0.0.1:5650/" 60
+  # Test TWS connection once DS is ready
+  (
+    for _ in $(seq 1 30); do
+      code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 1 "http://127.0.0.1:8000/health/" 2>/dev/null || echo "000")
+      if [[ "$code" =~ ^[23] ]]; then
+        result=$(curl -s http://localhost:8000/v1/ibkr/test/ 2>/dev/null)
+        if echo "$result" | grep -q '"connected": true'; then
+          echo -e "  ${G}[IBKR]${NC} TWS connected ✓ $(echo "$result" | python3 -c 'import sys,json; d=json.load(sys.stdin); print(f"account={d[\"accounts\"][0]}  equity={d[\"equity\"]:.0f} {d[\"currency\"]}")')"
+        else
+          echo -e "  ${R}[IBKR]${NC} TWS not connected — open TWS → API → port 7497"
+        fi
+        break
+      fi
+      sleep 1
+    done
+  ) &
+  wait || true
+  ;;
+
 ds)
   _kill_port 8000 "DS quant"
   run_ds_quant

@@ -2734,6 +2734,59 @@ def ibkr_score(request):
 # ── OBI Signal ────────────────────────────────────────────────────────────────
 
 @require_GET
+def dr_levels(request):
+    """GET /v1/dr/?symbol=BTC — current DR/IDR target levels for a symbol"""
+    symbol = request.GET.get("symbol", "BTC").upper()
+    try:
+        from ds_app.target_levels import get_current_levels
+        data = get_current_levels(symbol)
+        resp = JsonResponse({"ok": True, "symbol": symbol, **data})
+        resp["Access-Control-Allow-Origin"] = "*"
+        return resp
+    except Exception as exc:
+        return JsonResponse({"ok": False, "error": str(exc)}, status=500)
+
+
+def dr_scan(request):
+    """GET /v1/dr/scan/ — DR/IDR levels for tracked symbols"""
+    try:
+        from ds_app.target_levels import get_current_levels
+        from ds_app.alpaca_paper import SYMBOL_MAP
+        syms = list(SYMBOL_MAP.keys())[:8]
+        results = {sym: get_current_levels(sym) for sym in syms}
+        resp = JsonResponse({"ok": True, "levels": results})
+        resp["Access-Control-Allow-Origin"] = "*"
+        return resp
+    except Exception as exc:
+        return JsonResponse({"ok": False, "error": str(exc)}, status=500)
+
+
+def ob_scan(request):
+    """GET /v1/ob/?symbol=BTC — order block + FVG status"""
+    symbol = request.GET.get("symbol", "BTC").upper()
+    try:
+        from ds_app.ob_signal import get_ob_status
+        data = get_ob_status(symbol)
+        resp = JsonResponse({"ok": True, **data})
+        resp["Access-Control-Allow-Origin"] = "*"
+        return resp
+    except Exception as exc:
+        return JsonResponse({"ok": False, "error": str(exc)}, status=500)
+
+
+def vwap_scan(request):
+    """GET /v1/vwap/?symbol=BTC — VWAP deviation status"""
+    symbol = request.GET.get("symbol", "BTC").upper()
+    try:
+        from ds_app.vwap_signal import get_vwap_status
+        data = get_vwap_status(symbol)
+        resp = JsonResponse({"ok": True, **data})
+        resp["Access-Control-Allow-Origin"] = "*"
+        return resp
+    except Exception as exc:
+        return JsonResponse({"ok": False, "error": str(exc)}, status=500)
+
+
 def obi_scan(request):
     """GET /v1/obi/?symbol=BTC — order book imbalance signal"""
     symbol = request.GET.get("symbol", "").upper()
@@ -3108,7 +3161,46 @@ def paper_pending(request):
             except Exception as exc:
                 candidates.append({"symbol": raw_sym, "error": str(exc)})
         candidates.sort(key=lambda x: (-int(x.get("above_threshold", False)), -abs(x.get("soft_score", 0))))
-        resp = JsonResponse({"ok": True, "mode": mode_name, "pending": candidates})
+
+        # Session gate status
+        try:
+            from ds_app.alpaca_paper import get_session_label, is_market_open
+            session_label = get_session_label()
+            market_open   = is_market_open("BTC")
+        except Exception:
+            session_label = "UNKNOWN"
+            market_open   = False
+
+        resp = JsonResponse({
+            "ok": True, "mode": mode_name, "pending": candidates,
+            "session_label": session_label, "market_open": market_open,
+        })
+        resp["Access-Control-Allow-Origin"] = "*"
+        return resp
+    except Exception as exc:
+        return JsonResponse({"ok": False, "error": str(exc)}, status=500)
+
+
+def session_status(request):
+    """GET /v1/session/ — current ICT session gate + OBI snapshot."""
+    try:
+        from ds_app.alpaca_paper import get_session_label, session_gate
+        from datetime import datetime, timezone
+        now = datetime.now(tz=timezone.utc)
+        mins = now.hour * 60 + now.minute
+        ok, label = session_gate(mins)
+
+        obi_data: dict = {}
+        try:
+            from ds_app.obi_signal import get_all_obi
+            obi_data = get_all_obi(["BTC", "ETH", "SOL"])
+        except Exception:
+            pass
+
+        resp = JsonResponse({
+            "ok": True, "session_label": label, "allowed": ok,
+            "utc_time": now.strftime("%H:%M"), "obi": obi_data,
+        })
         resp["Access-Control-Allow-Origin"] = "*"
         return resp
     except Exception as exc:

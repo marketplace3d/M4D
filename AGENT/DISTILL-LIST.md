@@ -43,46 +43,45 @@ Do NOT retire SQZPOP until 3 consecutive windows. It's the top BREAKOUT master.
 
 After killing ~6 redundant signals, open slots exist for:
 
-### T1-A: OBI Hard Gate ★★★★★ (+2–4 Sharpe est)
-- obi_signal.py exists, currently = 25% size cut only
-- **Fix:** Hard gate — if OBI < 0 AND direction = LONG → HOLD
-- **Add:** obi_ratio column to signal_log for backtest validation
-- File: `obi_signal.py`, `signal_logger.py`, `alpaca_paper.py`
+### T1-A: OBI Hard Gate ★★★★★ ✅ DONE 2026-04-19
+- Hard gate: OBI opposes direction → BLOCK entry (was 25% size cut)
+- OBI aligned → +15% size boost
+- obi_label logged on every trade
+- Files: `obi_signal.py`, `alpaca_paper.py`
 
-### T1-B: ICT Kill Zones ★★★★ (+1–2 Sharpe est)
-Current: blunt 11 UTC hours killed (HOUR_KILLS set)
-Better: 30-min precision windows
-```
-ALIVE:  London open  07:00–09:00 UTC
-ALIVE:  NY open      13:30–14:30 UTC
-KILL:   London close 11:00–13:00 UTC
-KILL:   NY close     20:30–23:00 UTC
-KILL:   Asia dead    22:00–06:00 UTC
-KILL:   DR forming   13:30–14:00 UTC (wait for direction)
-```
-File: `alpaca_paper.py` → `session_gate()` replaces HOUR_KILLS const
+### T1-B: ICT Kill Zones ★★★★ ✅ DONE 2026-04-19
+- `HOUR_KILLS` set removed → `session_gate(utc_mins)` 30-min precision
+- ALIVE: London 07-09, NY 14-20:30 · KILL: Asia 00-06:30, LC 11-14, NYC 20:30+
+- `GET /v1/session/` endpoint + SESSION traffic light on TraderPage TOP STRIP
+- File: `alpaca_paper.py`
 
-### T1-C: DR/IDR Target Levels ★★★★ (+1–2 Sharpe est)
-- Pine: `APP-DOC/TARGET-LEVELS-ENERGY/DR-IDR.PINE` (exists)
-- Build: `ds_app/target_levels.py` — `dr_high`, `dr_low`, `idr_high`, `idr_low`
-- Signal: entry only within ±0.3% of DR level = high-probability zone
-- Add `dr_proximity_pct` to signal_log
+### T1-C: DR/IDR Target Levels ★★★★ ✅ DONE 2026-04-19
+- `ds_app/target_levels.py` — `compute_dr_levels()`, `get_current_levels()`, `dr_entry_allowed()`
+- DR: 13:30-14:30 UTC | IDR: 13:30-14:00 UTC | zone: NEAR_DR/NEAR_IDR/IDR_TRAP/DR_EXTEND/NEUTRAL
+- IDR_TRAP blocks entry (chop zone) | NEAR_DR = ±0.3% = high-prob zone
+- `dr_proximity_pct`, `dr_zone` added to signal_log DDL + compute_signals
+- `GET /v1/dr/`, `GET /v1/dr/scan/` endpoints
+- DR/IDR card on TraderPage ROUTING tab with per-symbol traffic lights
+- Files: `target_levels.py`, `signal_logger.py`, `alpaca_paper.py`, `views.py`
 
-### T2-A: Order Block Detection ★★★ (+0.5–1.5 Sharpe est)
-- Pine: `APP-DOC/TARGET-LEVELS-ENERGY/SUPER ORDER BLOCKS.PINE`
-- 3-bar pattern: last down-close before 3-bar rally ≥1.5× ATR
-- Signal: `ob_bull_near`, `ob_bear_near` (energy zone, not directional)
-- NOT correlated with any existing signal → true new dimension
+### T2-A: Order Block Detection ★★★ ✅ DONE 2026-04-19
+- `ds_app/ob_signal.py` — Super OB Pine method, INST scoring, PPDD, FVG stacked
+- `ob_bull_near`, `ob_bear_near`, `ob_inst_score` → signal_log columns
+- Stateful forward scan: active OB zones, mitigation, age decay (80 bars)
+- `GET /v1/ob/?symbol=BTC` endpoint
+- Files: `ob_signal.py`, `signal_logger.py`, `views.py`, `urls.py`
 
-### T2-B: FVG Detection ★★★ (+0.5–1 Sharpe est)
-- Pine: `APP-DOC/TARGET-LEVELS-ENERGY/MTF-FVG.PINE`
-- 1-line Python: `fvg_bull = high[i-2] < low[i]`
-- Add `fvg_bull`, `fvg_bear`, `fvg_proximity_pct` to signal_log
+### T2-B: FVG Detection ★★★ ✅ DONE 2026-04-19
+- Wired inside `ob_signal.py`: `fvg_bull = high[i-2] < low[i]`
+- `fvg_bull`, `fvg_bear` → signal_log columns
 
-### T3-A: VWAP Deviation ★★★ (+0.5–1.5 Sharpe est)
-- `vwap = cumsum(V×C) / cumsum(V)` reset at session open
-- Signal: `vwap_bias` = +1 if close > VWAP, -1 if below
-- Pure volume-price relationship — zero OHLCV correlation
+### T3-A: VWAP Deviation ★★★ ✅ DONE 2026-04-19
+- `ds_app/vwap_signal.py` — session-reset VWAP (13:30 UTC), deviation bands
+- Bands: AT_VWAP / VWAP_TAP / LONG_BIAS / SHORT_BIAS / EXTREME_LONG / EXTREME_SHORT
+- `vwap_bias` size mult: aligned→1.10, extreme extended→0.80, opposing→0.85
+- `vwap`, `vwap_dev_pct`, `vwap_bias`, `vwap_band` → signal_log columns
+- `GET /v1/vwap/?symbol=BTC` endpoint
+- Files: `vwap_signal.py`, `signal_logger.py`, `alpaca_paper.py`, `views.py`
 
 ---
 
@@ -90,11 +89,26 @@ File: `alpaca_paper.py` → `session_gate()` replaces HOUR_KILLS const
 
 | Item | Estimated Delta | Effort |
 |------|-----------------|--------|
-| Re-run gate_search after adding OBI + ICT kill zones | +0.5–2 | 30 min |
-| Re-run PCA after retiring 6 clones | confirm 15→9 dims | 5 min |
-| Re-run walkforward on futures data with futures.db bars | validate OOS | 40 min |
+| Re-run signal_logger → populate DR/PDH/PWH/OB/VWAP columns | critical | `./daily_hunt.sh --quick` |
+| Re-run gate_search after new signal columns land | +0.5–2 | `./daily_hunt.sh --stage GATE` |
+| Re-run PCA after retiring 6 clones | confirm 15→9 dims | `./daily_hunt.sh --stage PCA` |
 | MIXED regime: investigate what bars classify as MIXED + exploit | unknown | 1 hr |
-| SQZPOP IC watch: run ic_monitor in 1 week, decide retire/keep | — | 0 min |
+| SQZPOP IC watch: run ic_monitor in 1 week, decide retire/keep | — | `./daily_hunt.sh --stage IC` |
+
+## AUTONOMOUS OPERATION (3-day absence)
+```bash
+# Add to crontab (crontab -e):
+30 10 * * 1-5 cd /Volumes/AI/AI-4D/M4D && ./daily_hunt.sh >> logs/hunt.log 2>&1
+
+# Manual triggers:
+./daily_hunt.sh                  # full pipeline
+./daily_hunt.sh --quick          # skip signal_logger (fast, ~5min)
+./daily_hunt.sh --stage WF       # single stage
+./daily_hunt.sh --offline        # no DS server needed (direct Python)
+
+# IBKR paper cycle (run manually or add separate cron at 14:00 UTC):
+curl -X POST "http://localhost:8000/v1/ibkr/run/?mode=PADAWAN&asset=FUTURES&dry=1"
+```
 
 ---
 

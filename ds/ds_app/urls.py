@@ -95,6 +95,10 @@ urlpatterns = [
     path("v1/funding/refresh/",         views.funding_refresh,    name="funding-refresh"),
     # OBI Signal (P2-B)
     path("v1/obi/",                     views.obi_scan,           name="obi-scan"),
+    # Order Block + FVG (T2-A/B)
+    path("v1/ob/",                      views.ob_scan,            name="ob-scan"),
+    # VWAP Deviation (T3-A)
+    path("v1/vwap/",                    views.vwap_scan,          name="vwap-scan"),
     # IC Half-Life Tracker (P3-B)
     path("v1/ic/halflife/",             views.ic_halflife_report,  name="ic-halflife-report"),
     path("v1/ic/halflife/run/",         views.ic_halflife_run,     name="ic-halflife-run"),
@@ -117,6 +121,11 @@ urlpatterns = [
     path("v1/paper/pending/",           views.paper_pending,      name="paper-pending"),
     path("v1/paper/approve/",           views.paper_approve,      name="paper-approve"),
     path("v1/paper/equity/",            views.paper_equity,       name="paper-equity"),
+    # ICT Session Gate + OBI snapshot
+    path("v1/session/",                 views.session_status,     name="session-status"),
+    # DR/IDR Target Levels (T1-C)
+    path("v1/dr/",                      views.dr_levels,          name="dr-levels"),
+    path("v1/dr/scan/",                 views.dr_scan,            name="dr-scan"),
     # IBKR Paper Trading
     path("v1/ibkr/test/",               views.ibkr_test,          name="ibkr-test"),
     path("v1/ibkr/status/",             views.ibkr_status,        name="ibkr-status"),

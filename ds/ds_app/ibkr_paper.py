@@ -132,6 +132,11 @@ class IBKRSession:
     """Context manager: connect on enter, disconnect on exit."""
 
     def __init__(self, host=IBKR_HOST, port=IBKR_PORT, client_id=CLIENT_ID):
+        import asyncio
+        try:
+            asyncio.get_event_loop()
+        except RuntimeError:
+            asyncio.set_event_loop(asyncio.new_event_loop())
         from ib_insync import IB
         self.ib = IB()
         self._host = host
@@ -285,6 +290,40 @@ class IBKRSession:
         }
 
 
+# ── IBKR historical bars → DataFrame ──────────────────────────────────────────
+
+def _fetch_ibkr_bars(sess: "IBKRSession", contract, bar_count: int = 400) -> "pd.DataFrame | None":
+    """Pull 5m bars from IBKR historical data and return a DataFrame compatible with score_symbol()."""
+    import pandas as pd
+    try:
+        sess.ib.qualifyContracts(contract)
+        raw = sess.ib.reqHistoricalData(
+            contract,
+            endDateTime="",
+            durationStr="3 D",
+            barSizeSetting="5 mins",
+            whatToShow="TRADES",
+            useRTH=False,
+            formatDate=1,
+        )
+        if not raw:
+            return None
+        df = pd.DataFrame([{
+            "ts":     b.date,
+            "Open":   float(b.open),
+            "High":   float(b.high),
+            "Low":    float(b.low),
+            "Close":  float(b.close),
+            "Volume": float(b.volume),
+        } for b in raw])
+        df["ts"] = pd.to_datetime(df["ts"], utc=True)
+        df = df.sort_values("ts").reset_index(drop=True)
+        return df.tail(bar_count).reset_index(drop=True)
+    except Exception as exc:
+        log.warning("_fetch_ibkr_bars %s: %s", getattr(contract, "symbol", "?"), exc)
+        return None
+
+
 # ── Symbols by asset mode ──────────────────────────────────────────────────────
 
 _SYMBOLS: dict[str, list[str]] = {
@@ -352,8 +391,12 @@ def run_cycle(
                     )
                     df = load_bars(db_sym)
 
-                    if df is None and asset_mode != "CRYPTO":
-                        # Futures/stocks: score with live price only (no bar history)
+                    if df is None and asset_mode == "FUTURES":
+                        # Pull bars directly from IBKR historical data
+                        contract_pre = make_contract(raw_sym, asset_mode)
+                        if contract_pre is not None:
+                            df = _fetch_ibkr_bars(sess, contract_pre)
+                    if df is None and asset_mode == "STOCKS":
                         result.skips.append({"symbol": raw_sym, "reason": "NO_BARS"})
                         continue
 
@@ -507,6 +550,30 @@ def run_cycle(
 
                         side = "buy" if sc["jedi_raw"] >= 0 else "sell"
 
+                        # ICT session gate (T1-B) — FUTURES/STOCKS only
+                        if asset_mode in ("FUTURES", "STOCKS"):
+                            try:
+                                from ds_app.alpaca_paper import session_gate
+                                _utc_now   = datetime.now(timezone.utc)
+                                _utc_mins  = _utc_now.hour * 60 + _utc_now.minute
+                                _allowed, _slabel = session_gate(_utc_mins)
+                                if not _allowed:
+                                    result.skips.append({"symbol": raw_sym, "reason": f"SESSION_{_slabel}"})
+                                    _log_cycle(db, now, raw_sym, sc, gates_pass, f"SESSION_KILL:{_slabel}")
+                                    continue
+                            except Exception:
+                                pass
+
+                        # DR/IDR zone gate (T1-C)
+                        try:
+                            from ds_app.target_levels import dr_entry_allowed
+                            if not dr_entry_allowed(raw_sym):
+                                result.skips.append({"symbol": raw_sym, "reason": "IDR_TRAP"})
+                                _log_cycle(db, now, raw_sym, sc, gates_pass, "IDR_TRAP")
+                                continue
+                        except Exception:
+                            pass
+
                         # MTF filter
                         mtf_result, mtf_mult = "NEUTRAL", 0.75
                         try:
@@ -515,15 +582,21 @@ def run_cycle(
                         except Exception:
                             pass
 
-                        # OBI alignment
+                        # OBI hard gate (T1-A)
+                        direction_vote = 1 if side == "buy" else -1
+                        obi_vote = 0
                         try:
-                            from ds_app.obi_signal import get_obi, obi_aligns
-                            obi = get_obi(raw_sym)
-                            if not obi_aligns(obi["vote"], side):
-                                mtf_mult *= 0.75
-                                mtf_result = f"{mtf_result}+OBI_OPPOSE"
+                            from ds_app.obi_signal import get_obi
+                            obi_vote = get_obi(raw_sym).get("vote", 0)
                         except Exception:
                             pass
+                        if obi_vote != 0 and obi_vote != direction_vote:
+                            result.skips.append({"symbol": raw_sym, "reason": "OBI_GATE"})
+                            _log_cycle(db, now, raw_sym, sc, gates_pass, "OBI_GATE")
+                            continue
+                        if obi_vote == direction_vote:
+                            mtf_mult = min(mtf_mult * 1.15, 1.5)
+                            mtf_result = f"{mtf_result}+OBI_ALIGNED"
 
                         # Cross-asset regime multiplier (P2-C)
                         ca_mult, ca_regime = 1.0, "UNKNOWN"
@@ -565,8 +638,29 @@ def run_cycle(
                         except Exception:
                             pass
 
+                        # Level stack mult — PWH/PDH/DR confluence (T1-C)
+                        lvl_mult = 1.0
+                        try:
+                            from ds_app.target_levels import level_stack_mult
+                            lvl_mult = level_stack_mult(raw_sym)
+                        except Exception:
+                            pass
+
+                        # VWAP deviation size mult (T3-A)
+                        vwap_mult = 1.0
+                        try:
+                            from ds_app.vwap_signal import get_vwap_status, vwap_size_mult
+                            _vs = get_vwap_status(raw_sym)
+                            vwap_mult = vwap_size_mult(
+                                _vs.get("vwap_bias", "AT_VWAP"), side,
+                                _vs.get("vwap_dev_pct", 0.0)
+                            )
+                        except Exception:
+                            pass
+
                         eff_lot = round(
-                            halo_dec.lot_fraction * mtf_mult * ca_mult * cap_frac * oi_mult * fng_mult * liq_mult, 3
+                            halo_dec.lot_fraction * mtf_mult * ca_mult * cap_frac
+                            * oi_mult * fng_mult * liq_mult * lvl_mult * vwap_mult, 3
                         )
                         oa      = _order_args(equity, eff_lot, sc["price"], mode, is_crypto)
 
@@ -593,7 +687,8 @@ def run_cycle(
                                    oa["qty"] or oa["usd_value"], sc["price"],
                                    eff_lot, mode_name, 0.0,
                                    f"score={sc['soft_score']:.3f} regime={sc['regime']} mtf={mtf_result} "
-                                   f"ca={ca_regime} oi={oi_mult:.2f} fng={fng_mult:.2f} liq={liq_mult:.2f} cap={cap_frac:.2f}")
+                                   f"ca={ca_regime} oi={oi_mult:.2f} fng={fng_mult:.2f} liq={liq_mult:.2f} "
+                                   f"cap={cap_frac:.2f} lvl={lvl_mult:.2f} vwap={vwap_mult:.2f}")
                         result.entries.append({
                             "symbol": raw_sym, "side": side, "score": sc["soft_score"],
                             "regime": sc["regime"], "jedi": sc["jedi_raw"],
