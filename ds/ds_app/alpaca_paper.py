@@ -326,10 +326,19 @@ def session_gate(now_utc_mins: int) -> tuple[bool, str]:
     return False, "TRANSITION"
 
 
-def is_market_open(symbol: str) -> bool:
+_FOREX_PAIRS = frozenset({
+    "EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "NZDUSD", "USDCAD", "USDCHF",
+    "EURGBP", "EURJPY", "GBPJPY",
+})
+
+
+def is_market_open(symbol: str = "") -> bool:
     """Returns True if trading is allowed for this symbol right now (UTC)."""
     from datetime import datetime, timezone
     now = datetime.now(tz=timezone.utc)
+    norm = symbol.upper().replace("/", "").replace("-", "") if symbol else ""
+    if norm in _FOREX_PAIRS:
+        return now.weekday() < 5
     if now.weekday() >= 5:
         return False
     if ASSET_MODE == "FUTURES":
@@ -530,7 +539,7 @@ def check_gates(sc: dict, mode: ModeConfig, symbol: str = "") -> tuple[bool, lis
         killed.append("ATR_RANK_LOW")
     if sc.get("mrt_force_padawan") and mode.kelly_mult > PADAWAN.kelly_mult:
         killed.append("MRT_HIGH_VOL_RISK_OFF")
-    if not is_market_open(symbol):
+    if not is_market_open(symbol or ""):
         utc_hour = datetime.now(timezone.utc).hour
         killed.append(f"HOUR_KILL_{utc_hour}")
     if sc["rvol_rank"] > 0.90:

@@ -1,66 +1,66 @@
 {
   "ok": true,
-  "ts": 1776642670,
+  "ts": 1776651967,
   "cached": false,
   "signals": {
     "BTC": {
       "signal": "NEUTRAL",
       "mult": 1.0,
-      "oi": 95723.85,
-      "oi_change_pct": -0.027,
-      "price": 73910.0,
-      "price_change_pct": 0.146,
+      "oi": 95218.36,
+      "oi_change_pct": 0.021,
+      "price": 74377.1,
+      "price_change_pct": 0.042,
       "note": "OI stable"
     },
     "ETH": {
       "signal": "NEUTRAL",
       "mult": 1.0,
-      "oi": 2168017.75,
-      "oi_change_pct": 0.071,
-      "price": 2265.77,
-      "price_change_pct": 0.02,
+      "oi": 2164061.29,
+      "oi_change_pct": 0.228,
+      "price": 2275.32,
+      "price_change_pct": 0.025,
       "note": "OI stable"
     },
     "SOL": {
       "signal": "NEUTRAL",
       "mult": 1.0,
-      "oi": 9211056.18,
-      "oi_change_pct": -0.043,
-      "price": 83.58,
-      "price_change_pct": 0.156,
+      "oi": 9171895.01,
+      "oi_change_pct": -0.067,
+      "price": 83.95,
+      "price_change_pct": 0.048,
       "note": "OI stable"
     },
     "BNB": {
       "signal": "NEUTRAL",
       "mult": 1.0,
-      "oi": 537373.67,
-      "oi_change_pct": 0.069,
-      "price": 617.19,
-      "price_change_pct": -0.057,
+      "oi": 537323.19,
+      "oi_change_pct": 0.021,
+      "price": 620.83,
+      "price_change_pct": -0.047,
       "note": "OI stable"
     },
     "DOGE": {
       "signal": "NEUTRAL",
       "mult": 1.0,
-      "oi": 2320631007.0,
-      "oi_change_pct": 0.265,
-      "price": 0.09304,
-      "price_change_pct": 0.194,
+      "oi": 2329948407.0,
+      "oi_change_pct": 0.006,
+      "price": 0.09373,
+      "price_change_pct": -0.032,
       "note": "OI stable"
     }
   },
   "raw_oi": {
-    "BTCUSDT": 95723.852,
-    "ETHUSDT": 2168017.745,
-    "SOLUSDT": 9211056.18,
-    "BNBUSDT": 537373.67,
-    "DOGEUSDT": 2320631007.0
+    "BTCUSDT": 95218.362,
+    "ETHUSDT": 2164061.292,
+    "SOLUSDT": 9171895.01,
+    "BNBUSDT": 537323.19,
+    "DOGEUSDT": 2329948407.0
   },
   "raw_price": {
-    "BTCUSDT": 73910.1,
-    "ETHUSDT": 2265.89,
-    "SOLUSDT": 83.58,
-    "BNBUSDT": 617.19,
-    "DOGEUSDT": 0.09304
+    "BTCUSDT": 74380.4,
+    "ETHUSDT": 2275.33,
+    "SOLUSDT": 83.95,
+    "BNBUSDT": 620.83,
+    "DOGEUSDT": 0.09373
   }
 }

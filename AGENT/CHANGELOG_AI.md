@@ -2,6 +2,11 @@
 
 Newest first.
 
+## 2026-04-20
+
+- **IBKR** — MES↔ES position mapping (`position_qty_for_futures_index`), **`/v1/ibkr/flatten/`** + CLI `flatten`, **`asset=FOREX`** + EURUSD bars (`MIDPOINT` for CASH), `check_gates(..., symbol=)` for forex hour logic, dry-run no longer writes entry rows to SQLite, `ibkr_loop.sh` + TWS-OPS resilience/flatten/forex sections.
+- **IBKR CLI** — repo root `ibkr.sh` runs `ds_app/ibkr_paper.py` with `ds/.venv` by default; set **`IBKR_PYTHON`** to use another interpreter (needs `ib_insync`). Documented in `AGENT/TWS-OPS.md`.
+
 ## 2026-04-06
 
 - **M3D site port** — Vite dev for `site/` restored to **:5500** (`http://127.0.0.1:5500/`). `goa.sh`: **M3D :5500 · M2D :5555 · M4D :5550**. (`site/vite.config.ts`, `go3d.sh`, `go.sh`, `goa.sh`, `gort.sh`, `go copy.sh`, `go4d.sh`, AGENT briefs.)

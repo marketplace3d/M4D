@@ -130,5 +130,6 @@ urlpatterns = [
     path("v1/ibkr/test/",               views.ibkr_test,          name="ibkr-test"),
     path("v1/ibkr/status/",             views.ibkr_status,        name="ibkr-status"),
     path("v1/ibkr/run/",                views.ibkr_run,           name="ibkr-run"),
+    path("v1/ibkr/flatten/",            views.ibkr_flatten,       name="ibkr-flatten"),
     path("v1/ibkr/score/",              views.ibkr_score,         name="ibkr-score"),
 ]

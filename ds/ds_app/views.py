@@ -2692,12 +2692,31 @@ def ibkr_run(request):
     dry   = request.GET.get("dry",   "0") == "1"
     if mode not in ("PADAWAN", "NORMAL", "EUPHORIA", "MAX"):
         return JsonResponse({"ok": False, "error": "mode must be PADAWAN|NORMAL|EUPHORIA|MAX"}, status=400)
-    if asset not in ("CRYPTO", "FUTURES", "STOCKS"):
-        return JsonResponse({"ok": False, "error": "asset must be CRYPTO|FUTURES|STOCKS"}, status=400)
+    if asset not in ("CRYPTO", "FUTURES", "STOCKS", "FOREX"):
+        return JsonResponse({"ok": False, "error": "asset must be CRYPTO|FUTURES|STOCKS|FOREX"}, status=400)
     try:
         from ds_app.ibkr_paper import run_cycle
         result = run_cycle(mode, asset, dry_run=dry)
         resp = JsonResponse(result)
+        resp["Access-Control-Allow-Origin"] = "*"
+        return resp
+    except Exception as exc:
+        return JsonResponse({"ok": False, "error": str(exc)}, status=500)
+
+
+def ibkr_flatten(request):
+    """GET/POST /v1/ibkr/flatten/?symbol=ES&asset=FUTURES&dry=1 — close IBKR position (MES↔ES)."""
+    symbol = (request.GET.get("symbol") or request.POST.get("symbol") or "").strip()
+    asset = (request.GET.get("asset") or request.POST.get("asset") or "FUTURES").upper()
+    dry = (request.GET.get("dry") or request.POST.get("dry") or "0") == "1"
+    if not symbol:
+        return JsonResponse({"ok": False, "error": "symbol required (e.g. ES, MES, EURUSD)"}, status=400)
+    if asset not in ("FUTURES", "FOREX"):
+        return JsonResponse({"ok": False, "error": "asset must be FUTURES|FOREX"}, status=400)
+    try:
+        from ds_app.ibkr_paper import flatten_position
+        data = flatten_position(symbol, asset, dry_run=dry)
+        resp = JsonResponse(data)
         resp["Access-Control-Allow-Origin"] = "*"
         return resp
     except Exception as exc:

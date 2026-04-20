@@ -41,7 +41,43 @@ curl -X POST "http://localhost:8000/v1/ibkr/run/?mode=PADAWAN&asset=FUTURES"
 
 # 6. Check status / positions
 curl http://localhost:8000/v1/ibkr/status/
+
+# 7. Flatten micro ES (MES) — logical symbol ES or IB symbol MES (same position)
+curl "http://localhost:8000/v1/ibkr/flatten/?symbol=ES&asset=FUTURES&dry=1"
+curl -X POST "http://localhost:8000/v1/ibkr/flatten/?symbol=ES&asset=FUTURES"
+
+# 8. Forex (EURUSD) — bars from IBKR; Mon–Fri UTC hour gate via symbol
+curl -X POST "http://localhost:8000/v1/ibkr/run/?mode=PADAWAN&asset=FOREX&dry=1"
 ```
+
+### Resilience (app / DS stops)
+
+- **TWS** is a separate process — closing the browser tab or killing the Django dev server does **not** close TWS or cancel resting orders you placed in TWS.
+- **Algo loop** depends on DS + `curl`; use **`tmux`/`screen`** or **`launchd`** so the loop survives terminal exit: `./ibkr_loop.sh` (see repo root).
+- **Flatten** is explicit (`/v1/ibkr/flatten/`) — there is no auto-flatten on disconnect in this adapter.
+
+### MES ↔ ES
+
+Positions are stored at IBKR under **MES**/**MNQ**; the adapter uses logical symbols **ES**/**NQ** and maps micro symbols for size and P&amp;L. Use **`symbol=ES`** or **`symbol=MES`** on **flatten** — both resolve the same open micro position.
+
+### Standalone CLI (any Python with `ib_insync`)
+
+Django is optional for talking to TWS. From repo root, default interpreter is `ds/.venv/bin/python`; override with **`IBKR_PYTHON`** (conda, pyenv, system Python, etc.):
+
+```bash
+chmod +x ./ibkr.sh   # once
+
+./ibkr.sh test
+./ibkr.sh status
+./ibkr.sh run PADAWAN FUTURES --dry
+./ibkr.sh flatten ES FUTURES --dry
+./ibkr.sh flatten ES FUTURES
+
+IBKR_PYTHON=python3 ./ibkr.sh test
+IBKR_PYTHON="$HOME/miniconda3/envs/trade/bin/python" ./ibkr.sh status
+```
+
+Install the client in that environment if needed: `pip install ib_insync`.
 
 ---
 
@@ -129,10 +165,3 @@ When paper OOS Sharpe > 8.0 sustained over 10+ trading days:
 ---
 
 *Last updated: 2026-04-20 · account DUQ274605 · equity €1,000,048*
-
-
-//////////////////////////////////////////////////////////
-
-(base) d@Mini ~ % curl http://localhost:8000/v1/ibkr/status/
-
-{"account": {"AvailableFunds_EUR": 997302.76, "AvailableFunds": 997302.76, "BuyingPower_EUR": 6648685.09, "BuyingPower": 6648685.09, "ExcessLiquidity_EUR": 997986.38, "ExcessLiquidity": 997986.38, "GrossPositionValue_EUR": 0.0, "GrossPositionValue": 0.0, "NetLiquidation_EUR": 1000026.08, "NetLiquidation": 1000026.08, "TotalCashValue_EUR": 1000026.08, "TotalCashValue": 1000026.08, "UnrealizedPnL_EUR": 0.0, "UnrealizedPnL": 0.0, "RealizedPnL_EUR": 0.0, "RealizedPnL": 0.0, "UnrealizedPnL_USD": 30.63, "UnrealizedPnL_BASE": 26.08}, "open_positions": [{"symbol": "MES", "asset": "FUT", "exchange": "", "qty": 1.0, "avg_cost": 35503.12}], "recent_trades": [], "trade_count": 0, "connection": {"host": "127.0.0.1", "port": 7497, "client_id": 10}}%

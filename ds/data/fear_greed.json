@@ -1,12 +1,18 @@
 {
   "ok": true,
-  "ts": 1776637594,
+  "ts": 1776652024,
   "cached": false,
-  "value": 27,
+  "value": 29,
   "label": "FEAR",
   "mult": 1.1,
   "trend": "STABLE",
   "history": [
+    {
+      "ts": 1776643200,
+      "value": 29,
+      "label": "FEAR",
+      "date": "Fear"
+    },
     {
       "ts": 1776556800,
       "value": 27,
@@ -18,12 +24,6 @@
       "value": 26,
       "label": "FEAR",
       "date": "Fear"
-    },
-    {
-      "ts": 1776384000,
-      "value": 21,
-      "label": "EXTREME_FEAR",
-      "date": "Extreme Fear"
     }
   ],
   "source": "api.alternative.me/fng/"

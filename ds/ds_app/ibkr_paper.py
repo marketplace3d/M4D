@@ -26,8 +26,9 @@ CYCLE (run_cycle, every 5m):
 
 ASSET CLASSES:
   PAPER_MODE=CRYPTO  → BTC/ETH/SOL via Paxos
-  PAPER_MODE=FUTURES → ES/NQ micro-futures (MES/MNQ)
+  PAPER_MODE=FUTURES → ES/NQ micro-futures (MES/MNQ; logical ES maps to MES positions)
   PAPER_MODE=STOCKS  → top liquid US stocks (list from scanner.py)
+  PAPER_MODE=FOREX   → spot FX (default EURUSD on IDEALPRO)
   Default: CRYPTO (matches existing signal infrastructure)
 """
 from __future__ import annotations
@@ -59,7 +60,7 @@ IBKR_PORT  = int(os.getenv("IBKR_PORT",  "7497"))       # TWS paper=7497, Gatewa
 CLIENT_ID  = int(os.getenv("IBKR_CLIENT_ID", "10"))
 TIMEOUT    = 10   # seconds to wait for TWS responses
 
-ASSET_MODE = os.getenv("IBKR_ASSET", "CRYPTO").upper()  # CRYPTO | FUTURES | STOCKS
+ASSET_MODE = os.getenv("IBKR_ASSET", "CRYPTO").upper()  # CRYPTO | FUTURES | STOCKS | FOREX
 LOT_PCT    = float(os.getenv("PAPER_LOT_PCT", "0.05"))
 
 TRADES_DB  = _DS_ROOT / "data" / "ibkr_trades.db"
@@ -85,12 +86,29 @@ MODES_MAP: dict[str, ModeConfig] = {
     "PADAWAN": PADAWAN, "NORMAL": NORMAL, "EUPHORIA": EUPHORIA, "MAX": MAX,
 }
 
+# Logical index (ES) → IBKR micro root symbol (MES). Used for positions + contracts.
+_LOGICAL_TO_MICRO: dict[str, str] = {
+    "ES": "MES", "NQ": "MNQ", "RTY": "M2K", "GC": "MGC", "CL": "MCL",
+}
+_MICRO_TO_LOGICAL: dict[str, str] = {v: k for k, v in _LOGICAL_TO_MICRO.items()}
+_FUTURES_EXCH: dict[str, str] = {
+    "ES": "CME", "NQ": "CME", "RTY": "CME", "GC": "COMEX", "CL": "NYMEX",
+}
+
+
+def _resolve_futures_logical(sym: str) -> str | None:
+    """ES or MES → logical ES."""
+    u = sym.upper()
+    if u in _LOGICAL_TO_MICRO:
+        return u
+    return _MICRO_TO_LOGICAL.get(u)
+
 
 # ── IBKR contract factory ──────────────────────────────────────────────────────
 
 def make_contract(symbol: str, asset_mode: str):
     """Returns ib_insync Contract for the given symbol + asset mode."""
-    from ib_insync import Crypto, Stock, Future, ContFuture
+    from ib_insync import Crypto, Stock, ContFuture
 
     if asset_mode == "CRYPTO":
         # IBKR crypto via Paxos: symbol is BTC/ETH/SOL/LTC
@@ -107,21 +125,21 @@ def make_contract(symbol: str, asset_mode: str):
         return Crypto(sym, exch, curr)
 
     elif asset_mode == "FUTURES":
-        # Micro-futures on CME
-        _FUTURES = {
-            "ES":  ("MES", "CME",   "USD"),   # Micro E-mini S&P
-            "NQ":  ("MNQ", "CME",   "USD"),   # Micro NASDAQ
-            "RTY": ("M2K", "CME",   "USD"),   # Micro Russell
-            "GC":  ("MGC", "COMEX", "USD"),   # Micro Gold
-            "CL":  ("MCL", "NYMEX", "USD"),   # Micro Crude
-        }
-        if symbol not in _FUTURES:
+        if symbol not in _LOGICAL_TO_MICRO:
             return None
-        sym, exch, curr = _FUTURES[symbol]
-        return ContFuture(sym, exch, currency=curr)
+        sym  = _LOGICAL_TO_MICRO[symbol]
+        exch = _FUTURES_EXCH[symbol]
+        return ContFuture(sym, exch, currency="USD")
 
     elif asset_mode == "STOCKS":
         return Stock(symbol, "SMART", "USD")
+
+    elif asset_mode == "FOREX":
+        from ib_insync import Forex
+        pair = symbol.replace("/", "").replace("-", "").upper()
+        if len(pair) < 6:
+            return None
+        return Forex(pair)
 
     return None
 
@@ -209,9 +227,35 @@ class IBKRSession:
         return out
 
     def position_qty(self, symbol: str) -> float:
+        """Raw match on IBKR `contract.symbol` (MES, AAPL, …)."""
         for p in self.ib.positions():
             if p.contract.symbol == symbol:
                 return float(p.position)
+        return 0.0
+
+    def position_qty_for_futures_index(self, logical: str) -> float:
+        """Logical ES/NQ → IBKR micro symbols MES/MNQ (MES-ES mapping)."""
+        logical = logical.upper()
+        micro = _LOGICAL_TO_MICRO.get(logical)
+        for sym in ([micro] if micro else []) + [logical]:
+            q = self.position_qty(sym)
+            if q != 0:
+                return q
+        return 0.0
+
+    def position_qty_forex_pair(self, pair: str) -> float:
+        """EURUSD etc.: IBKR uses CASH, symbol=EUR, localSymbol EUR.USD."""
+        p = pair.upper().replace("/", "").replace("-", "")
+        if len(p) < 6:
+            return 0.0
+        base, quote = p[:3], p[3:]
+        for pos in self.ib.positions():
+            c = pos.contract
+            if getattr(c, "secType", "") != "CASH":
+                continue
+            ls = (getattr(c, "localSymbol", "") or "").upper().replace(".", "")
+            if c.symbol == base and quote in ls:
+                return float(pos.position)
         return 0.0
 
     # ── Market data ───────────────────────────────────────────────────────────
@@ -297,15 +341,27 @@ def _fetch_ibkr_bars(sess: "IBKRSession", contract, bar_count: int = 400) -> "pd
     import pandas as pd
     try:
         sess.ib.qualifyContracts(contract)
+        st = getattr(contract, "secType", "")
+        what = "MIDPOINT" if st == "CASH" else "TRADES"
         raw = sess.ib.reqHistoricalData(
             contract,
             endDateTime="",
             durationStr="3 D",
             barSizeSetting="5 mins",
-            whatToShow="TRADES",
+            whatToShow=what,
             useRTH=False,
             formatDate=1,
         )
+        if not raw and what == "TRADES":
+            raw = sess.ib.reqHistoricalData(
+                contract,
+                endDateTime="",
+                durationStr="3 D",
+                barSizeSetting="5 mins",
+                whatToShow="MIDPOINT",
+                useRTH=False,
+                formatDate=1,
+            )
         if not raw:
             return None
         df = pd.DataFrame([{
@@ -330,6 +386,7 @@ _SYMBOLS: dict[str, list[str]] = {
     "CRYPTO":  os.getenv("IBKR_SYMBOLS", "BTC,ETH,SOL").split(","),
     "FUTURES": os.getenv("IBKR_SYMBOLS", "ES,NQ").split(","),
     "STOCKS":  os.getenv("IBKR_SYMBOLS", "AAPL,MSFT,NVDA,TSLA,META").split(","),
+    "FOREX":   os.getenv("IBKR_SYMBOLS", "EURUSD").split(","),
 }
 
 # DB symbol → futures.db short form for bar loading
@@ -385,13 +442,13 @@ def run_cycle(
             for raw_sym in symbols:
                 try:
                     # ── Get bars + score ──────────────────────────────────────
-                    db_sym = (
-                        raw_sym if asset_mode == "CRYPTO"
-                        else _FUTURES_TO_DB.get(raw_sym, raw_sym)
-                    )
+                    if asset_mode in ("CRYPTO", "FOREX"):
+                        db_sym = raw_sym
+                    else:
+                        db_sym = _FUTURES_TO_DB.get(raw_sym, raw_sym)
                     df = load_bars(db_sym)
 
-                    if df is None and asset_mode == "FUTURES":
+                    if df is None and asset_mode in ("FUTURES", "FOREX"):
                         # Pull bars directly from IBKR historical data
                         contract_pre = make_contract(raw_sym, asset_mode)
                         if contract_pre is not None:
@@ -405,7 +462,7 @@ def run_cycle(
                         continue
 
                     sc = score_symbol(df)
-                    gates_pass, killed = check_gates(sc, mode)
+                    gates_pass, killed = check_gates(sc, mode, symbol=raw_sym)
 
                     # ── Jitter countdown ──────────────────────────────────────
                     row = db.execute(
@@ -426,7 +483,12 @@ def run_cycle(
                         result.errors.append(f"{raw_sym}: unsupported in {asset_mode}")
                         continue
 
-                    ibkr_qty  = sess.position_qty(raw_sym)
+                    if asset_mode == "FUTURES":
+                        ibkr_qty = sess.position_qty_for_futures_index(raw_sym)
+                    elif asset_mode == "FOREX":
+                        ibkr_qty = sess.position_qty_forex_pair(raw_sym)
+                    else:
+                        ibkr_qty = sess.position_qty(raw_sym)
                     is_crypto = (asset_mode == "CRYPTO")
 
                     if ibkr_qty != 0 or (row and row["lots_in"] > 0):
@@ -667,34 +729,31 @@ def run_cycle(
                         if not dry_run:
                             sess.place_market(contract, oa["qty"], side,
                                               usd_value=oa["usd_value"])
-
-                        db.execute("""
-                            INSERT OR REPLACE INTO positions
-                            (symbol, side, entry_ts, entry_price, entry_score, entry_regime,
-                             entry_jedi, lots_in, mode, jitter_bars_left)
-                            VALUES (?,?,?,?,?,?,?,?,?,?)
-                        """, (raw_sym, side, now, sc["price"], sc["soft_score"],
-                              sc["regime"], sc["jedi_raw"], eff_lot, mode_name,
-                              halo_dec.delay_bars))
-
-                        if halo_dec.split_remainder > 0 and not dry_run:
-                            sp = _order_args(equity, halo_dec.split_remainder,
-                                            sc["price"], mode, is_crypto)
-                            sess.place_market(contract, sp["qty"], side,
-                                              usd_value=sp["usd_value"])
-
-                        _log_trade(db, now, raw_sym, "ENTRY", side,
-                                   oa["qty"] or oa["usd_value"], sc["price"],
-                                   eff_lot, mode_name, 0.0,
-                                   f"score={sc['soft_score']:.3f} regime={sc['regime']} mtf={mtf_result} "
-                                   f"ca={ca_regime} oi={oi_mult:.2f} fng={fng_mult:.2f} liq={liq_mult:.2f} "
-                                   f"cap={cap_frac:.2f} lvl={lvl_mult:.2f} vwap={vwap_mult:.2f}")
+                            db.execute("""
+                                INSERT OR REPLACE INTO positions
+                                (symbol, side, entry_ts, entry_price, entry_score, entry_regime,
+                                 entry_jedi, lots_in, mode, jitter_bars_left)
+                                VALUES (?,?,?,?,?,?,?,?,?,?)
+                            """, (raw_sym, side, now, sc["price"], sc["soft_score"],
+                                  sc["regime"], sc["jedi_raw"], eff_lot, mode_name,
+                                  halo_dec.delay_bars))
+                            if halo_dec.split_remainder > 0:
+                                sp = _order_args(equity, halo_dec.split_remainder,
+                                                sc["price"], mode, is_crypto)
+                                sess.place_market(contract, sp["qty"], side,
+                                                  usd_value=sp["usd_value"])
+                            _log_trade(db, now, raw_sym, "ENTRY", side,
+                                       oa["qty"] or oa["usd_value"], sc["price"],
+                                       eff_lot, mode_name, 0.0,
+                                       f"score={sc['soft_score']:.3f} regime={sc['regime']} mtf={mtf_result} "
+                                       f"ca={ca_regime} oi={oi_mult:.2f} fng={fng_mult:.2f} liq={liq_mult:.2f} "
+                                       f"cap={cap_frac:.2f} lvl={lvl_mult:.2f} vwap={vwap_mult:.2f}")
+                            _log_cycle(db, now, raw_sym, sc, gates_pass, f"ENTRY_{side.upper()}")
                         result.entries.append({
                             "symbol": raw_sym, "side": side, "score": sc["soft_score"],
                             "regime": sc["regime"], "jedi": sc["jedi_raw"],
                             "mtf": mtf_result, "halo": halo_dec.note,
                         })
-                        _log_cycle(db, now, raw_sym, sc, gates_pass, f"ENTRY_{side.upper()}")
 
                 except Exception as exc:
                     log.exception("cycle %s: %s", raw_sym, exc)
@@ -710,6 +769,50 @@ def run_cycle(
     db.commit()
     db.close()
     return asdict(result)
+
+
+def flatten_position(symbol: str, asset_mode: str = "FUTURES", dry_run: bool = False) -> dict:
+    """Market-close entire IBKR position for micro futures (ES/MES) or spot FX (EURUSD)."""
+    asset_mode = asset_mode.upper()
+    sym = symbol.strip().upper().replace("/", "")
+    out: dict = {"ok": True, "asset_mode": asset_mode, "dry_run": dry_run, "qty": 0.0}
+    try:
+        with IBKRSession() as sess:
+            if asset_mode == "FUTURES":
+                logical = _resolve_futures_logical(sym)
+                if not logical:
+                    return {"ok": False, "error": f"unknown futures symbol {symbol}"}
+                contract = make_contract(logical, "FUTURES")
+                if contract is None:
+                    return {"ok": False, "error": "contract"}
+                qty = sess.position_qty_for_futures_index(logical)
+                db_sym = logical
+            elif asset_mode == "FOREX":
+                pair = sym if len(sym) >= 6 else sym
+                contract = make_contract(pair, "FOREX")
+                if contract is None:
+                    return {"ok": False, "error": f"unknown forex pair {symbol}"}
+                qty = sess.position_qty_forex_pair(pair)
+                db_sym = pair
+            else:
+                return {"ok": False, "error": "asset_mode must be FUTURES or FOREX"}
+
+            out["symbol"] = db_sym
+            out["qty"] = qty
+            if abs(qty) < 1e-12:
+                out["message"] = "already flat"
+                return out
+            if not dry_run:
+                sess.close_position(contract, qty)
+            db = _init_db(TRADES_DB)
+            db.execute("DELETE FROM positions WHERE symbol=?", (db_sym,))
+            db.commit()
+            db.close()
+            out["closed"] = not dry_run
+    except Exception as exc:
+        log.exception("flatten %s", symbol)
+        return {"ok": False, "error": str(exc)}
+    return out
 
 
 def get_status() -> dict:
@@ -773,6 +876,11 @@ if __name__ == "__main__":
         print(json.dumps(test_connection(), indent=2))
     elif cmd == "status":
         print(json.dumps(get_status(), indent=2))
+    elif cmd == "flatten":
+        sym    = sys.argv[2] if len(sys.argv) > 2 else ""
+        asset  = sys.argv[3] if len(sys.argv) > 3 else "FUTURES"
+        dry    = "--dry" in sys.argv
+        print(json.dumps(flatten_position(sym, asset, dry_run=dry), indent=2))
     elif cmd == "run":
         mode     = sys.argv[2] if len(sys.argv) > 2 else "PADAWAN"
         asset    = sys.argv[3] if len(sys.argv) > 3 else "CRYPTO"
