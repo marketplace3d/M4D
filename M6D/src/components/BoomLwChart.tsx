@@ -100,7 +100,7 @@ export default function BoomLwChart({ bars, controls, compactUi = false, showVwa
     const color = heatTarget.tier === 'S' ? '#00ffaa' : '#ffee00';
     let series: ISeriesApi<'Line'> | null = null;
     try {
-      series = chartApi.addLineSeries({
+      series = (chartApi as any).addLineSeries({
         color,
         lineWidth: 2,
         lineStyle: 0,
@@ -109,7 +109,7 @@ export default function BoomLwChart({ bars, controls, compactUi = false, showVwa
         crosshairMarkerVisible: false,
         title: `${heatTarget.tier}-TARGET`,
       });
-      series.setData(
+      series?.setData(
         bars.map((b) => ({ time: b.time as unknown as Time, value: heatTarget.price })),
       );
     } catch {
@@ -131,7 +131,7 @@ export default function BoomLwChart({ bars, controls, compactUi = false, showVwa
       const isResist = ht.tier.startsWith('R');
       const color = isPoc ? '#ff9500' : isResist ? '#ff4466' : '#00cc88';
       try {
-        const s = chartApi.addLineSeries({
+        const s = (chartApi as any).addLineSeries({
           color,
           lineWidth: isPoc ? 2 : 1,
           lineStyle: isPoc ? 0 : 2,

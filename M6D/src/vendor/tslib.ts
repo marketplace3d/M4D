@@ -6,7 +6,7 @@ export function __assign<T extends object, U extends object>(target: T, source: 
 export function __rest<T extends object, K extends keyof T>(source: T, exclude: K[]): Omit<T, K> {
   const out: Partial<T> = {}
   for (const key in source) {
-    if (!exclude.includes(key as K)) {
+    if (!exclude.includes(key as unknown as K)) {
       out[key] = source[key]
     }
   }

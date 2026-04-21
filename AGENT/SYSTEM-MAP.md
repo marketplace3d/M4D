@@ -257,3 +257,15 @@ Suggested nodes for ReactFlow / XYFlow visualization:
 [Risk Gate] → [Trade Approval] → [HALO Entry]
 [HALO Entry] → [Alpaca live (pending)]
 ```
+
+---
+
+## Related architecture diagrams
+
+| Diagram | Path |
+|---------|------|
+| **This file (ASCII)** | [SYSTEM-MAP.md](SYSTEM-MAP.md) — operational data flow, ports, scanner, ReactFlow hints |
+| **M4D alpha poster (metrics baked in)** | [SYSTEM-MAP.svg](SYSTEM-MAP.svg) — research snapshot; pair with [SYSTEM-SPEC.md](SYSTEM-SPEC.md) for numbers |
+| **Governance / M3D→M4D→W4D layers** | [../APP-DOC/I-OPT-OOO/assets/iopt_ooo_system_layers.svg](../APP-DOC/I-OPT-OOO/assets/iopt_ooo_system_layers.svg) — institutional readiness, not backtest Sharpe |
+| **BOOM Jedi council (build process)** | [AI-IN/boom_jedi_architecture.svg](AI-IN/boom_jedi_architecture.svg) · spec [AI-IN/ALGO-BUILD-PROCESS.TXT](AI-IN/ALGO-BUILD-PROCESS.TXT) |
+| **Scale readiness (gaps, KPIs, runbook)** | [../APP-DOC/I-OPT-OOO/I-OPT-OOO-MASTER.MD](../APP-DOC/I-OPT-OOO/I-OPT-OOO-MASTER.MD) · [OPERATOR-RUNBOOK.MD](../APP-DOC/I-OPT-OOO/OPERATOR-RUNBOOK.MD) |

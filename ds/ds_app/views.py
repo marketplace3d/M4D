@@ -16,6 +16,8 @@ import json
 import logging
 import os
 import pathlib
+import re
+import sys
 import time
 from datetime import datetime, timedelta
 
@@ -49,6 +51,7 @@ from .data_fetch import fetch_ohlcv
 from .optimizer import optimize_algo, optimize_all_algos, PARAM_GRIDS
 
 logger = logging.getLogger(__name__)
+_OP_CONTROL_FILE = pathlib.Path(__file__).parent.parent / "data" / "operator_control.json"
 
 
 def _json_body(request) -> dict:
@@ -2567,11 +2570,91 @@ def holdout_run(request):
         return JsonResponse({"ok": False, "error": str(exc)}, status=500)
 
 
+# ── Order intent audit (I-OPT) ─────────────────────────────────────────────────
+
+@require_GET
+def audit_order_intent(request):
+    """GET /v1/audit/order-intent/?broker=all|alpaca|ibkr&limit=50&cycle_id=HEX — SQLite order_intent rows."""
+    import sqlite3
+    from pathlib import Path
+
+    from ds_app.order_intent_log import engine_audit_meta
+
+    try:
+        lim = int(request.GET.get("limit", "50"))
+    except ValueError:
+        lim = 50
+    lim = min(max(lim, 1), 500)
+    broker = (request.GET.get("broker") or "all").lower()
+    if broker not in ("all", "alpaca", "ibkr"):
+        return JsonResponse({"ok": False, "error": "broker must be all|alpaca|ibkr"}, status=400)
+
+    cycle_raw = (request.GET.get("cycle_id") or "").strip().lower()
+    cycle_filter: str | None = None
+    if cycle_raw:
+        if not re.fullmatch(r"[0-9a-f]{8,32}", cycle_raw):
+            return JsonResponse(
+                {"ok": False, "error": "cycle_id must be 8–32 hex characters"},
+                status=400,
+            )
+        cycle_filter = cycle_raw
+
+    _ds = Path(__file__).resolve().parent.parent
+    paper_db = _ds / "data" / "paper_trades.db"
+    ibkr_db = _ds / "data" / "ibkr_trades.db"
+
+    rows: list[dict] = []
+
+    def fetch(path: pathlib.Path, source: str) -> None:
+        if not path.exists():
+            return
+        conn = sqlite3.connect(path)
+        conn.row_factory = sqlite3.Row
+        try:
+            if cycle_filter:
+                like_pat = f'%"cycle_id":"{cycle_filter}"%'
+                cur = conn.execute(
+                    "SELECT *, ? AS source_db FROM order_intent WHERE snapshot_json LIKE ? "
+                    "ORDER BY id DESC LIMIT ?",
+                    (source, like_pat, lim),
+                )
+            else:
+                cur = conn.execute(
+                    "SELECT *, ? AS source_db FROM order_intent ORDER BY id DESC LIMIT ?",
+                    (source, lim),
+                )
+            for r in cur:
+                rows.append(dict(r))
+        except sqlite3.OperationalError:
+            pass
+        finally:
+            conn.close()
+
+    if broker in ("all", "alpaca"):
+        fetch(paper_db, "paper_trades.db")
+    if broker in ("all", "ibkr"):
+        fetch(ibkr_db, "ibkr_trades.db")
+
+    rows.sort(key=lambda x: (x.get("ts") or "", x.get("id") or 0), reverse=True)
+    rows = rows[:lim]
+
+    resp = JsonResponse({
+        "ok": True,
+        "broker": broker,
+        "limit": lim,
+        "cycle_id": cycle_filter,
+        "engine": engine_audit_meta(),
+        "rows": rows,
+    })
+    resp["Access-Control-Allow-Origin"] = "*"
+    return resp
+
+
 # ── Alpaca Paper Trading Adapter ──────────────────────────────────────────────
 
 @require_GET
 def paper_status(request):
-    """GET /v1/paper/status/ — account + open positions + recent trades"""
+    """GET /v1/paper/status/ — account + positions + trades + recent_order_intent"""
     try:
         from ds_app.alpaca_paper import get_status
         data = get_status()
@@ -2674,7 +2757,7 @@ def ibkr_test(request):
 
 @require_GET
 def ibkr_status(request):
-    """GET /v1/ibkr/status/ — account + positions + trade log"""
+    """GET /v1/ibkr/status/ — account + positions + trades + recent_order_intent"""
     try:
         from ds_app.ibkr_paper import get_status
         data = get_status()
@@ -3224,6 +3307,43 @@ def session_status(request):
         return resp
     except Exception as exc:
         return JsonResponse({"ok": False, "error": str(exc)}, status=500)
+
+
+@csrf_exempt
+def control_halt_lock(request):
+    """GET/POST /v1/control/halt-lock/ — persisted operator halt lock."""
+    def _read_state() -> dict:
+        try:
+            if _OP_CONTROL_FILE.exists():
+                raw = json.loads(_OP_CONTROL_FILE.read_text() or "{}")
+                if isinstance(raw, dict):
+                    return raw
+        except Exception:
+            pass
+        return {"halt_lock": False, "updated_at": None, "updated_by": "system"}
+
+    def _write_state(state: dict) -> None:
+        _OP_CONTROL_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _OP_CONTROL_FILE.write_text(json.dumps(state))
+
+    if request.method == "GET":
+        state = _read_state()
+        resp = JsonResponse({"ok": True, **state})
+        resp["Access-Control-Allow-Origin"] = "*"
+        return resp
+
+    if request.method != "POST":
+        return JsonResponse({"error": "GET or POST required"}, status=405)
+
+    body = _json_body(request)
+    halt_lock = bool(body.get("halt_lock", False))
+    updated_by = str(body.get("updated_by", "operator")).strip() or "operator"
+    updated_at = datetime.utcnow().isoformat() + "Z"
+    state = {"halt_lock": halt_lock, "updated_at": updated_at, "updated_by": updated_by}
+    _write_state(state)
+    resp = JsonResponse({"ok": True, **state})
+    resp["Access-Control-Allow-Origin"] = "*"
+    return resp
 
 
 @csrf_exempt

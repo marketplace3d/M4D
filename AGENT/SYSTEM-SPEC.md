@@ -393,6 +393,14 @@ LAYER 18: Cost model + capacity cap + OI signal + Fear&Greed — full lot stack 
 
 ---
 
+## 16. GOVERNANCE AND SCALE READINESS (I-OPT-OOO)
+
+Alpha research and paper adapters (layers above) are **not** the same as institutional readiness: durable OMS, **hard risk at order send**, reconciliation, audit, and production SRE. For that gap analysis, 90-day program, KPIs, and operator actions (flatten / halt / rollback), see [APP-DOC/I-OPT-OOO/I-OPT-OOO-MASTER.MD](../APP-DOC/I-OPT-OOO/I-OPT-OOO-MASTER.MD), [OPERATOR-RUNBOOK.MD](../APP-DOC/I-OPT-OOO/OPERATOR-RUNBOOK.MD), and the static layer diagram [assets/iopt_ooo_system_layers.svg](../APP-DOC/I-OPT-OOO/assets/iopt_ooo_system_layers.svg).
+
+**Order audit (shipped):** DS module `ds/ds_app/order_intent_log.py` — each paper broker action writes an `order_intent` row (snapshot JSON includes `algo_day_timestamp` from `engine/data/algo_day.json` when present, and **`cycle_id`** tying all orders from one `run_cycle`). **GET** `/v1/audit/order-intent/?broker=all|alpaca|ibkr&limit=50` returns merged rows + engine meta (DS :8000). The Rust API serves the **same path** on :3300 and **proxies** to DS; override base URL with **`M3D_DS_BASE`** if Django is not `http://127.0.0.1:8000`. Optional **`cycle_id=`** (8–32 hex chars) filters `snapshot_json` to one paper run. Alpaca/IBKR status endpoints also expose `recent_order_intent`. **`POST /v1/paper/run/`** and **`POST /v1/ibkr/run/`** responses include **`cycle_id`** for correlation.
+
+---
+
 *This document is the authoritative system specification.*
 *Read before every build session. Update after every significant result.*
 *CLAUDE: reference this when user says "system spec", "what have we built", or "where are we"*

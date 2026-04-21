@@ -1,4 +1,5 @@
 pub mod algo_day;
+pub mod audit;
 pub mod assets;
 pub mod backtest;
 pub mod council;

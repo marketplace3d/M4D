@@ -19,6 +19,7 @@ CYCLE (run_cycle, every 5m):
   6. HALO execution (skip/delay/split/noise)
   7. Submit orders to Alpaca paper
   8. Persist trade events to paper_trades.db
+  9. order_intent rows — immutable audit trail for every place_order (I-OPT P0 decision log)
 """
 from __future__ import annotations
 
@@ -29,6 +30,7 @@ import random
 import sqlite3
 import sys
 import time
+import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -43,6 +45,7 @@ _DS_ROOT = _HERE.parent
 if str(_DS_ROOT) not in sys.path:
     sys.path.insert(0, str(_DS_ROOT))
 
+from ds_app.order_intent_log import audit_json, insert_order_intent  # noqa: E402
 from ds_app.algos_crypto import compute_live_votes            # noqa: E402
 from ds_app.delta_ops import (                                # noqa: E402
     PADAWAN, NORMAL, EUPHORIA, MAX, ModeConfig, compute_cis, _accel_state,
@@ -204,9 +207,185 @@ def _init_db(path: Path) -> sqlite3.Connection:
             action       TEXT,
             note         TEXT
         );
+        CREATE TABLE IF NOT EXISTS order_intent (
+            id               INTEGER PRIMARY KEY AUTOINCREMENT,
+            ts               TEXT NOT NULL,
+            broker           TEXT NOT NULL,
+            symbol_raw       TEXT NOT NULL,
+            symbol_broker    TEXT NOT NULL,
+            side             TEXT NOT NULL,
+            qty              REAL NOT NULL,
+            mode             TEXT NOT NULL,
+            dry_run          INTEGER NOT NULL DEFAULT 0,
+            snapshot_json    TEXT NOT NULL,
+            status           TEXT NOT NULL,
+            alpaca_order_id  TEXT,
+            error_text       TEXT
+        );
     """)
     conn.commit()
     return conn
+
+
+def _place_order_logged(
+    client: AlpacaClient,
+    db: sqlite3.Connection,
+    ts: str,
+    mode_name: str,
+    dry_run: bool,
+    raw_sym: str,
+    alp_sym: str,
+    qty: float,
+    side: str,
+    sc: dict,
+    gates_pass: bool,
+    killed: list[str],
+    action: str,
+    cycle_id: str | None = None,
+) -> dict | None:
+    """Log intent then submit; on failure log error_text and re-raise."""
+    ex: dict[str, str] | None = {"cycle_id": cycle_id} if cycle_id else None
+    snap = audit_json(
+        action,
+        pipeline="alpaca_paper",
+        gates_pass=gates_pass,
+        killed=killed,
+        sc=sc,
+        extra=ex,
+    )
+    if dry_run:
+        insert_order_intent(
+            db,
+            ts,
+            broker="alpaca",
+            symbol_raw=raw_sym,
+            symbol_broker=alp_sym,
+            side=side,
+            qty=qty,
+            mode=mode_name,
+            dry_run=True,
+            snapshot_json=snap,
+            status="dry_run",
+        )
+        return None
+    try:
+        out = client.place_order(alp_sym, qty, side)
+        oid = str(out.get("id", "")) if isinstance(out, dict) else ""
+        insert_order_intent(
+            db,
+            ts,
+            broker="alpaca",
+            symbol_raw=raw_sym,
+            symbol_broker=alp_sym,
+            side=side,
+            qty=qty,
+            mode=mode_name,
+            dry_run=False,
+            snapshot_json=snap,
+            status="submitted",
+            broker_order_id=oid or None,
+        )
+        return out
+    except Exception as exc:
+        err = str(exc)[:2000]
+        insert_order_intent(
+            db,
+            ts,
+            broker="alpaca",
+            symbol_raw=raw_sym,
+            symbol_broker=alp_sym,
+            side=side,
+            qty=qty,
+            mode=mode_name,
+            dry_run=False,
+            snapshot_json=snap,
+            status="error",
+            error_text=err,
+        )
+        raise
+
+
+def _close_position_logged(
+    client: AlpacaClient,
+    db: sqlite3.Connection,
+    ts: str,
+    mode_name: str,
+    dry_run: bool,
+    raw_sym: str,
+    alp_sym: str,
+    sc: dict,
+    gates_pass: bool,
+    killed: list[str],
+    position_qty: float,
+    cycle_id: str | None = None,
+) -> dict | None:
+    """Alpaca flatten: DELETE /v2/positions/{symbol}."""
+    ex: dict[str, str | float] = {
+        "api": "DELETE_close_position",
+        "position_qty": round(float(position_qty), 6),
+    }
+    if cycle_id:
+        ex["cycle_id"] = cycle_id
+    snap = audit_json(
+        "EXIT_CLOSE_POSITION",
+        pipeline="alpaca_paper",
+        gates_pass=gates_pass,
+        killed=killed,
+        sc=sc,
+        extra=ex,
+    )
+    if dry_run:
+        insert_order_intent(
+            db,
+            ts,
+            broker="alpaca",
+            symbol_raw=raw_sym,
+            symbol_broker=alp_sym,
+            side="close",
+            qty=abs(float(position_qty)),
+            mode=mode_name,
+            dry_run=True,
+            snapshot_json=snap,
+            status="dry_run",
+        )
+        return None
+    try:
+        out = client.close_position(alp_sym)
+        oid = None
+        if isinstance(out, dict):
+            oid = str(out.get("id", out.get("order_id", ""))) or None
+        insert_order_intent(
+            db,
+            ts,
+            broker="alpaca",
+            symbol_raw=raw_sym,
+            symbol_broker=alp_sym,
+            side="close",
+            qty=abs(float(position_qty)),
+            mode=mode_name,
+            dry_run=False,
+            snapshot_json=snap,
+            status="submitted",
+            broker_order_id=oid,
+        )
+        return out
+    except Exception as exc:
+        err = str(exc)[:2000]
+        insert_order_intent(
+            db,
+            ts,
+            broker="alpaca",
+            symbol_raw=raw_sym,
+            symbol_broker=alp_sym,
+            side="close",
+            qty=abs(float(position_qty)),
+            mode=mode_name,
+            dry_run=False,
+            snapshot_json=snap,
+            status="error",
+            error_text=err,
+        )
+        raise
 
 
 # ── Live bar loader ────────────────────────────────────────────────────────────
@@ -591,6 +770,7 @@ def _lot_qty(equity: float, lot_fraction: float, price: float, mode: ModeConfig)
 class CycleResult:
     ts: str
     mode: str
+    cycle_id: str
     symbols_scored: int
     entries: list[dict] = field(default_factory=list)
     exits: list[dict] = field(default_factory=list)
@@ -615,7 +795,8 @@ def run_cycle(mode_name: str = "PADAWAN", dry_run: bool = False) -> dict:
 
     db   = _init_db(TRADES_DB)
     now  = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    result = CycleResult(ts=now, mode=mode_name, symbols_scored=len(symbols))
+    cycle_id = uuid.uuid4().hex[:16]
+    result = CycleResult(ts=now, mode=mode_name, cycle_id=cycle_id, symbols_scored=len(symbols))
 
     for raw_sym in symbols:
         alp_sym = SYMBOL_MAP[raw_sym]
@@ -656,8 +837,11 @@ def run_cycle(mode_name: str = "PADAWAN", dry_run: bool = False) -> dict:
                     # EXIT with HALO stagger
                     lots_in = float(row["lots_in"])
                     lots_now, exit_note = halo_exit(cis_total, lots_in)
-                    if not dry_run:
-                        client.close_position(alp_sym)
+                    pos_qty = float(alp_pos["qty"]) if alp_pos else lots_in
+                    _close_position_logged(
+                        client, db, now, mode_name, dry_run, raw_sym, alp_sym,
+                        sc, gates_pass, killed, pos_qty, cycle_id=cycle_id,
+                    )
                     pnl = _estimate_pnl(row, sc["price"], alp_pos)
                     db.execute("DELETE FROM positions WHERE symbol=?", (raw_sym,))
                     _log_trade(db, now, raw_sym, "EXIT", row["side"],
@@ -675,7 +859,11 @@ def run_cycle(mode_name: str = "PADAWAN", dry_run: bool = False) -> dict:
                     scale_lot = round(random.uniform(HALO.scale_lot_min, HALO.scale_lot_max), 2)
                     out_qty   = _lot_qty(equity, scale_lot, sc["price"], mode)
                     if not dry_run and alp_pos and float(alp_pos.get("qty", 0)) > out_qty:
-                        client.place_order(alp_sym, out_qty, "sell")
+                        _place_order_logged(
+                            client, db, now, mode_name, False, raw_sym, alp_sym,
+                            out_qty, "sell", sc, gates_pass, killed, "SCALE_OUT",
+                            cycle_id=cycle_id,
+                        )
                     new_lots = max(row["lots_in"] - scale_lot, 0)
                     db.execute("UPDATE positions SET lots_in=? WHERE symbol=?", (new_lots, raw_sym))
                     _log_trade(db, now, raw_sym, "SCALE_OUT", row["side"],
@@ -689,8 +877,11 @@ def run_cycle(mode_name: str = "PADAWAN", dry_run: bool = False) -> dict:
                     new_lots  = min(row["lots_in"] + scale_lot, mode.max_lots)
                     add_lots  = new_lots - row["lots_in"]
                     add_qty   = _lot_qty(equity, add_lots, sc["price"], mode)
-                    if not dry_run:
-                        client.place_order(alp_sym, add_qty, row["side"])
+                    _place_order_logged(
+                        client, db, now, mode_name, dry_run, raw_sym, alp_sym,
+                        add_qty, row["side"], sc, gates_pass, killed, "SCALE_IN",
+                        cycle_id=cycle_id,
+                    )
                     db.execute("UPDATE positions SET lots_in=? WHERE symbol=?", (new_lots, raw_sym))
                     _log_trade(db, now, raw_sym, "SCALE_IN", row["side"],
                                add_qty, sc["price"], add_lots, mode_name, 0.0, "ACCEL")
@@ -822,8 +1013,11 @@ def run_cycle(mode_name: str = "PADAWAN", dry_run: bool = False) -> dict:
                     * oi_mult * fng_mult * liq_mult * mrt_mult * lvl_mult * vwap_mult, 3
                 )
                 qty  = _lot_qty(equity, effective_lot, sc["price"], mode)
-                if not dry_run:
-                    client.place_order(alp_sym, qty, side)
+                _place_order_logged(
+                    client, db, now, mode_name, dry_run, raw_sym, alp_sym,
+                    qty, side, sc, True, [], "ENTRY",
+                    cycle_id=cycle_id,
+                )
 
                 db.execute("""
                     INSERT OR REPLACE INTO positions
@@ -836,8 +1030,11 @@ def run_cycle(mode_name: str = "PADAWAN", dry_run: bool = False) -> dict:
 
                 if halo_dec.split_remainder > 0:
                     split_qty = _lot_qty(equity, halo_dec.split_remainder, sc["price"], mode)
-                    if not dry_run:
-                        client.place_order(alp_sym, split_qty, side)
+                    _place_order_logged(
+                        client, db, now, mode_name, dry_run, raw_sym, alp_sym,
+                        split_qty, side, sc, True, [], "ENTRY_SPLIT",
+                        cycle_id=cycle_id,
+                    )
                     _log_trade(db, now, raw_sym, "ENTRY_SPLIT", side,
                                split_qty, sc["price"], halo_dec.split_remainder, mode_name, 0.0,
                                f"HALO_SPLIT score={sc['soft_score']:.3f}")
@@ -881,6 +1078,12 @@ def get_status() -> dict:
                      db.execute("SELECT * FROM trades ORDER BY id DESC LIMIT 50").fetchall()]
     recent_cycles = [dict(r) for r in
                      db.execute("SELECT * FROM cycle_log ORDER BY rowid DESC LIMIT 100").fetchall()]
+    try:
+        recent_intent = [dict(r) for r in db.execute(
+            "SELECT * FROM order_intent ORDER BY id DESC LIMIT 40"
+        ).fetchall()]
+    except sqlite3.OperationalError:
+        recent_intent = []
     db.close()
 
     total_pnl = sum(t["pnl_usd"] or 0 for t in recent_trades)
@@ -896,6 +1099,7 @@ def get_status() -> dict:
         "total_pnl_usd":  round(total_pnl, 2),
         "recent_trades":  recent_trades[:20],
         "recent_cycles":  recent_cycles[:20],
+        "recent_order_intent": recent_intent[:20],
     }
 
 

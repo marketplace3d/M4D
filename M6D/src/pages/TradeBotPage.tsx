@@ -197,7 +197,7 @@ function MonthlyHeatmap({ points }: { points: EquityPoint[] }) {
       map[key].end = p.pnl;
     }
     const now = new Date();
-    const cells = [];
+    const cells: Array<{ key: string; label: string; ret: number | null; year: number }> = [];
     for (let i = 11; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;

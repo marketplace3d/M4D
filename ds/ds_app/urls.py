@@ -75,6 +75,8 @@ urlpatterns = [
     # Re-entry Holdout Validation (#10)
     path("v1/holdout/",                 views.holdout_report,     name="holdout-report"),
     path("v1/holdout/run/",             views.holdout_run,        name="holdout-run"),
+    # Order intent audit (I-OPT) — read-only
+    path("v1/audit/order-intent/",      views.audit_order_intent, name="audit-order-intent"),
     # Alpaca Paper Trading (P0-D)
     path("v1/paper/status/",            views.paper_status,       name="paper-status"),
     path("v1/paper/run/",               views.paper_run,          name="paper-run"),
@@ -123,6 +125,8 @@ urlpatterns = [
     path("v1/paper/equity/",            views.paper_equity,       name="paper-equity"),
     # ICT Session Gate + OBI snapshot
     path("v1/session/",                 views.session_status,     name="session-status"),
+    # Operator control state
+    path("v1/control/halt-lock/",       views.control_halt_lock,  name="control-halt-lock"),
     # DR/IDR Target Levels (T1-C)
     path("v1/dr/",                      views.dr_levels,          name="dr-levels"),
     path("v1/dr/scan/",                 views.dr_scan,            name="dr-scan"),

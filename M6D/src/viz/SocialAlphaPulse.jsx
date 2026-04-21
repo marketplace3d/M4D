@@ -836,6 +836,7 @@ export default function SocialAlphaPulse({
   data = DEMO_DATA,
   maAligned    = true,
   macroAligned = true,
+  showSignalGates = false,
 }) {
   const [isNarrow, setIsNarrow] = useState(
     () => typeof window !== "undefined" && window.matchMedia("(max-width: 800px)").matches
@@ -990,21 +991,23 @@ export default function SocialAlphaPulse({
             />
           </div>
 
-          {/* Gate meters */}
-          <div style={{ flexShrink: 0, borderTop: `1px solid ${T.border}` }}>
-            <div style={{ padding: "4px 10px", borderBottom: `1px solid ${T.border}`,
-                          background: T.bgPanel }}>
-              <span style={{ fontSize: 9, letterSpacing: 1.8, color: T.textMid, fontWeight: 800 }}>SIGNAL GATES</span>
+          {/* Gate meters (optional; can be surfaced in parent control panel) */}
+          {showSignalGates && (
+            <div style={{ flexShrink: 0, borderTop: `1px solid ${T.border}` }}>
+              <div style={{ padding: "4px 10px", borderBottom: `1px solid ${T.border}`,
+                            background: T.bgPanel }}>
+                <span style={{ fontSize: 9, letterSpacing: 1.8, color: T.textMid, fontWeight: 800 }}>SIGNAL GATES</span>
+              </div>
+              <GateMeters
+                maAligned={maAligned}
+                macroAligned={macroAligned}
+                direction={data.direction}
+                energy={data.energy}
+                confidence={data.confidence}
+                velocity={data.velocity}
+              />
             </div>
-            <GateMeters
-              maAligned={maAligned}
-              macroAligned={macroAligned}
-              direction={data.direction}
-              energy={data.energy}
-              confidence={data.confidence}
-              velocity={data.velocity}
-            />
-          </div>
+          )}
         </div>
       </div>
 

@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import MaxCogVizKnights from '../viz/ControlRoomKnights.jsx';
+import { XSentinelOrb, CouncilOrb, JediMasterOrb } from '../viz/MaxCogVizOrbs.jsx';
 
 // ═══════════════════════════════════════════════════════════════════════
 // M4D · TRADER — 4K MAXCOGVIZ COMMAND CENTER
@@ -307,7 +308,7 @@ function SignalsTab({ ic, wf, onRun }: { ic: any; wf: any; onRun: (ep: string) =
         ].map(r => (
           <div key={r.sig} style={{ display: 'flex', gap: 5, marginBottom: 2, alignItems: 'center' }}>
             <span style={{ width: 84, fontSize: 8, color: C.text, fontFamily: 'monospace' }}>{r.sig}</span>
-            {[['T', r.T, C.TRENDING], ['B', r.B, C.BREAKOUT], ['R', r.R, C.Ranging as any], ['O', r.O, C['RISK-OFF']]].map(([k, v, c]) => (
+            {[['T', r.T, C.TRENDING], ['B', r.B, C.BREAKOUT], ['R', r.R, C.RANGING as any], ['O', r.O, C['RISK-OFF']]].map(([k, v, c]) => (
               <span key={k as string} style={{ width: 32, fontSize: 7, color: v === '0.05' || v === '0.1' ? C.dim : c as string, fontFamily: 'monospace', textAlign: 'right' }}>
                 {k}:{v}
               </span>
@@ -595,7 +596,7 @@ function RoutingTab({ ens, gate, cross, pca, onRun }: { ens: any; gate: any; cro
             <Row k="N signals"       v={pca.n_signals ?? '—'} />
             <Row k="Verdict"         v={pca.interpretation ?? '—'} vc={C.WATCH} mono={false} />
             <div style={{ borderTop: `1px solid ${C.border}`, margin: '5px 0' }} />
-            <div style={{ fontSize: 8, color: C.dim, marginBottom: 4 }}>HIGH CORR PAIRS (>0.9 = same signal)</div>
+            <div style={{ fontSize: 8, color: C.dim, marginBottom: 4 }}>HIGH CORR PAIRS (&gt;0.9 = same signal)</div>
             {(pca.high_corr_pairs ?? []).slice(0, 5).map((p: any) => (
               <div key={`${p.a}-${p.b}`} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
                 <span style={{ fontSize: 7.5, color: C.RETIRE }}>{p.a} ↔ {p.b}</span>
@@ -606,7 +607,7 @@ function RoutingTab({ ens, gate, cross, pca, onRun }: { ens: any; gate: any; cro
         ) : (
           <div>
             <Row k="True dims (80%)" v="9" vc={C.HEALTHY} />
-            <Row k="High-corr pairs" v="47 (>0.6)" vc={C.WATCH} />
+            <Row k="High-corr pairs" v="47 (&gt;0.6)" vc={C.WATCH} />
             <div style={{ fontSize: 7.5, color: C.RETIRE, marginTop: 5 }}>
               VOL_BO ↔ VOL_SURGE: 0.991 KILL<br/>
               KC_BREAK ↔ VOL_BO: 0.966 KILL<br/>
@@ -939,7 +940,7 @@ function BrokerTab({ ibkr, onRun }: { ibkr: any; onRun: (ep: string) => void }) 
             {/* Cumulative P&L sparkline */}
             {(() => {
               const pnls = trades.filter((t: any) => t.pnl_usd != null).map((t: any) => t.pnl_usd as number);
-              const cumPnl = pnls.reduce((acc: number[], v) => [...acc, (acc[acc.length - 1] ?? 0) + v], [] as number[]);
+              const cumPnl = pnls.reduce((acc: number[], v: number) => [...acc, (acc[acc.length - 1] ?? 0) + v], [] as number[]);
               const totalPnl = cumPnl[cumPnl.length - 1] ?? 0;
               return cumPnl.length > 1 ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
@@ -1057,6 +1058,16 @@ export default function TraderPage() {
   const [ens,   setEns]   = useState<any>(null);
   const [pca,   setPca]   = useState<any>(null);
   const [ibkr,  setIbkr]  = useState<any>(null);
+  const [controlBusy, setControlBusy] = useState<string | null>(null);
+  const [flattenSymbol, setFlattenSymbol] = useState('ES');
+  const [lastCycleId, setLastCycleId] = useState('');
+  const [lastControlMsg, setLastControlMsg] = useState('');
+  const [auditRows, setAuditRows] = useState<any[]>([]);
+  const [showOrbs, setShowOrbs] = useState(false);
+  const [healthTrend, setHealthTrend] = useState<'UP' | 'DOWN' | 'FLAT'>('FLAT');
+  const prevHealthRef = useRef<number | null>(null);
+  const [traceOpen, setTraceOpen] = useState(false);
+  const [haltLock, setHaltLock] = useState(false);
 
   const loadBrain = useCallback(() => {
     fetch(`${DS}/v1/walkforward/`).then(r => r.ok ? r.json() : null).then(d => { if (d) setWf(d); }).catch(() => {});
@@ -1098,6 +1109,10 @@ export default function TraderPage() {
   }, []);
 
   const handleApprove = (sym: string) => {
+    if (haltLock) {
+      setLastControlMsg('HALT LOCK active: approval blocked');
+      return;
+    }
     setApproving(sym);
     fetch(`${DS}/v1/paper/approve/`, {
       method: 'POST',
@@ -1105,8 +1120,116 @@ export default function TraderPage() {
       body: JSON.stringify({ symbol: sym, mode }),
     }).then(() => {
       setApproved(a => [...a, sym]);
+      setLastControlMsg(`approved ${sym}`);
       setTimeout(() => setApproving(null), 3000);
     }).catch(() => setApproving(null));
+  };
+
+  const runPaperNow = () => {
+    setControlBusy('paper');
+    fetch(`${DS}/v1/paper/run/?mode=${mode}`, { method: 'POST' })
+      .then(r => r.ok ? r.json() : null)
+      .then((d) => {
+        if (!d) return;
+        if (d.cycle_id) setLastCycleId(String(d.cycle_id));
+        setLastControlMsg(d.error ? `paper run error: ${d.error}` : `paper run ok${d.cycle_id ? ` · ${d.cycle_id}` : ''}`);
+      })
+      .catch(() => setLastControlMsg('paper run failed'))
+      .finally(() => {
+        setControlBusy(null);
+        loadBrain();
+      });
+  };
+
+  const runIbkrNow = () => {
+    if (haltLock) {
+      setLastControlMsg('HALT LOCK active: IBKR run blocked');
+      return;
+    }
+    setControlBusy('ibkr');
+    fetch(`${DS}/v1/ibkr/run/?mode=${mode}&asset=FUTURES`, { method: 'POST' })
+      .then(r => r.ok ? r.json() : null)
+      .then((d) => {
+        if (!d) return;
+        if (d.cycle_id) setLastCycleId(String(d.cycle_id));
+        setLastControlMsg(d.error ? `ibkr run error: ${d.error}` : `ibkr run ok${d.cycle_id ? ` · ${d.cycle_id}` : ''}`);
+      })
+      .catch(() => setLastControlMsg('ibkr run failed'))
+      .finally(() => {
+        setControlBusy(null);
+        loadBrain();
+      });
+  };
+
+  const flattenIbkr = () => {
+    const sym = (flattenSymbol || '').trim().toUpperCase();
+    if (!sym) {
+      setLastControlMsg('flatten symbol required');
+      return;
+    }
+    setControlBusy('flatten');
+    fetch(`${DS}/v1/ibkr/flatten/?symbol=${encodeURIComponent(sym)}&asset=FUTURES`, { method: 'POST' })
+      .then(r => r.ok ? r.json() : null)
+      .then((d) => {
+        if (!d) return;
+        if (d.cycle_id) setLastCycleId(String(d.cycle_id));
+        setLastControlMsg(d.error ? `flatten error: ${d.error}` : `flatten ${sym} sent`);
+      })
+      .catch(() => setLastControlMsg('flatten failed'))
+      .finally(() => {
+        setControlBusy(null);
+        loadBrain();
+      });
+  };
+
+  const approveAllReady = () => {
+    if (haltLock) {
+      setLastControlMsg('HALT LOCK active: approve-all blocked');
+      return;
+    }
+    const syms = active.filter((s) => s.above_threshold).map((s) => s.symbol);
+    if (syms.length === 0) {
+      setLastControlMsg('no ready approvals');
+      return;
+    }
+    setControlBusy('approve-all');
+    Promise.allSettled(
+      syms.map((sym) =>
+        fetch(`${DS}/v1/paper/approve/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ symbol: sym, mode }),
+        }),
+      ),
+    ).then(() => {
+      setApproved((a) => [...a, ...syms]);
+      setLastControlMsg(`approved all: ${syms.length}`);
+    }).catch(() => {
+      setLastControlMsg('approve-all failed');
+    }).finally(() => {
+      setControlBusy(null);
+      loadBrain();
+    });
+  };
+
+  const rejectAllVisible = () => {
+    const syms = active.map((s) => s.symbol);
+    setDismissed((d) => new Set([...d, ...syms]));
+    setLastControlMsg(`rejected visible: ${syms.length}`);
+  };
+
+  const loadAudit = (cycleId?: string) => {
+    const cid = (cycleId ?? lastCycleId).trim();
+    const qs = cid ? `?cycle_id=${encodeURIComponent(cid)}&limit=20` : '?broker=all&limit=20';
+    setControlBusy('audit');
+    fetch(`${DS}/v1/audit/order-intent/${qs}`)
+      .then(r => r.ok ? r.json() : null)
+      .then((d) => {
+        setAuditRows(Array.isArray(d?.rows) ? d.rows : []);
+        setLastControlMsg(cid ? `audit loaded for ${cid}` : 'latest audit loaded');
+      })
+      .catch(() => setLastControlMsg('audit load failed'))
+      .finally(() => setControlBusy(null));
   };
 
   const [sessionData, setSessionData] = useState<any>(null);
@@ -1117,6 +1240,15 @@ export default function TraderPage() {
     return () => clearInterval(id);
   }, []);
 
+  useEffect(() => {
+    fetch(`${DS}/v1/control/halt-lock/`)
+      .then(r => r.ok ? r.json() : null)
+      .then((d) => {
+        if (d && typeof d.halt_lock === 'boolean') setHaltLock(d.halt_lock);
+      })
+      .catch(() => {});
+  }, []);
+
   const active        = pending.filter(s => !s.error && !dismissed.has(s.symbol));
   const approvalCount = active.filter(s => s.above_threshold).length;
   const gate_label    = actData?.gate_label ?? '—';
@@ -1125,6 +1257,39 @@ export default function TraderPage() {
   const crossC        = crossRegime === 'RISK_ON' ? C.HEALTHY : crossRegime === 'RISK_OFF' ? C.RETIRE : C.muted;
   const fngVal        = fngData?.value ?? null;
   const ibkrConn      = ibkr?.connected ?? false;
+  const masterHealthScore =
+    (ibkrConn ? 35 : 0) +
+    (sessionData?.allowed ? 25 : 0) +
+    ((gate_label === 'HOT' || gate_label === 'ALIVE') ? 20 : gate_label === 'SLOW' ? 10 : 0) +
+    (approvalCount > 0 ? 10 : 5) +
+    (auditRows.length > 0 ? 10 : 0);
+  const masterHealth = Math.max(0, Math.min(100, masterHealthScore));
+  const masterState = masterHealth >= 75 ? 'HEALTHY' : masterHealth >= 45 ? 'WATCH' : 'ALERT';
+  const masterStateColor = masterState === 'HEALTHY' ? C.HEALTHY : masterState === 'WATCH' ? C.WATCH : C.RETIRE;
+  const traceChecks = [
+    { label: 'IBKR link', ok: ibkrConn, value: ibkrConn ? 'LIVE' : 'OFF' },
+    { label: 'Session gate', ok: !!sessionData?.allowed, value: sessionData?.allowed ? 'OPEN' : (sessionData ? 'BLOCKED' : '—') },
+    { label: 'Risk gate', ok: gate_label === 'HOT' || gate_label === 'ALIVE', value: gate_label || '—' },
+    { label: 'Approval queue', ok: approvalCount > 0, value: `${approvalCount} ready` },
+    { label: 'Audit stream', ok: auditRows.length > 0, value: auditRows.length > 0 ? `${auditRows.length} rows` : 'empty' },
+  ];
+  const failedChecks = traceChecks.filter(c => !c.ok).map(c => c.label);
+  const traceAction =
+    !ibkrConn ? 'Check TWS/Gateway and /v1/ibkr/test before any fire/flatten.'
+    : !sessionData?.allowed ? 'Session blocked: do not fire. Wait for allowed session or run PADAWAN dry.'
+    : !(gate_label === 'HOT' || gate_label === 'ALIVE') ? 'Risk gate not green: hold entries, review gate report.'
+    : approvalCount === 0 ? 'No ready queue: wait for new high-confidence signals.'
+    : 'System healthy for guided approvals.';
+
+  useEffect(() => {
+    const prev = prevHealthRef.current;
+    if (prev != null) {
+      if (masterHealth > prev + 2) setHealthTrend('UP');
+      else if (masterHealth < prev - 2) setHealthTrend('DOWN');
+      else setHealthTrend('FLAT');
+    }
+    prevHealthRef.current = masterHealth;
+  }, [masterHealth]);
 
   const TABS: BrainTab[] = ['SIGNALS', 'ROUTING', 'OPS', 'BROKER'];
   const TAB_C: Record<BrainTab, string> = {
@@ -1150,6 +1315,86 @@ export default function TraderPage() {
           TRADER
         </span>
         <div style={{ width: 1, height: 20, background: C.border, flexShrink: 0 }} />
+
+        {/* Primary controls: run / flatten / audit */}
+        <button onClick={runPaperNow} disabled={controlBusy != null} style={{
+          background: 'none', border: `1px solid ${C.PADAWAN}`, color: C.PADAWAN,
+          fontSize: 8, padding: '1px 6px', cursor: 'pointer', letterSpacing: 1, borderRadius: 2, flexShrink: 0,
+          opacity: controlBusy ? 0.65 : 1,
+        }}>▶ PAPER RUN</button>
+        <button onClick={runIbkrNow} disabled={controlBusy != null} style={{
+          background: 'none', border: `1px solid ${C.BREAKOUT}`, color: C.BREAKOUT,
+          fontSize: 8, padding: '1px 6px', cursor: 'pointer', letterSpacing: 1, borderRadius: 2, flexShrink: 0,
+          opacity: controlBusy ? 0.65 : 1,
+        }}>▶ IBKR RUN</button>
+        <input
+          value={flattenSymbol}
+          onChange={(e) => setFlattenSymbol(e.target.value.toUpperCase())}
+          placeholder="ES"
+          style={{
+            width: 46, background: '#040912', border: `1px solid ${C.border}`, color: C.text,
+            fontSize: 8, padding: '2px 4px', borderRadius: 2, textTransform: 'uppercase', flexShrink: 0,
+          }}
+        />
+        <button onClick={flattenIbkr} disabled={controlBusy != null} style={{
+          background: '#2a0909', border: `1px solid ${C.RETIRE}`, color: C.RETIRE,
+          fontSize: 8, padding: '1px 6px', cursor: 'pointer', letterSpacing: 1, borderRadius: 2, flexShrink: 0,
+          opacity: controlBusy ? 0.65 : 1,
+        }}>■ FLATTEN</button>
+        <button onClick={() => setTraceOpen(v => !v)} style={{
+          display: 'flex', alignItems: 'center', gap: 6, padding: '1px 8px',
+          border: `1px solid ${masterStateColor}`, borderRadius: 3, flexShrink: 0, background: '#07111a',
+          cursor: 'pointer',
+        }}>
+          <span style={{ fontSize: 8, color: C.dim, letterSpacing: 1 }}>MASTER TRACE</span>
+          <span style={{ fontSize: 8.5, color: masterStateColor, fontWeight: 700 }}>{masterState}</span>
+          <span style={{ fontSize: 8, color: masterStateColor, fontFamily: 'monospace' }}>{masterHealth}</span>
+          <span style={{ fontSize: 8, color: healthTrend === 'UP' ? C.HEALTHY : healthTrend === 'DOWN' ? C.RETIRE : C.muted }}>
+            {healthTrend === 'UP' ? '↑' : healthTrend === 'DOWN' ? '↓' : '→'}
+          </span>
+          <span style={{ fontSize: 8, color: C.dim }}>{traceOpen ? '▴' : '▾'}</span>
+        </button>
+        <button onClick={approveAllReady} disabled={controlBusy != null} style={{
+          background: '#0b2a12', border: `1px solid ${C.HEALTHY}`, color: C.HEALTHY,
+          fontSize: 8, padding: '1px 6px', cursor: 'pointer', letterSpacing: 1, borderRadius: 2, flexShrink: 0,
+          opacity: controlBusy ? 0.65 : 1,
+        }}>APPROVE ALL</button>
+        <button onClick={rejectAllVisible} style={{
+          background: '#271109', border: `1px solid ${C.WATCH}`, color: C.WATCH,
+          fontSize: 8, padding: '1px 6px', cursor: 'pointer', letterSpacing: 1, borderRadius: 2, flexShrink: 0,
+        }}>REJECT ALL</button>
+        <button onClick={() => {
+          const next = !haltLock;
+          setHaltLock(next);
+          fetch(`${DS}/v1/control/halt-lock/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ halt_lock: next, updated_by: 'm4d-trader' }),
+          }).then(r => r.ok ? r.json() : null).then((d) => {
+            if (d && typeof d.halt_lock === 'boolean') {
+              setHaltLock(d.halt_lock);
+              setLastControlMsg(d.halt_lock ? 'HALT LOCK enabled (persisted)' : 'HALT LOCK disabled (persisted)');
+            } else {
+              setLastControlMsg(next ? 'HALT LOCK enabled' : 'HALT LOCK disabled');
+            }
+          }).catch(() => {
+            setLastControlMsg(next ? 'HALT LOCK enabled (local only)' : 'HALT LOCK disabled (local only)');
+          });
+        }} style={{
+          background: haltLock ? '#2a0909' : 'none',
+          border: `1px solid ${haltLock ? C.RETIRE : C.border}`,
+          color: haltLock ? C.RETIRE : C.muted,
+          fontSize: 8, padding: '1px 6px', cursor: 'pointer', letterSpacing: 1, borderRadius: 2, flexShrink: 0,
+        }}>{haltLock ? 'HALT LOCK ON' : 'HALT LOCK OFF'}</button>
+        <button onClick={() => loadAudit()} disabled={controlBusy != null} style={{
+          background: 'none', border: `1px solid ${C.dim}`, color: C.text,
+          fontSize: 8, padding: '1px 6px', cursor: 'pointer', letterSpacing: 1, borderRadius: 2, flexShrink: 0,
+          opacity: controlBusy ? 0.65 : 1,
+        }}>AUDIT</button>
+        <button onClick={() => setShowOrbs(v => !v)} style={{
+          background: 'none', border: `1px solid ${showOrbs ? C.PADAWAN : C.border}`, color: showOrbs ? C.PADAWAN : C.muted,
+          fontSize: 8, padding: '1px 6px', cursor: 'pointer', letterSpacing: 1, borderRadius: 2, flexShrink: 0,
+        }}>{showOrbs ? 'ORBS ON' : 'ORBS OFF'}</button>
 
         {/* Status KPIs with traffic lights */}
         {[
@@ -1247,6 +1492,96 @@ export default function TraderPage() {
             {lastRun && <span> · last run: {lastRun.split('?')[0].split('/').pop()}</span>}
           </span>
         )}
+      </div>
+
+      {/* Secondary telemetry strip: last control + optional orbs + audit rows */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 8, padding: '4px 10px',
+        borderBottom: `1px solid ${C.border}`, background: '#02060d', overflowX: 'auto', flexShrink: 0,
+      }}>
+        <span style={{ fontSize: 8, color: C.dim }}>CONTROL</span>
+        <span style={{ fontSize: 8.5, color: C.text, fontFamily: 'monospace' }}>
+          {controlBusy ? `running: ${controlBusy}` : (lastControlMsg || 'idle')}
+        </span>
+        {haltLock && <span style={{ fontSize: 8.5, color: C.RETIRE, fontWeight: 700 }}>HALT LOCK ACTIVE</span>}
+        {lastCycleId && <span style={{ fontSize: 8, color: C.PADAWAN, fontFamily: 'monospace' }}>cycle {lastCycleId}</span>}
+        {auditRows.length > 0 && (
+          <span style={{ fontSize: 8, color: C.muted }}>
+            audit: {auditRows[0]?.symbol ?? '—'} {auditRows[0]?.action ?? '—'} {auditRows[0]?.source_db ?? ''}
+          </span>
+        )}
+        {showOrbs && (
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <XSentinelOrb
+              direction={(active[0]?.entry_dir ?? 'FLAT').toUpperCase()}
+              data={{
+                energy: Math.min(100, Math.abs(Number(active[0]?.jedi_raw ?? 0)) * 3.2),
+                velocity: Math.max(0, Math.min(1, Number(active[0]?.soft_score ?? 0))),
+                confidence: Math.max(0, Math.min(1, Number(active[0]?.soft_score ?? 0))),
+                noiseBlocked: Number(active[0]?.killed?.length ?? 0),
+                sentiment: fngVal != null ? Math.max(0, Math.min(1, 1 - (Number(fngVal) / 100))) : 0.5,
+                influence: Math.max(0, Math.min(1, approvalCount / 5)),
+              }}
+            />
+            <CouncilOrb
+              score={Number(actData?.jedi_score ?? 0)}
+              direction={Number(actData?.jedi_score ?? 0) > 0 ? 'LONG' : Number(actData?.jedi_score ?? 0) < 0 ? 'SHORT' : 'FLAT'}
+              conviction={Math.min(100, Math.abs(Number(actData?.jedi_score ?? 0)) * 3)}
+              bankANet={Number(actData?.bankA_net ?? 0)}
+              bankBNet={Number(actData?.bankB_net ?? 0)}
+              bankCNet={Number(actData?.bankC_net ?? 0)}
+              allPanels={[]}
+            />
+            <JediMasterOrb
+              score={Number(actData?.jedi_score ?? 0)}
+              direction={Number(actData?.jedi_score ?? 0) > 0 ? 'LONG' : Number(actData?.jedi_score ?? 0) < 0 ? 'SHORT' : 'FLAT'}
+              conviction={Math.min(100, Math.abs(Number(actData?.jedi_score ?? 0)) * 3)}
+            />
+          </div>
+        )}
+      </div>
+
+      {traceOpen && (
+        <div style={{
+          display: 'flex', alignItems: 'flex-start', gap: 10, padding: '6px 10px',
+          borderBottom: `1px solid ${C.border}`, background: '#061018', flexShrink: 0, overflowX: 'auto',
+        }}>
+          <span style={{ fontSize: 8, color: C.dim, letterSpacing: 1, marginTop: 2 }}>TRACE DETAIL</span>
+          {traceChecks.map((c) => (
+            <div key={c.label} style={{
+              display: 'flex', alignItems: 'center', gap: 4, padding: '2px 6px',
+              border: `1px solid ${c.ok ? C.HEALTHY : C.WATCH}`, borderRadius: 3, background: '#040b12',
+            }}>
+              <span style={{ fontSize: 8, color: c.ok ? C.HEALTHY : C.WATCH }}>{c.ok ? '●' : '○'}</span>
+              <span style={{ fontSize: 8, color: C.text }}>{c.label}</span>
+              <span style={{ fontSize: 8, color: C.muted, fontFamily: 'monospace' }}>{c.value}</span>
+            </div>
+          ))}
+          <span style={{ fontSize: 8.5, color: failedChecks.length ? C.WATCH : C.HEALTHY, maxWidth: 520, lineHeight: 1.3 }}>
+            {failedChecks.length ? `Attention: ${failedChecks.join(', ')}. ` : 'All core checks green. '}
+            {traceAction}
+          </span>
+        </div>
+      )}
+
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 8, padding: '4px 10px',
+        borderBottom: `1px solid ${C.border}`, background: '#040a10', overflowX: 'auto', flexShrink: 0,
+      }}>
+        <span style={{ fontSize: 8, color: C.dim, letterSpacing: 1 }}>GAPS TO SURFACE</span>
+        {[
+          { l: 'Recon panel', s: 'MISSING', c: C.WATCH },
+          { l: 'Stale-data hard gate', s: 'PARTIAL', c: C.WATCH },
+          { l: 'Hard risk veto reasons', s: 'PARTIAL', c: C.WATCH },
+          { l: 'TCA/slippage', s: 'MISSING', c: C.RETIRE },
+          { l: 'Mode promotion gates', s: 'MISSING', c: C.RETIRE },
+        ].map((g) => (
+          <span key={g.l} style={{
+            fontSize: 8, color: g.c, border: `1px solid ${g.c}66`, borderRadius: 10, padding: '1px 7px', flexShrink: 0,
+          }}>
+            {g.l}: {g.s}
+          </span>
+        ))}
       </div>
 
       {/* ── ALGO BRAIN ─────────────────────────────────────────────────────── */}

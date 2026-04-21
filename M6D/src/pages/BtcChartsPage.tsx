@@ -35,9 +35,11 @@ import {
 import { computeHeatseeker, type HeatResult, type HeatTier } from '../lib/heatseeker';
 import {
   SOLO_PARTICIPATION_FLOOR_PCT,
+  TARGET_UI_KEY,
   loadTargetUi,
   loadSoloDock,
   saveSoloDock,
+  type SoloDockTier,
   type TargetFilter,
   type SoloDockState,
 } from '../lib/chartPageUtils';

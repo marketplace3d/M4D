@@ -48,6 +48,7 @@ interface KellyData {
 }
 interface StarReport {
   generated_at: string; horizon: string; symbols: string[]
+  oos_rows?: number
   traffic_lights: TrafficLight[]
   hour_analysis: { by_hour: Record<number, HourStat>; best_hours: number[]; kill_hours: number[] }
   day_analysis:  { by_day:  Record<number, DayStat>;  best_days:  number[]; kill_days:  number[] }
@@ -490,7 +491,7 @@ export default function StarOptimizerPage() {
         if (!res2.ok) throw new Error('fallback failed')
         setReport(await res2.json())
       } catch (e2) {
-        setError('Cannot reach DS API (:8000). Run: python ds_app/star_optimizer.py')
+        setError('Cannot reach DS API (:8000). Start via ./go.sh ds (or ./go.sh m6d), then retry.')
       }
     }
     setLoading(false)

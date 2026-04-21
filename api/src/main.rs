@@ -85,6 +85,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/v1/algo-day", get(routes::algo_day::handler))
         .route("/v1/assets", get(routes::assets::handler))
         .route("/v1/backtest", get(routes::backtest::handler))
+        .route("/v1/audit/order-intent", get(routes::audit::handler))
+        .route("/v1/audit/order-intent/", get(routes::audit::handler))
         .route("/v1/votes", get(votes_handler))
         .route("/v1/reload", post(reload_handler))
         .route("/v1/scanner", get(routes::scanner::handler))

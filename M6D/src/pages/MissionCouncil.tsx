@@ -474,17 +474,44 @@ export default function MissionCouncil({ onOpenWarriors }: Props) {
         </div>
       </section>
 
-      <section className="mission-council__social-alpha" aria-label="Social alpha pulse">
-        <header className="mission-council__social-alpha-head">
-          <span className="mission-council__social-alpha-k">SOCIAL ALPHA PULSE</span>
-          <span className="mission-council__social-alpha-hint">X / GROK · market vote–linked strip (single mount)</span>
-        </header>
-        <div className="mission-council__social-alpha-frame">
-          <SocialAlphaPulse
-            data={councilSocialData}
-            maAligned={maAlignedCouncil}
-            macroAligned={macroAlignedCouncil}
-          />
+      <section aria-label="Social and priority row" style={{ margin: '0.65rem 0 1rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
+          <section className="mission-council__social-alpha" aria-label="Social alpha pulse" style={{ margin: 0 }}>
+            <div className="mission-council__social-alpha-frame">
+              <SocialAlphaPulse
+                data={councilSocialData}
+                maAligned={maAlignedCouncil}
+                macroAligned={macroAlignedCouncil}
+                showSignalGates={false}
+              />
+            </div>
+          </section>
+
+          <section className="mission-council__social-alpha" aria-label="System visibility" style={{ margin: 0 }}>
+            <header className="mission-council__social-alpha-head">
+              <span className="mission-council__social-alpha-k">SYSTEM VISIBILITY</span>
+              <span className="mission-council__social-alpha-hint">Execution + state trace</span>
+            </header>
+            <div className="mission-council__social-alpha-frame" style={{ height: 'auto', minHeight: 0, padding: 10, gap: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 9, color: '#7f96aa' }}>Run Path</span><span style={{ fontSize: 10, color: execSummary.includes('unreachable') ? '#ef4444' : '#22c55e', fontWeight: 700 }}>{execSummary.includes('unreachable') ? 'DEGRADED' : 'ACTIVE'}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 9, color: '#7f96aa' }}>Exec Loop</span><span style={{ fontSize: 10, color: '#a78bfa', fontWeight: 700 }}>{loopPhase}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 9, color: '#7f96aa' }}>Regime</span><span style={{ fontSize: 10, color: '#93c5fd', fontWeight: 700 }}>{regime}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 9, color: '#7f96aa' }}>Drawdown</span><span style={{ fontSize: 10, color: drawdown > 2 ? '#ef4444' : '#22c55e', fontWeight: 700 }}>{drawdown.toFixed(2)}%</span></div>
+            </div>
+          </section>
+
+          <section className="mission-council__social-alpha" aria-label="Live priority" style={{ margin: 0 }}>
+            <header className="mission-council__social-alpha-head">
+              <span className="mission-council__social-alpha-k">LIVE PRIORITY</span>
+              <span className="mission-council__social-alpha-hint">Immediate operator focus</span>
+            </header>
+            <div className="mission-council__social-alpha-frame" style={{ height: 'auto', minHeight: 0, padding: 10, gap: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 9, color: '#7f96aa' }}>Top Signal</span><span style={{ fontSize: 10, color: '#d7e7f7', fontWeight: 700, maxWidth: 180, textAlign: 'right' }}>{newsItems[headlineIdx] ? newsItems[headlineIdx].slice(0, 26) : '—'}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 9, color: '#7f96aa' }}>Direction</span><span style={{ fontSize: 10, color: '#22d3ee', fontWeight: 700 }}>{councilSocialData.direction?.toUpperCase?.() ?? '—'}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 9, color: '#7f96aa' }}>Energy</span><span style={{ fontSize: 10, color: '#f59e0b', fontWeight: 700 }}>{Math.abs(councilSocialData.energy ?? 0).toFixed(0)}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 9, color: '#7f96aa' }}>Confidence</span><span style={{ fontSize: 10, color: '#38bdf8', fontWeight: 700 }}>{Math.round((councilSocialData.confidence ?? 0) * 100)}%</span></div>
+            </div>
+          </section>
         </div>
       </section>
 

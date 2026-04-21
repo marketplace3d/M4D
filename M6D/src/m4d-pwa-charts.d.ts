@@ -68,14 +68,14 @@ declare module '@pwa/lib/fetchBars' {
   export const SYMBOLS: { id: ChartSymbol; label: string; polygon: string; note?: string }[];
   export function fetchBarsForSymbol(
     sym: ChartSymbol,
-    vitePolygonKey: string | undefined,
-    preset: import('@pwa/lib/chartTimeframes').TimeframePreset,
+    vitePolygonKey?: string | undefined,
+    preset?: import('@pwa/lib/chartTimeframes').TimeframePreset,
   ): Promise<Bar[]>;
 }
 
 declare module '@pwa/lib/chartStripSymbol' {
   import type { ChartSymbol } from '@pwa/lib/fetchBars';
-  export type ChartStripId = 'spx' | 'fx' | 'ict';
+  export type ChartStripId = 'spx' | 'fx' | 'ict' | 'btc';
   export function defaultSymbolForStrip(id: ChartStripId): ChartSymbol;
   export function loadChartStripSymbol(id: ChartStripId): ChartSymbol | null;
   export function saveChartStripSymbol(id: ChartStripId, sym: ChartSymbol): void;
@@ -123,6 +123,8 @@ declare module '@pwa/lib/boomChartBuild' {
     snapToLatest?: boolean;
     initialLogicalRange?: LogicalRange | null;
     compactUi?: boolean;
+    symbol?: string;
+    polygonKey?: string;
   };
 
   export function mountBoomChart(
@@ -132,3 +134,27 @@ declare module '@pwa/lib/boomChartBuild' {
     opts?: MountBoomChartOpts,
   ): Promise<{ chart: IChartApi; ro: ResizeObserver }>;
 }
+
+declare module '@pwa/lib/oracleSnapshot' {
+  export function buildOracleSnapshot(...args: any[]): any;
+}
+
+declare module '@pwa/lib/mmBrain' {
+  export type MMPhase = 'ACCUMULATION' | 'MANIPULATION' | 'DISPLACEMENT' | 'DISTRIBUTION';
+  export type MMPrediction = any;
+  export function computeMMBrain(...args: any[]): any;
+}
+
+declare module '*.jsx' {
+  export const XSentinelOrb: any;
+  export const CouncilOrb: any;
+  export const JediMasterOrb: any;
+  const Component: any;
+  export default Component;
+}
+
+declare module '../viz/SocialAlphaPulse' {
+  const Component: any;
+  export default Component;
+}
+

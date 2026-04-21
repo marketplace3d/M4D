@@ -5,9 +5,16 @@
 | File | Purpose |
 |------|---------|
 | `CLAUDE-AGENT-PLAN.md`       | START HERE — full 7-phase execution plan |
+| `AGENTS.md`                  | Code + DS + safety rules (read before trading features) |
+| `NORTH-STAR.md` / `AWARENESS.md` | Goals · where code lives |
+| `SYSTEM-SPEC.md`             | Authoritative alpha-system spec · **§16** governance / I-OPT-OOO pointer |
+| `SYSTEM-MAP.md` / `SYSTEM-MAP.svg` | ASCII + visual data flow |
+| `BUILDOUT-PROGRESS.md`       | Session shipped items + research metrics (not same as institutional readiness) |
+| `../APP-DOC/I-OPT-OOO/`      | Iter-opt + oracle roadmap · KPIs · [OPERATOR-RUNBOOK](../APP-DOC/I-OPT-OOO/OPERATOR-RUNBOOK.MD) · layer SVG |
 | `SYSTEM-STATUS-2026-04-17.MD`| Full signal stack · confidence audit · maps |
 | `TV-INDICATORS-SYNTHESIS.MD` | TV indicator pipeline · Michael Automates method |
 | `EXPERT-TRADER-COUNCIL.MD`   | Council logic gates · Marco/ICT/MentFX/Ali Khan |
+| `AI-IN/boom_jedi_architecture.svg` | BOOM Jedi council target flow (see `AI-IN/ALGO-BUILD-PROCESS.TXT`) |
 
 ## ONE-LINE PIPELINE
 2yr SQLite → correlate 27 algos → kill redundant → regime-filter survivors

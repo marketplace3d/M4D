@@ -441,5 +441,5 @@
 
   <!-- Bottom bar -->
   <rect x="0" y="1958" width="1200" height="22" fill="#030810"/>
-  <text x="600" y="1973" fill="#1a3a5e" font-size="9" text-anchor="middle">M4D Alpha System · AGENT/SYSTEM-MAP.svg · AGENT/SYSTEM-SPEC.md · AGENT/BUILDOUT-PROGRESS.md · AGENT/ALPHA-SEARCH-DAILY.md</text>
+  <text x="600" y="1973" fill="#1a3a5e" font-size="9" text-anchor="middle">M4D Alpha System · AGENT/SYSTEM-MAP.svg · AGENT/SYSTEM-SPEC.md · AGENT/BUILDOUT-PROGRESS.md · APP-DOC/I-OPT-OOO/assets/iopt_ooo_system_layers.svg · AGENT/ALPHA-SEARCH-DAILY.md</text>
 </svg>

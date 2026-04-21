@@ -109,6 +109,7 @@ POST /v1/reload             → triggers engine run
 WS   /ws/algo               → live CouncilUpdate stream
 
 # Django DS (direct or via API proxy)
+GET  /v1/audit/order-intent/?broker=all|alpaca|ibkr&limit=50&cycle_id=…  → DS (Rust api proxies; set M3D_DS_BASE if not http://127.0.0.1:8000)
 GET  /v1/backtest/?asset=X&algo=Y&from=Z&to=W
 POST /v1/backtest/run/
 GET  /v1/signals/?asset=X

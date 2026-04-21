@@ -4,6 +4,20 @@ Newest first.
 
 ## 2026-04-20
 
+- **Alpaca paper (I-OPT P0)** — `ds_app/alpaca_paper.py`: `order_intent` SQLite table + `_place_order_logged()` wraps every market `place_order` (ENTRY, ENTRY_SPLIT, SCALE_IN, SCALE_OUT); `get_status()` includes `recent_order_intent`. IBKR uses the same `_init_db` when `ibkr_trades.db` is opened (table created there too).
+- **Order intent (I-OPT P0+)** — `ds_app/order_intent_log.py`: shared `audit_json` + `insert_order_intent`; env `PAPER_OPERATOR_ID`, `M3D_PIPELINE_REV`. Alpaca: `_close_position_logged` for CIS exits. IBKR: `_ibkr_order_intent` on EXIT/SCALE/ENTRY/SPLIT + `flatten_position`; `get_status` returns `recent_order_intent`.
+- **Order audit (I-OPT)** — `order_intent_log`: `algo_day_timestamp` in every snapshot (mtime-cached read of `engine/data/algo_day.json`); `engine_audit_meta()` for APIs. **GET** `/v1/audit/order-intent/` (broker=all|alpaca|ibkr); `paper_status` docstring notes `recent_order_intent`; SYSTEM-SPEC §16 updated.
+- **cycle_id** — `run_cycle` in `alpaca_paper` / `ibkr_paper` assigns `uuid.hex[:16]`; `CycleResult` includes it; all `_place_order_logged` / `_close_position_logged` / `_ibkr_order_intent` rows get `cycle_id` in snapshot JSON; IBKR `flatten_position` uses a per-call id.
+- **Audit filter** — `GET /v1/audit/order-intent/?cycle_id=<hex>` (8–32 chars) filters rows by `snapshot_json` match; response echoes `cycle_id` when set.
+- **Audit proxy (Rust api)** — `GET /v1/audit/order-intent` on :3300 forwards query string to Django (`M3D_DS_BASE`, default `http://127.0.0.1:8000`). Trailing slash path also registered.
+
+- **I-OPT-OOO docs** — added `APP-DOC/I-OPT-OOO/` (README, `I-OPT-OOO-MASTER.MD`, `VIZ-DIAGRAM-SPEC.MD`): iter-opt + oracle optimization scorecard, P0/P1/P2 roadmap, OO modes, Jedi touches, SVG/TSX/ReactFlow diagram spec and links to existing BUILD-W4D-DOCS assets.
+- **I-OPT-OOO** — `I-OPT-OOO-MASTER.MD` extended: BUILDOUT vs I-OPT scope table, 90-day phased program with exit criteria, KPI table, optional next artifacts (SVG path, runbook, SYSTEM-SPEC cross-link).
+- **I-OPT-OOO ship** — `assets/iopt_ooo_system_layers.svg`, `OPERATOR-RUNBOOK.MD`, `SYSTEM-SPEC.md` §16 governance pointer; `assets/DIAGRAM-SVG-SOURCE.md` duplicate XML reference.
+- **AGENT** — `README.md` expanded index: AGENTS, NORTH-STAR/AWARENESS, SYSTEM-SPEC §16, BUILDOUT vs I-OPT-OOO, `AI-IN/boom_jedi_architecture.svg`; `VIZ-DIAGRAM-SPEC.md` §6–7 updated for shipped I-OPT SVG.
+- **SYSTEM-MAP** — `SYSTEM-MAP.md` “Related architecture diagrams” table (ASCII vs SVG vs I-OPT layers vs boom_jedi vs runbook); `SYSTEM-MAP.svg` footer links I-OPT layer SVG.
+- **I-OPT-OOO** — `README.md` status + “start here”; `DIAGRAM-SVG-SOURCE.md` deduped to pointer-only (canonical `iopt_ooo_system_layers.svg`); `VIZ-DIAGRAM-SPEC` §7 note updated.
+
 - **IBKR** — MES↔ES position mapping (`position_qty_for_futures_index`), **`/v1/ibkr/flatten/`** + CLI `flatten`, **`asset=FOREX`** + EURUSD bars (`MIDPOINT` for CASH), `check_gates(..., symbol=)` for forex hour logic, dry-run no longer writes entry rows to SQLite, `ibkr_loop.sh` + TWS-OPS resilience/flatten/forex sections.
 - **IBKR CLI** — repo root `ibkr.sh` runs `ds_app/ibkr_paper.py` with `ds/.venv` by default; set **`IBKR_PYTHON`** to use another interpreter (needs `ib_insync`). Documented in `AGENT/TWS-OPS.md`.
 

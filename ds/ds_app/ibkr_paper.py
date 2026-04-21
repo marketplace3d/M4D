@@ -40,6 +40,7 @@ import random
 import sqlite3
 import sys
 import time
+import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -70,6 +71,73 @@ from ds_app.halo_mode   import halo_entry, halo_exit, HALO
 from ds_app.alpaca_paper import (
     load_bars, score_symbol, check_gates, _init_db, _log_trade, _log_cycle, MODES,
 )
+from ds_app.order_intent_log import audit_json, insert_order_intent
+
+
+def _contract_label(contract) -> str:
+    return str(
+        getattr(contract, "localSymbol", None)
+        or getattr(contract, "symbol", None)
+        or "?"
+    )
+
+
+def _ibkr_order_intent(
+    db: sqlite3.Connection,
+    ts: str,
+    mode_name: str,
+    dry_run: bool,
+    raw_sym: str,
+    contract,
+    side: str,
+    qty: float,
+    sc: dict,
+    gates_pass: bool,
+    killed: list[str],
+    action: str,
+    cycle_id: str | None = None,
+    result: dict | None = None,
+    err: str | None = None,
+) -> None:
+    btag = _contract_label(contract)
+    extra: dict = {"contract": btag}
+    if cycle_id:
+        extra["cycle_id"] = cycle_id
+    if result:
+        extra["orderId"] = result.get("orderId")
+        extra["order_status"] = result.get("status")
+    snap = audit_json(
+        action,
+        pipeline="ibkr_paper",
+        gates_pass=gates_pass,
+        killed=killed,
+        sc=sc,
+        extra=extra,
+    )
+    if err:
+        st, oid, et = "error", None, err[:2000]
+    elif dry_run:
+        st, oid, et = "dry_run", None, None
+    else:
+        oid = None
+        if result and result.get("orderId") is not None:
+            oid = str(result["orderId"])
+        st, et = "submitted", None
+    insert_order_intent(
+        db,
+        ts,
+        broker="ibkr",
+        symbol_raw=raw_sym,
+        symbol_broker=btag,
+        side=side,
+        qty=round(float(qty), 6),
+        mode=mode_name,
+        dry_run=dry_run,
+        snapshot_json=snap,
+        status=st,
+        broker_order_id=oid,
+        error_text=et,
+    )
 
 
 def _lot_usd(equity: float, lot_fraction: float, mode: ModeConfig) -> float:
@@ -401,6 +469,7 @@ class CycleResult:
     ts: str
     mode: str
     asset_mode: str
+    cycle_id: str
     symbols_scored: int
     entries: list[dict]  = field(default_factory=list)
     exits:   list[dict]  = field(default_factory=list)
@@ -420,8 +489,14 @@ def run_cycle(
     symbols    = [s.strip() for s in _SYMBOLS.get(asset_mode, [])]
 
     now    = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    result = CycleResult(ts=now, mode=mode_name, asset_mode=asset_mode,
-                         symbols_scored=len(symbols))
+    cycle_id = uuid.uuid4().hex[:16]
+    result = CycleResult(
+        ts=now,
+        mode=mode_name,
+        asset_mode=asset_mode,
+        cycle_id=cycle_id,
+        symbols_scored=len(symbols),
+    )
     db     = _init_db(TRADES_DB)
 
     def _order_args(equity: float, lot_frac: float, price: float,
@@ -526,8 +601,43 @@ def run_cycle(
                             lots_now, exit_note = halo_exit(cis_total, lots_in)
                             exit_usd = _lot_usd(equity, lots_now, mode)
                             if not dry_run and ibkr_qty != 0:
-                                sess.close_position(contract, ibkr_qty,
-                                                    usd_value=exit_usd if is_crypto else None)
+                                out_exit = sess.close_position(
+                                    contract,
+                                    ibkr_qty,
+                                    usd_value=exit_usd if is_crypto else None,
+                                )
+                                _ibkr_order_intent(
+                                    db,
+                                    now,
+                                    mode_name,
+                                    False,
+                                    raw_sym,
+                                    contract,
+                                    "close",
+                                    abs(ibkr_qty),
+                                    sc,
+                                    gates_pass,
+                                    killed,
+                                    "EXIT_CLOSE_POSITION",
+                                    cycle_id=cycle_id,
+                                    result=out_exit,
+                                )
+                            elif dry_run and ibkr_qty != 0:
+                                _ibkr_order_intent(
+                                    db,
+                                    now,
+                                    mode_name,
+                                    True,
+                                    raw_sym,
+                                    contract,
+                                    "close",
+                                    abs(ibkr_qty),
+                                    sc,
+                                    gates_pass,
+                                    killed,
+                                    "EXIT_CLOSE_POSITION",
+                                    cycle_id=cycle_id,
+                                )
                             pnl = 0.0
                             if row:
                                 entry_usd = _lot_usd(equity, row["lots_in"], mode)
@@ -548,10 +658,44 @@ def run_cycle(
                         elif accel == "DECEL" and lots_in > 0.5:
                             scale_lot = round(random.uniform(HALO.scale_lot_min, HALO.scale_lot_max), 2)
                             oa        = _order_args(equity, scale_lot, sc["price"], mode, is_crypto)
+                            close_side = "sell" if ibkr_qty > 0 else "buy"
+                            qlog       = float(oa["qty"]) if oa["qty"] else float(oa.get("usd_value") or 0)
                             if not dry_run and ibkr_qty != 0:
-                                close_side = "sell" if ibkr_qty > 0 else "buy"
-                                sess.place_market(contract, oa["qty"], close_side,
-                                                  usd_value=oa["usd_value"])
+                                out_so = sess.place_market(
+                                    contract, oa["qty"], close_side, usd_value=oa["usd_value"]
+                                )
+                                _ibkr_order_intent(
+                                    db,
+                                    now,
+                                    mode_name,
+                                    False,
+                                    raw_sym,
+                                    contract,
+                                    close_side,
+                                    qlog,
+                                    sc,
+                                    gates_pass,
+                                    killed,
+                                    "SCALE_OUT",
+                                    cycle_id=cycle_id,
+                                    result=out_so,
+                                )
+                            elif dry_run and ibkr_qty != 0:
+                                _ibkr_order_intent(
+                                    db,
+                                    now,
+                                    mode_name,
+                                    True,
+                                    raw_sym,
+                                    contract,
+                                    close_side,
+                                    qlog,
+                                    sc,
+                                    gates_pass,
+                                    killed,
+                                    "SCALE_OUT",
+                                    cycle_id=cycle_id,
+                                )
                             new_lots = max(lots_in - scale_lot, 0)
                             if row:
                                 db.execute("UPDATE positions SET lots_in=? WHERE symbol=?",
@@ -571,9 +715,43 @@ def run_cycle(
                             add_frac   = new_lots - lots_in
                             oa         = _order_args(equity, add_frac, sc["price"], mode, is_crypto)
                             entry_side = "buy" if (ibkr_qty or 0) >= 0 else "sell"
+                            qlog_si    = float(oa["qty"]) if oa["qty"] else float(oa.get("usd_value") or 0)
                             if not dry_run:
-                                sess.place_market(contract, oa["qty"], entry_side,
-                                                  usd_value=oa["usd_value"])
+                                out_si = sess.place_market(
+                                    contract, oa["qty"], entry_side, usd_value=oa["usd_value"]
+                                )
+                                _ibkr_order_intent(
+                                    db,
+                                    now,
+                                    mode_name,
+                                    False,
+                                    raw_sym,
+                                    contract,
+                                    entry_side,
+                                    qlog_si,
+                                    sc,
+                                    gates_pass,
+                                    killed,
+                                    "SCALE_IN",
+                                    cycle_id=cycle_id,
+                                    result=out_si,
+                                )
+                            else:
+                                _ibkr_order_intent(
+                                    db,
+                                    now,
+                                    mode_name,
+                                    True,
+                                    raw_sym,
+                                    contract,
+                                    entry_side,
+                                    qlog_si,
+                                    sc,
+                                    gates_pass,
+                                    killed,
+                                    "SCALE_IN",
+                                    cycle_id=cycle_id,
+                                )
                             if row:
                                 db.execute("UPDATE positions SET lots_in=? WHERE symbol=?",
                                            (new_lots, raw_sym))
@@ -725,10 +903,28 @@ def run_cycle(
                             * oi_mult * fng_mult * liq_mult * lvl_mult * vwap_mult, 3
                         )
                         oa      = _order_args(equity, eff_lot, sc["price"], mode, is_crypto)
+                        q_entry = float(oa["qty"]) if oa["qty"] else float(oa.get("usd_value") or 0)
 
                         if not dry_run:
-                            sess.place_market(contract, oa["qty"], side,
-                                              usd_value=oa["usd_value"])
+                            out_en = sess.place_market(
+                                contract, oa["qty"], side, usd_value=oa["usd_value"]
+                            )
+                            _ibkr_order_intent(
+                                db,
+                                now,
+                                mode_name,
+                                False,
+                                raw_sym,
+                                contract,
+                                side,
+                                q_entry,
+                                sc,
+                                gates_pass,
+                                killed,
+                                "ENTRY",
+                                cycle_id=cycle_id,
+                                result=out_en,
+                            )
                             db.execute("""
                                 INSERT OR REPLACE INTO positions
                                 (symbol, side, entry_ts, entry_price, entry_score, entry_regime,
@@ -740,8 +936,26 @@ def run_cycle(
                             if halo_dec.split_remainder > 0:
                                 sp = _order_args(equity, halo_dec.split_remainder,
                                                 sc["price"], mode, is_crypto)
-                                sess.place_market(contract, sp["qty"], side,
-                                                  usd_value=sp["usd_value"])
+                                out_sp = sess.place_market(
+                                    contract, sp["qty"], side, usd_value=sp["usd_value"]
+                                )
+                                q_sp = float(sp["qty"]) if sp["qty"] else float(sp.get("usd_value") or 0)
+                                _ibkr_order_intent(
+                                    db,
+                                    now,
+                                    mode_name,
+                                    False,
+                                    raw_sym,
+                                    contract,
+                                    side,
+                                    q_sp,
+                                    sc,
+                                    gates_pass,
+                                    killed,
+                                    "ENTRY_SPLIT",
+                                    cycle_id=cycle_id,
+                                    result=out_sp,
+                                )
                             _log_trade(db, now, raw_sym, "ENTRY", side,
                                        oa["qty"] or oa["usd_value"], sc["price"],
                                        eff_lot, mode_name, 0.0,
@@ -749,6 +963,22 @@ def run_cycle(
                                        f"ca={ca_regime} oi={oi_mult:.2f} fng={fng_mult:.2f} liq={liq_mult:.2f} "
                                        f"cap={cap_frac:.2f} lvl={lvl_mult:.2f} vwap={vwap_mult:.2f}")
                             _log_cycle(db, now, raw_sym, sc, gates_pass, f"ENTRY_{side.upper()}")
+                        else:
+                            _ibkr_order_intent(
+                                db,
+                                now,
+                                mode_name,
+                                True,
+                                raw_sym,
+                                contract,
+                                side,
+                                q_entry,
+                                sc,
+                                gates_pass,
+                                killed,
+                                "ENTRY",
+                                cycle_id=cycle_id,
+                            )
                         result.entries.append({
                             "symbol": raw_sym, "side": side, "score": sc["soft_score"],
                             "regime": sc["regime"], "jedi": sc["jedi_raw"],
@@ -802,13 +1032,49 @@ def flatten_position(symbol: str, asset_mode: str = "FUTURES", dry_run: bool = F
             if abs(qty) < 1e-12:
                 out["message"] = "already flat"
                 return out
-            if not dry_run:
-                sess.close_position(contract, qty)
+            fts = datetime.now(timezone.utc).isoformat(timespec="seconds")
+            flat_cid = uuid.uuid4().hex[:16]
+            sc_flat = {"regime": "MANUAL", "soft_score": 0.0, "jedi_raw": 0.0}
             db = _init_db(TRADES_DB)
+            if not dry_run:
+                out_fl = sess.close_position(contract, qty)
+                _ibkr_order_intent(
+                    db,
+                    fts,
+                    "MANUAL",
+                    False,
+                    db_sym,
+                    contract,
+                    "close",
+                    abs(qty),
+                    sc_flat,
+                    True,
+                    [],
+                    "FLATTEN_CLI",
+                    cycle_id=flat_cid,
+                    result=out_fl,
+                )
+            else:
+                _ibkr_order_intent(
+                    db,
+                    fts,
+                    "MANUAL",
+                    True,
+                    db_sym,
+                    contract,
+                    "close",
+                    abs(qty),
+                    sc_flat,
+                    True,
+                    [],
+                    "FLATTEN_CLI",
+                    cycle_id=flat_cid,
+                )
             db.execute("DELETE FROM positions WHERE symbol=?", (db_sym,))
             db.commit()
             db.close()
             out["closed"] = not dry_run
+            out["cycle_id"] = flat_cid
     except Exception as exc:
         log.exception("flatten %s", symbol)
         return {"ok": False, "error": str(exc)}
@@ -829,6 +1095,12 @@ def get_status() -> dict:
     db     = _init_db(TRADES_DB)
     trades = [dict(r) for r in
               db.execute("SELECT * FROM trades ORDER BY id DESC LIMIT 50").fetchall()]
+    try:
+        recent_intent = [dict(r) for r in db.execute(
+            "SELECT * FROM order_intent ORDER BY id DESC LIMIT 40"
+        ).fetchall()]
+    except sqlite3.OperationalError:
+        recent_intent = []
     db.close()
 
     return {
@@ -836,6 +1108,7 @@ def get_status() -> dict:
         "open_positions": positions,
         "recent_trades":  trades[:20],
         "trade_count":    len(trades),
+        "recent_order_intent": recent_intent[:20],
         "connection":     {"host": IBKR_HOST, "port": IBKR_PORT, "client_id": CLIENT_ID},
     }
 
