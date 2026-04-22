@@ -1103,6 +1103,81 @@ def get_status() -> dict:
     }
 
 
+def flatten_symbol(symbol: str, dry_run: bool = False, mode_name: str = "PADAWAN") -> dict:
+    """
+    Flatten one paper position by local symbol (e.g. BTC, ETH).
+    Returns execution envelope for UI action-bus receipts.
+    """
+    raw_sym = symbol.strip().upper()
+    if not raw_sym:
+        return {"ok": False, "error": "symbol required"}
+    if raw_sym not in SYMBOL_MAP:
+        return {"ok": False, "error": f"unsupported symbol {raw_sym}"}
+    if not ALPACA_KEY or not ALPACA_SECRET:
+        return {"ok": False, "error": "ALPACA_KEY / ALPACA_SECRET not set"}
+
+    alp_sym = SYMBOL_MAP[raw_sym]
+    client = AlpacaClient(ALPACA_KEY, ALPACA_SECRET)
+    db = _init_db(TRADES_DB)
+    ts = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    cycle_id = uuid.uuid4().hex[:16]
+    mode_name = mode_name.upper() if mode_name else "PADAWAN"
+
+    try:
+        pos = client.position(alp_sym)
+        if not pos:
+            return {"ok": False, "error": "no open broker position", "symbol": raw_sym, "alpaca_symbol": alp_sym}
+        qty = abs(float(pos.get("qty", 0.0) or 0.0))
+        if qty <= 0:
+            return {"ok": False, "error": "position qty is zero", "symbol": raw_sym, "alpaca_symbol": alp_sym}
+        sc = {
+            "soft_score": 0.0,
+            "regime": "MANUAL",
+            "jedi_raw": 0.0,
+        }
+        out = _close_position_logged(
+            client=client,
+            db=db,
+            ts=ts,
+            mode_name=mode_name,
+            dry_run=dry_run,
+            raw_sym=raw_sym,
+            alp_sym=alp_sym,
+            sc=sc,
+            gates_pass=True,
+            killed=[],
+            position_qty=qty,
+            cycle_id=cycle_id,
+        )
+        _log_trade(
+            db=db,
+            ts=ts,
+            symbol=raw_sym,
+            action="EXIT_MANUAL_FLATTEN",
+            side="close",
+            qty=qty,
+            price=float(pos.get("current_price", pos.get("avg_entry_price", 0)) or 0),
+            lots=1.0,
+            mode=mode_name,
+            pnl=0.0,
+            note=f"manual flatten cycle={cycle_id}",
+        )
+        db.commit()
+        return {
+            "ok": True,
+            "symbol": raw_sym,
+            "alpaca_symbol": alp_sym,
+            "qty": round(qty, 6),
+            "cycle_id": cycle_id,
+            "dry_run": bool(dry_run),
+            "order": out,
+        }
+    except Exception as exc:
+        return {"ok": False, "error": str(exc), "symbol": raw_sym, "alpaca_symbol": alp_sym}
+    finally:
+        db.close()
+
+
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 def _estimate_pnl(pos: sqlite3.Row, exit_price: float, alp_pos: dict | None) -> float:

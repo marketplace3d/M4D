@@ -1,12 +1,18 @@
 {
   "ok": true,
-  "ts": 1776762961,
+  "ts": 1776874179,
   "cached": false,
-  "value": 33,
+  "value": 32,
   "label": "FEAR",
   "mult": 1.1,
   "trend": "STABLE",
   "history": [
+    {
+      "ts": 1776816000,
+      "value": 32,
+      "label": "FEAR",
+      "date": "Fear"
+    },
     {
       "ts": 1776729600,
       "value": 33,
@@ -16,12 +22,6 @@
     {
       "ts": 1776643200,
       "value": 29,
-      "label": "FEAR",
-      "date": "Fear"
-    },
-    {
-      "ts": 1776556800,
-      "value": 27,
       "label": "FEAR",
       "date": "Fear"
     }

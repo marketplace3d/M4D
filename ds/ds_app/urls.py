@@ -80,6 +80,7 @@ urlpatterns = [
     # Alpaca Paper Trading (P0-D)
     path("v1/paper/status/",            views.paper_status,       name="paper-status"),
     path("v1/paper/run/",               views.paper_run,          name="paper-run"),
+    path("v1/paper/flatten/",           views.paper_flatten,      name="paper-flatten"),
     path("v1/paper/score/",             views.paper_score,        name="paper-score"),
     # HMM Regime Posterior (P1-A)
     path("v1/hmm/report/",              views.hmm_report,         name="hmm-report"),

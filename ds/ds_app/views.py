@@ -65,6 +65,47 @@ def _err(msg: str, status: int = 400) -> JsonResponse:
     return JsonResponse({"error": msg}, status=status)
 
 
+def _read_operator_control_state() -> dict:
+    """Read persisted dual-lock state (ui + terminal) and compute effective halt_lock."""
+    try:
+        if _OP_CONTROL_FILE.exists():
+            raw = json.loads(_OP_CONTROL_FILE.read_text() or "{}")
+            if isinstance(raw, dict):
+                ui_lock = bool(raw.get("ui_lock", raw.get("halt_lock", False)))
+                terminal_lock = bool(raw.get("terminal_lock", False))
+                return {
+                    "ui_lock": ui_lock,
+                    "terminal_lock": terminal_lock,
+                    "halt_lock": ui_lock or terminal_lock,
+                    "updated_at": raw.get("updated_at"),
+                    "updated_by": raw.get("updated_by", "system"),
+                    "updated_source": raw.get("updated_source", "legacy"),
+                    "last_unlock_reason": raw.get("last_unlock_reason"),
+                    "last_unlock_note": raw.get("last_unlock_note"),
+                    "last_unlock_at": raw.get("last_unlock_at"),
+                    "last_unlock_by": raw.get("last_unlock_by"),
+                }
+    except Exception:
+        pass
+    return {
+        "ui_lock": False,
+        "terminal_lock": False,
+        "halt_lock": False,
+        "updated_at": None,
+        "updated_by": "system",
+        "updated_source": "init",
+        "last_unlock_reason": None,
+        "last_unlock_note": None,
+        "last_unlock_at": None,
+        "last_unlock_by": None,
+    }
+
+
+def _write_operator_control_state(state: dict) -> None:
+    _OP_CONTROL_FILE.parent.mkdir(parents=True, exist_ok=True)
+    _OP_CONTROL_FILE.write_text(json.dumps(state))
+
+
 # ── /health/ ──────────────────────────────────────────────────────────────────
 
 @require_GET
@@ -2667,6 +2708,9 @@ def paper_status(request):
 
 def paper_run(request):
     """POST /v1/paper/run/?mode=PADAWAN&dry=1 — run one trade cycle"""
+    lock_state = _read_operator_control_state()
+    if bool(lock_state.get("halt_lock")):
+        return JsonResponse({"ok": False, "error": "HALT_LOCK_ACTIVE", "lock": lock_state}, status=423)
     mode    = request.GET.get("mode", "PADAWAN").upper()
     dry_run = request.GET.get("dry", "0") == "1"
     if mode not in ("PADAWAN", "NORMAL", "EUPHORIA", "MAX"):
@@ -2675,6 +2719,27 @@ def paper_run(request):
         from ds_app.alpaca_paper import run_cycle
         result = run_cycle(mode, dry_run=dry_run)
         resp = JsonResponse(result)
+        resp["Access-Control-Allow-Origin"] = "*"
+        return resp
+    except Exception as exc:
+        return JsonResponse({"ok": False, "error": str(exc)}, status=500)
+
+
+def paper_flatten(request):
+    """GET/POST /v1/paper/flatten/?symbol=BTC&dry=1 — close Alpaca paper position by symbol."""
+    lock_state = _read_operator_control_state()
+    if bool(lock_state.get("halt_lock")):
+        return JsonResponse({"ok": False, "error": "HALT_LOCK_ACTIVE", "lock": lock_state}, status=423)
+    symbol = (request.GET.get("symbol") or request.POST.get("symbol") or "").strip().upper()
+    dry = (request.GET.get("dry") or request.POST.get("dry") or "0") == "1"
+    mode = (request.GET.get("mode") or request.POST.get("mode") or "PADAWAN").strip().upper() or "PADAWAN"
+    if not symbol:
+        return JsonResponse({"ok": False, "error": "symbol required"}, status=400)
+    try:
+        from ds_app.alpaca_paper import flatten_symbol
+        data = flatten_symbol(symbol=symbol, dry_run=dry, mode_name=mode)
+        status = 200 if data.get("ok") else 400
+        resp = JsonResponse(data, status=status)
         resp["Access-Control-Allow-Origin"] = "*"
         return resp
     except Exception as exc:
@@ -2770,6 +2835,9 @@ def ibkr_status(request):
 
 def ibkr_run(request):
     """POST /v1/ibkr/run/?mode=PADAWAN&asset=FUTURES&dry=1"""
+    lock_state = _read_operator_control_state()
+    if bool(lock_state.get("halt_lock")):
+        return JsonResponse({"ok": False, "error": "HALT_LOCK_ACTIVE", "lock": lock_state}, status=423)
     mode  = request.GET.get("mode",  "PADAWAN").upper()
     asset = request.GET.get("asset", "FUTURES").upper()
     dry   = request.GET.get("dry",   "0") == "1"
@@ -3311,23 +3379,10 @@ def session_status(request):
 
 @csrf_exempt
 def control_halt_lock(request):
-    """GET/POST /v1/control/halt-lock/ — persisted operator halt lock."""
-    def _read_state() -> dict:
-        try:
-            if _OP_CONTROL_FILE.exists():
-                raw = json.loads(_OP_CONTROL_FILE.read_text() or "{}")
-                if isinstance(raw, dict):
-                    return raw
-        except Exception:
-            pass
-        return {"halt_lock": False, "updated_at": None, "updated_by": "system"}
-
-    def _write_state(state: dict) -> None:
-        _OP_CONTROL_FILE.parent.mkdir(parents=True, exist_ok=True)
-        _OP_CONTROL_FILE.write_text(json.dumps(state))
+    """GET/POST /v1/control/halt-lock/ — dual lock state (ui + terminal)."""
 
     if request.method == "GET":
-        state = _read_state()
+        state = _read_operator_control_state()
         resp = JsonResponse({"ok": True, **state})
         resp["Access-Control-Allow-Origin"] = "*"
         return resp
@@ -3337,10 +3392,33 @@ def control_halt_lock(request):
 
     body = _json_body(request)
     halt_lock = bool(body.get("halt_lock", False))
+    lock_key = str(body.get("lock_key", "ui")).strip().lower()
+    if lock_key not in ("ui", "terminal"):
+        lock_key = "ui"
     updated_by = str(body.get("updated_by", "operator")).strip() or "operator"
     updated_at = datetime.utcnow().isoformat() + "Z"
-    state = {"halt_lock": halt_lock, "updated_at": updated_at, "updated_by": updated_by}
-    _write_state(state)
+    state = _read_operator_control_state()
+    ui_unlock_requested = lock_key == "ui" and bool(state.get("ui_lock")) and not halt_lock
+    if ui_unlock_requested:
+        unlock_reason = str(body.get("unlock_reason", "")).strip().upper()
+        unlock_note = str(body.get("unlock_note", "")).strip()
+        if not unlock_reason:
+            return JsonResponse({"ok": False, "error": "unlock_reason required for UI unlock"}, status=400)
+        if len(unlock_note) < 5:
+            return JsonResponse({"ok": False, "error": "unlock_note (>=5 chars) required for UI unlock"}, status=400)
+        state["last_unlock_reason"] = unlock_reason
+        state["last_unlock_note"] = unlock_note
+        state["last_unlock_at"] = updated_at
+        state["last_unlock_by"] = updated_by
+    if lock_key == "terminal":
+        state["terminal_lock"] = halt_lock
+    else:
+        state["ui_lock"] = halt_lock
+    state["halt_lock"] = bool(state.get("ui_lock")) or bool(state.get("terminal_lock"))
+    state["updated_at"] = updated_at
+    state["updated_by"] = updated_by
+    state["updated_source"] = lock_key
+    _write_operator_control_state(state)
     resp = JsonResponse({"ok": True, **state})
     resp["Access-Control-Allow-Origin"] = "*"
     return resp
@@ -3349,6 +3427,9 @@ def control_halt_lock(request):
 @csrf_exempt
 def paper_approve(request):
     """POST /v1/paper/approve/ {symbol, mode} — fire paper order for one symbol."""
+    lock_state = _read_operator_control_state()
+    if bool(lock_state.get("halt_lock")):
+        return JsonResponse({"ok": False, "error": "HALT_LOCK_ACTIVE", "lock": lock_state}, status=423)
     if request.method != "POST":
         return JsonResponse({"error": "POST required"}, status=405)
     body = _json_body(request)

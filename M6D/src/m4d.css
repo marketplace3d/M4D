@@ -523,6 +523,675 @@
   line-height: 1.35;
 }
 
+.mission-council__cockpit {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 0.6rem;
+}
+
+.mission-council__cockpit-card {
+  border: 1px solid #1e3a4a;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #07111a 0%, #050b13 100%);
+  padding: 0.45rem 0.52rem 0.5rem;
+  box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.08), 0 6px 20px rgba(0, 0, 0, 0.22);
+}
+
+.mission-council__cockpit-k {
+  font-size: 0.55rem;
+  letter-spacing: 0.12em;
+  color: #7f96aa;
+}
+
+.mission-council__cockpit-v {
+  margin-top: 2px;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #d7e7f7;
+  letter-spacing: 0.06em;
+}
+
+.mission-council__cockpit-bar {
+  margin-top: 6px;
+  height: 5px;
+  border-radius: 999px;
+  background: #0b1b29;
+  overflow: hidden;
+}
+
+.mission-council__cockpit-bar > div {
+  height: 100%;
+  border-radius: 999px;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.mission-council__cockpit-meta {
+  margin-top: 6px;
+  font-size: 0.56rem;
+  color: #8ca8ba;
+  letter-spacing: 0.06em;
+}
+
+@media (max-width: 1100px) {
+  .mission-council__cockpit {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* TradingView live embeds (#market) — solid TV dark chrome (#131722) to avoid white iframe/page bleed */
+.mission-council__tv-live {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 0;
+  margin: 0 0 0.65rem;
+  border: 1px solid #1e3a4a;
+  border-radius: 8px;
+  background: #131722;
+  color-scheme: dark;
+  padding: 0.45rem 0.55rem 0.55rem;
+}
+
+.mission-council__tv-live .tradingview-widget-container,
+.mission-council__tv-live .tradingview-widget-container__widget {
+  background-color: #131722 !important;
+  color-scheme: dark;
+}
+
+.mission-council__tv-live [id^='tradingview_'] {
+  background: #131722;
+  min-height: 420px;
+}
+
+.mission-council__tv-live iframe {
+  background: #131722 !important;
+  color-scheme: dark;
+}
+
+.mission-council__tv-live .tradingview-widget-container iframe {
+  background: #131722 !important;
+}
+
+.mission-council__tv-live .tradingview-widget-container__widget {
+  min-height: inherit;
+}
+
+.mission-council__tv-market-summary-bar {
+  width: 100%;
+  min-height: 148px;
+  border: 1px solid #163040;
+  border-radius: 6px;
+  background: #131722;
+  overflow: hidden;
+}
+
+.mission-council__tv-market-summary-bar tv-market-summary {
+  display: block;
+  width: 100%;
+  min-height: 148px;
+}
+
+.mission-council__tv-advanced-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  min-height: 0;
+}
+
+/* Optional: hide TradingView footer line in this panel (re-enable if you need attribution visible) */
+.mission-council__tv-live .tradingview-widget-copyright {
+  display: none !important;
+}
+
+.mission-council__tv-live-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.6rem;
+  margin-bottom: 0.45rem;
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  color: #38bdf8;
+  font-weight: 700;
+  background: #131722;
+  border-radius: 4px;
+  padding: 0.15rem 0.25rem;
+}
+
+.mission-council__tv-live-sub {
+  font-size: 0.56rem;
+  letter-spacing: 0.06em;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.mission-council__tv-tape {
+  flex: 0 0 auto;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #163040;
+  background: #000000 !important;
+  color-scheme: dark !important;
+  min-height: 46px;
+}
+
+.mission-council__tv-tickers-host {
+  position: relative;
+  width: 100%;
+  min-height: 46px;
+  background: #000000 !important;
+  color-scheme: dark !important;
+  overflow: hidden;
+}
+
+.mission-council__tv-tickers-host::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: #000000;
+  opacity: 1;
+  transition: opacity 180ms ease;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.mission-council__tv-tickers-host.is-loaded::before {
+  opacity: 0;
+}
+
+.mission-council__tv-tickers-host .tradingview-widget-container {
+  width: 100%;
+  background: #000000 !important;
+}
+
+.mission-council__tv-tickers-host .tradingview-widget-container__widget,
+.mission-council__tv-tickers-host iframe {
+  background: #000000 !important;
+  color-scheme: dark !important;
+}
+
+.mission-council__tv-tickers-host iframe {
+  height: 100% !important;
+}
+
+.mission-council__tv-tickers-host .tradingview-widget-copyright {
+  display: none !important;
+  height: 0 !important;
+  overflow: hidden !important;
+}
+
+.mission-council__tv-overview-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  border: 1px solid #163040;
+  border-radius: 6px;
+  background: #131722;
+  overflow: hidden;
+}
+
+.mission-council__tv-panel-k--flex {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+}
+
+.mission-council__tv-panel-hint {
+  font-size: 0.52rem;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  font-weight: 500;
+  max-width: 72%;
+  text-align: right;
+}
+
+.mission-council__tv-overview-widget {
+  flex: 1 1 auto;
+  min-height: 230px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.mission-council__tv-overview-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: minmax(206px, 1fr);
+  gap: 8px;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  min-width: 900px;
+  padding: 0.35rem 0.45rem 0.45rem;
+  box-sizing: border-box;
+  background: #131722;
+}
+
+.mission-council__tv-overview-cell-host {
+  min-width: 0;
+  min-height: 206px;
+  height: 100%;
+  background: #131722;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid #163040;
+}
+
+.mission-council__tv-overview-cell-host .tradingview-widget-container {
+  width: 100%;
+  height: 100%;
+  min-height: 202px;
+}
+
+.mission-council__tv-hotlists-panel {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid #163040;
+  border-radius: 6px;
+  background: #131722;
+  overflow: hidden;
+}
+
+.mission-council__tv-hotlists-inner {
+  display: flex;
+  justify-content: center;
+  padding: 0.35rem 0.45rem 0.55rem;
+  overflow-x: auto;
+}
+
+.mission-council__tv-hotlists-host {
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: 100%;
+  min-height: 420px;
+  height: 100%;
+}
+
+.mission-council__tv-hotlists-host .tradingview-widget-container {
+  width: 100%;
+  min-height: 420px;
+  height: 100%;
+}
+
+.mission-council__triple-row {
+  margin: 0.65rem 0 1rem;
+  overflow-x: auto;
+}
+
+.mission-council__triple-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: 10px;
+  align-items: stretch;
+}
+
+.mission-council__triple-grid--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  min-width: 1140px;
+}
+
+.mission-council__triple-hotlist-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid #163040;
+  border-radius: 6px;
+  background: #131722;
+  overflow: hidden;
+}
+
+.mission-council__triple-hotlist-inner {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  justify-content: center;
+  padding: 0.35rem 0.45rem 0.55rem;
+  overflow-x: auto;
+}
+
+.mission-council__triple-ta-panel,
+.mission-council__triple-events-panel,
+.mission-council__triple-timeline-panel {
+  min-height: clamp(440px, 62vh, 720px);
+}
+
+.mission-council__triple-ta-inner,
+.mission-council__triple-events-inner,
+.mission-council__triple-timeline-inner {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0.35rem 0.45rem 0.55rem;
+}
+
+.mission-council__triple-hotlist-panel--flush .mission-council__triple-events-inner,
+.mission-council__triple-hotlist-panel--flush .mission-council__triple-timeline-inner {
+  padding: 0;
+}
+
+.mission-council__tv-ta-host,
+.mission-council__tv-events-host,
+.mission-council__tv-timeline-host {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 360px;
+}
+
+.mission-council__tv-ta-host .tradingview-widget-container,
+.mission-council__tv-events-host .tradingview-widget-container,
+.mission-council__tv-timeline-host .tradingview-widget-container {
+  width: 100%;
+  height: 100%;
+  min-height: 360px;
+}
+
+.mission-council__tv-events-host .tradingview-widget-copyright,
+.mission-council__tv-timeline-host .tradingview-widget-copyright {
+  display: none !important;
+}
+
+.mission-council__social-alpha--triple {
+  margin: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.mission-council__triple-social-panel {
+  min-height: clamp(440px, 62vh, 720px);
+  min-width: 360px;
+}
+
+.mission-council__triple-social-panel .mission-council__social-alpha-frame {
+  height: clamp(440px, 62vh, 720px);
+}
+
+@media (max-width: 1100px) {
+  .mission-council__triple-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.mission-council__tv-grid {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  min-height: 0;
+}
+
+.mission-council__tv-triple-flex {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  min-height: 0;
+}
+
+.mission-council__tv-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid #163040;
+  border-radius: 6px;
+  background: #131722;
+  overflow: hidden;
+  color-scheme: dark;
+}
+
+.mission-council__tv-panel-k {
+  padding: 0.35rem 0.45rem;
+  font-size: 0.55rem;
+  letter-spacing: 0.1em;
+  color: #7f96aa;
+  border-bottom: 1px solid #163040;
+}
+
+.mission-council__tv-widget {
+  min-height: 420px;
+  width: 100%;
+  /* TradingView dark theme surface — reduces grey / white iframe flash against our panel */
+  background: #131722 !important;
+  color-scheme: dark;
+}
+
+.mission-council__tv-widget--timeline,
+.mission-council__tv-widget--events,
+.mission-council__tv-widget--market-overview,
+.mission-council__tv-widget--hotlists {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 420px;
+  height: 420px;
+  overflow: hidden;
+}
+
+.mission-council__tv-widget--hotlists,
+.mission-council__tv-hotlists-host,
+.mission-council__tv-hotlists-host .tradingview-widget-container,
+.mission-council__tv-hotlists-host .tradingview-widget-container__widget {
+  background: #000 !important;
+}
+
+.mission-council__tv-hotlist-toggle {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 4;
+  display: inline-flex;
+  gap: 4px;
+}
+
+.mission-council__tv-hotlist-toggle-btn {
+  border: 1px solid #334155;
+  background: #0b1220;
+  color: #94a3b8;
+  border-radius: 4px;
+  font-size: 10px;
+  line-height: 1;
+  padding: 3px 6px;
+  cursor: pointer;
+}
+
+.mission-council__tv-hotlist-toggle-btn.is-active {
+  color: #e2e8f0;
+  border-color: #38bdf8;
+  background: #0f172a;
+}
+
+.mission-council__tv-widget--advanced {
+  min-height: 430px;
+  height: 430px;
+}
+
+.mission-council__tv-panel--flush .mission-council__tv-widget {
+  min-height: 420px;
+  height: 420px;
+}
+
+.mission-council__tv-widget--market-overview {
+  padding: 0 !important;
+}
+
+.mission-council__tv-market-overview-host,
+.mission-council__tv-market-overview-host .tradingview-widget-container,
+.mission-council__tv-market-overview-host .tradingview-widget-container__widget {
+  width: 100%;
+  height: 100%;
+  min-height: 420px;
+  margin: 0;
+  padding: 0;
+  background-color: #000000 !important;
+  color-scheme: dark !important;
+}
+
+.mission-council__tv-market-overview-host .tradingview-widget-copyright {
+  display: none !important;
+}
+
+.mission-council__tv-market-overview-host iframe {
+  background-color: #000000 !important;
+  color-scheme: dark !important;
+}
+
+#tradingview-wrapper {
+  background-color: #000000 !important;
+  background: #000000 !important;
+  position: relative;
+  min-height: 500px;
+}
+
+#tradingview-wrapper iframe {
+  background-color: #000000 !important;
+  color-scheme: dark !important;
+  visibility: visible !important;
+}
+
+.tradingview-widget-container,
+.tradingview-widget-container__widget,
+#tradingview-wrapper {
+  background-color: #000000 !important;
+  color-scheme: dark !important;
+}
+
+iframe {
+  background-color: #000000 !important;
+  color-scheme: dark !important;
+  border: none !important;
+}
+
+/* Nuclear black lock (scoped): force every TradingView layer to black */
+.mission-council__tv-live .tradingview-widget-container,
+.mission-council__tv-live .tradingview-widget-container__widget,
+.mission-council__tv-live div[class*='tradingview'],
+.mission-council__tv-live iframe {
+  background-color: #000000 !important;
+  background: #000000 !important;
+  color-scheme: dark !important;
+}
+
+.mission-council__tv-market-overview-host {
+  position: relative;
+  overflow: hidden;
+}
+
+.mission-council__tv-market-overview-host::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: #000000;
+  z-index: 2;
+  opacity: 1;
+  transition: opacity 180ms ease;
+  pointer-events: none;
+}
+
+.mission-council__tv-market-overview-host.is-loaded::before {
+  opacity: 0;
+}
+
+.mission-council__tv-advanced-host,
+.mission-council__tv-advanced-host .tradingview-widget-container {
+  width: 100%;
+  height: 100%;
+  min-height: 430px;
+  background: #000000 !important;
+  color-scheme: dark !important;
+}
+
+.mission-council__tv-advanced-host .tradingview-widget-container__widget,
+.mission-council__tv-advanced-host iframe {
+  background: #000000 !important;
+  color-scheme: dark !important;
+}
+
+.mission-council__tv-panel--etf,
+.mission-council__tv-panel--forex {
+  margin-top: 0;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.mission-council__tv-panel--hotlists {
+  position: relative;
+}
+
+.mission-council__tv-widget--etf,
+.mission-council__tv-widget--forex {
+  flex: 1 1 auto;
+  min-height: 420px;
+  height: 420px;
+}
+
+.mission-council__tv-widget--forex {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+.mission-council__tv-etf-host,
+.mission-council__tv-forex-host {
+  width: 100%;
+  height: 100%;
+  min-height: 420px;
+}
+
+.mission-council__tv-etf-host .tradingview-widget-container,
+.mission-council__tv-forex-host .tradingview-widget-container {
+  width: 100%;
+  height: 100%;
+  min-height: 420px;
+}
+
+.mission-council__tv-live .mission-council__tv-timeline-host,
+.mission-council__tv-live .mission-council__tv-events-host,
+.mission-council__tv-live .mission-council__tv-market-overview-host {
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-height: 420px;
+}
+
+.mission-council__tv-live .mission-council__tv-timeline-host .tradingview-widget-container,
+.mission-council__tv-live .mission-council__tv-events-host .tradingview-widget-container,
+.mission-council__tv-live .mission-council__tv-market-overview-host .tradingview-widget-container,
+.mission-council__tv-live .mission-council__tv-timeline-host .tradingview-widget-container__widget,
+.mission-council__tv-live .mission-council__tv-events-host .tradingview-widget-container__widget,
+.mission-council__tv-live .mission-council__tv-market-overview-host .tradingview-widget-container__widget {
+  width: 100%;
+  height: 100%;
+  min-height: 420px;
+}
+
+@media (max-width: 1100px) {
+  .mission-council__tv-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mission-council__tv-advanced-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mission-council__tv-triple-flex {
+    grid-template-columns: 1fr;
+  }
+}
+
 .mission-council__cr27 {
   margin-top: 1.5rem;
   padding-top: 1.25rem;
@@ -606,6 +1275,177 @@
   letter-spacing: 0.08em;
   color: #7dd3fc;
   margin-bottom: 0.45rem;
+}
+
+.mission-council__market-map {
+  border: 1px solid #1e293b;
+  border-radius: 8px;
+  background: #050b13;
+  padding: 0.4rem 0.48rem;
+  margin-bottom: 6px;
+}
+
+.mission-council__market-map-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 5px;
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  color: #7dd3fc;
+}
+
+.mission-council__market-map-sub {
+  color: #64748b;
+  font-size: 0.5rem;
+}
+
+.mission-council__market-map-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.mission-council__market-map-cell {
+  border: 1px solid #123044;
+  border-radius: 6px;
+  padding: 4px 6px;
+}
+
+.mission-council__market-map-sym {
+  font-size: 0.56rem;
+  letter-spacing: 0.08em;
+  color: #c7d9e8;
+}
+
+.mission-council__market-map-pct {
+  margin-top: 2px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #d7e7f7;
+}
+
+.mission-council__multiline {
+  border: 1px solid #1e293b;
+  border-radius: 8px;
+  background: #050b13;
+  padding: 0.4rem 0.48rem;
+  margin-bottom: 6px;
+}
+
+.mission-council__multiline-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 5px;
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+  color: #93c5fd;
+}
+
+.mission-council__multiline-sub {
+  color: #64748b;
+  font-size: 0.5rem;
+}
+
+.mission-council__multiline-chart {
+  border: 1px solid #0f2233;
+  border-radius: 6px;
+  background: #04070d;
+  padding: 4px;
+}
+
+.mission-council__multiline-legend {
+  margin-top: 6px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.mission-council__multiline-leg-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.54rem;
+  color: #9ab4c8;
+  letter-spacing: 0.08em;
+}
+
+.mission-council__multiline-leg-item i {
+  width: 10px;
+  height: 2px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.mission-council__multi-empty {
+  height: 240px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #475569;
+  font-size: 0.62rem;
+}
+
+.mission-council__session-strip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.mission-council__session-pill {
+  font-size: 0.54rem;
+  letter-spacing: 0.1em;
+  color: #7f96aa;
+  border: 1px solid #1e3a4a;
+  border-radius: 999px;
+  padding: 1px 7px;
+  background: #07111a;
+}
+
+.mission-council__session-pill.is-on {
+  color: #22c55e;
+  border-color: #22c55e66;
+  background: #062313;
+}
+
+.mission-council__session-utc {
+  margin-left: auto;
+  font-size: 0.54rem;
+  color: #64748b;
+  letter-spacing: 0.08em;
+}
+
+.mission-council__heat-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.mission-council__heat-cell {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid #0f2233;
+  border-radius: 6px;
+  background: #04070d;
+  padding: 2px 6px;
+}
+
+.mission-council__heat-sym {
+  font-size: 0.54rem;
+  color: #93c5fd;
+  letter-spacing: 0.1em;
+}
+
+.mission-council__heat-pct {
+  font-size: 0.6rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .mission-council__mini-grid {
@@ -984,8 +1824,56 @@
 
 /* 4K-friendly control room: full width cap UHD, intel rail beside councils */
 .mission--control-room {
+  --mission-bg-shell: #000000;
+  --mission-bg-panel: #000000;
+  --mission-bg-widget: #000000;
   max-width: min(3840px, 100%);
   padding: clamp(0.45rem, 0.7vw, 1rem) clamp(0.6rem, 1vw, 1.75rem) 1.25rem;
+  background: var(--mission-bg-shell);
+}
+
+.mission--control-room .mission__header,
+.mission--control-room .mission__bias,
+.mission--control-room .mission-council__exec-strip,
+.mission--control-room .mission-council__cockpit-card,
+.mission--control-room .mission-council__news-strip,
+.mission--control-room .mission-council__market-map,
+.mission--control-room .mission-council__mini-card,
+.mission--control-room .mission-council__tv-live,
+.mission--control-room .mission-council__tv-panel,
+.mission--control-room .mission-council__tv-widget,
+.mission--control-room .mission-council__triple-hotlist-panel,
+.mission--control-room .mission-council__social-alpha,
+.mission--control-room .mission-council__ticker,
+.mission--control-room .algo-pulse-ekg {
+  background: var(--mission-bg-panel) !important;
+}
+
+.mission--control-room .tradingview-widget-container,
+.mission--control-room .tradingview-widget-container__widget,
+.mission--control-room .tradingview-widget-container iframe {
+  background: var(--mission-bg-widget) !important;
+}
+
+.mission-council__bg-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+}
+
+.mission-council__bg-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  border: 1px solid #334155;
+  padding: 0;
+  cursor: pointer;
+}
+
+.mission-council__bg-swatch.is-active {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 1px #38bdf888;
 }
 
 .mission__body {
@@ -1285,6 +2173,24 @@
   display: block;
   margin: 0 0 0.45rem;
   overflow: visible;
+}
+
+.mission-council__top-ticker {
+  margin: 0 0 0.45rem;
+  min-height: 52px;
+  border: 1px solid #163040;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #000000 !important;
+  color-scheme: dark !important;
+}
+
+.mission-council__top-ticker tv-ticker-tape,
+.mission-council__top-ticker iframe {
+  display: block;
+  width: 100%;
+  background: #000000 !important;
+  color-scheme: dark !important;
 }
 
 .mission-council__top-orbs-row {

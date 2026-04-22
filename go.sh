@@ -218,6 +218,25 @@ ds)
   wait || true
   ;;
 
+lock-on)
+  curl -s -X POST "http://127.0.0.1:8000/v1/control/halt-lock/" \
+    -H "Content-Type: application/json" \
+    -d '{"halt_lock":true,"lock_key":"terminal","updated_by":"go.sh"}'
+  echo
+  ;;
+
+lock-off)
+  curl -s -X POST "http://127.0.0.1:8000/v1/control/halt-lock/" \
+    -H "Content-Type: application/json" \
+    -d '{"halt_lock":false,"lock_key":"terminal","updated_by":"go.sh"}'
+  echo
+  ;;
+
+lock-status)
+  curl -s "http://127.0.0.1:8000/v1/control/halt-lock/"
+  echo
+  ;;
+
 site|api|engine|build)
   exec "$ROOT/go3d.sh" "$CMD" "${2:-}"
   ;;

@@ -1,0 +1,841 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#060d1a;--bg2:#0a1628;--bg3:#0d1e35;
+  --blue:#3a8fff;--blue2:#1a5fcc;--blue3:#0d3a7a;
+  --green:#2ae870;--green2:#1a7a3a;--green3:#082010;
+  --gold:#ffcc3a;--gold2:#c8940a;--gold3:#3a2000;
+  --purple:#b07aff;--purple2:#5a2a9a;--purple3:#1a0a3a;
+  --red:#ff4a4a;--red2:#8a1a1a;--teal:#3ae8e8;--teal2:#0a6060;
+  --orange:#ff8a3a;--orange2:#8a3a00;
+  --text:#c8d8f0;--text2:#7a9abe;--text3:#3a5a7e;
+  --border:#1a3a6e;--border2:#0d2040;
+  --mono:'SF Mono','Fira Mono','Courier New',monospace;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:11px;min-height:100vh;overflow-x:hidden}
+.nav{display:flex;gap:2px;padding:8px;background:#030810;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100}
+.nav-btn{padding:6px 14px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-family:var(--mono);font-size:10px;letter-spacing:0.08em;transition:all 0.15s;border-radius:2px}
+.nav-btn:hover{border-color:var(--blue);color:var(--blue)}
+.nav-btn.active{background:var(--blue3);border-color:var(--blue);color:var(--blue)}
+.page{display:none;padding:12px}
+.page.active{display:block}
+.page-title{font-size:13px;font-weight:bold;color:var(--blue);letter-spacing:0.15em;padding:8px 10px;background:#030810;border:1px solid var(--border);margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+.page-title span{font-size:9px;color:var(--text3);letter-spacing:0.05em}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.grid4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px}
+.panel{background:var(--bg2);border:1px solid var(--border);border-radius:2px;overflow:hidden}
+.panel-head{padding:5px 8px;font-size:9px;letter-spacing:0.12em;font-weight:bold;display:flex;justify-content:space-between;align-items:center}
+.panel-body{padding:8px}
+.ph-blue{background:var(--blue3);color:var(--blue);border-bottom:1px solid var(--border)}
+.ph-green{background:var(--green3);color:var(--green);border-bottom:1px solid var(--green2)}
+.ph-gold{background:var(--gold3);color:var(--gold);border-bottom:1px solid var(--gold2)}
+.ph-purple{background:var(--purple3);color:var(--purple);border-bottom:1px solid var(--purple2)}
+.ph-red{background:var(--red2);color:#ff8a8a;border-bottom:1px solid var(--red)}
+.ph-teal{background:var(--teal2);color:var(--teal);border-bottom:1px solid #1a8080}
+.ph-orange{background:var(--orange2);color:var(--orange);border-bottom:1px solid #5a3a00}
+.stat-row{display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid var(--border2);font-size:10px}
+.stat-row:last-child{border-bottom:none}
+.stat-label{color:var(--text2)}
+.stat-val{color:var(--text);font-weight:bold}
+.stat-val.green{color:var(--green)}
+.stat-val.gold{color:var(--gold)}
+.stat-val.red{color:var(--red)}
+.stat-val.blue{color:var(--blue)}
+.stat-val.purple{color:var(--purple)}
+.badge{display:inline-block;padding:1px 5px;border-radius:2px;font-size:8px;letter-spacing:0.08em;font-weight:bold}
+.badge-green{background:var(--green3);color:var(--green);border:1px solid var(--green2)}
+.badge-gold{background:var(--gold3);color:var(--gold);border:1px solid var(--gold2)}
+.badge-red{background:var(--red2);color:#ff8a8a;border:1px solid var(--red)}
+.badge-blue{background:var(--blue3);color:var(--blue);border:1px solid var(--blue2)}
+.badge-purple{background:var(--purple3);color:var(--purple);border:1px solid var(--purple2)}
+.badge-gray{background:#1a2a3a;color:var(--text2);border:1px solid var(--border)}
+.badge-orange{background:var(--orange2);color:var(--orange);border:1px solid #5a3a00}
+.signal-row{display:flex;align-items:center;gap:6px;padding:3px 0;border-bottom:1px solid var(--border2);font-size:10px}
+.signal-row:last-child{border-bottom:none}
+.sig-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.sig-dot.alive{background:var(--green)}
+.sig-dot.spec{background:var(--blue)}
+.sig-dot.prob{background:var(--gold)}
+.sig-name{color:var(--text);flex:1;font-size:9px;letter-spacing:0.05em}
+.sig-ic{color:var(--text2);font-size:9px;text-align:right}
+.regime-bar{height:4px;border-radius:2px;margin-bottom:4px;transition:width 0.3s}
+.rb-trend{background:var(--green)}
+.rb-break{background:var(--blue)}
+.rb-range{background:var(--text2)}
+.rb-riskoff{background:var(--red)}
+.candle-area{background:var(--bg3);border:1px solid var(--border2);padding:6px;border-radius:2px;margin-bottom:6px}
+svg.minichart{width:100%;display:block}
+.vol-bar{display:flex;align-items:flex-end;gap:1px;height:24px;margin-top:4px}
+.vb{background:var(--blue2);transition:opacity 0.2s;flex:1}
+.vb:hover{opacity:0.7}
+.orderbook-row{display:grid;grid-template-columns:1fr 60px 60px;gap:4px;padding:2px 0;font-size:9px;border-bottom:1px solid var(--border2)}
+.ob-bar-bg{background:var(--bg3);border-radius:1px;overflow:hidden;display:flex;align-items:center;padding:0 3px}
+.ob-bar-fill{position:absolute;top:0;left:0;height:100%}
+.ob-bid{color:#3ae870}
+.ob-ask{color:#ff6060}
+.toggle-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--border2);font-size:10px}
+.toggle-row:last-child{border-bottom:none}
+.toggle-label{color:var(--text2)}
+.toggle{width:28px;height:14px;border-radius:7px;border:1px solid var(--border);position:relative;cursor:pointer;transition:background 0.2s}
+.toggle.on{background:var(--green2);border-color:var(--green)}
+.toggle.off{background:var(--border2)}
+.toggle::after{content:'';position:absolute;top:1px;width:10px;height:10px;border-radius:50%;background:var(--text);transition:left 0.2s}
+.toggle.on::after{left:15px}
+.toggle.off::after{left:1px}
+.dial-wrap{display:flex;flex-direction:column;align-items:center;gap:4px}
+.dial-val{font-size:16px;font-weight:bold}
+.dial-label{font-size:8px;color:var(--text2);letter-spacing:0.1em}
+.fire-btn{width:100%;padding:10px;background:#1a0a00;border:1px solid var(--gold);color:var(--gold);font-family:var(--mono);font-size:11px;letter-spacing:0.15em;cursor:pointer;transition:all 0.15s;border-radius:2px}
+.fire-btn:hover{background:var(--gold3);box-shadow:0 0 12px rgba(255,200,0,0.3)}
+.fire-btn:disabled{border-color:var(--border);color:var(--text3);cursor:not-allowed;background:transparent}
+.fire-btn.ready{background:#1a0500;border-color:#ff6600;color:#ff8800}
+.fire-btn.ready:hover{background:#2a0800}
+.arb-score{font-size:24px;font-weight:bold;text-align:center;padding:12px 0}
+.arb-score.high{color:var(--green)}
+.arb-score.med{color:var(--gold)}
+.arb-score.low{color:var(--text2)}
+.vote-row{display:flex;align-items:center;gap:6px;padding:3px 0;border-bottom:1px solid var(--border2);font-size:9px}
+.vote-row:last-child{border-bottom:none}
+.vote-name{color:var(--text2);flex:1}
+.vote-bar-wrap{width:60px;height:4px;background:var(--border2);border-radius:2px;overflow:hidden}
+.vote-fill{height:100%;border-radius:2px;transition:width 0.5s}
+.vote-v{text-align:right;width:20px}
+.vote-v.pos{color:var(--green)}
+.vote-v.neg{color:var(--red)}
+.pca-node{font-size:9px;text-align:center}
+.pca-var{font-size:14px;font-weight:bold}
+.stack-row{display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--border2);font-size:10px}
+.stack-row:last-child{border-bottom:none}
+.stack-label{color:var(--text2);flex:1;font-size:9px}
+.stack-sharpe{font-weight:bold;color:var(--gold);width:36px;text-align:right}
+.stack-bar-wrap{flex:2;height:4px;background:var(--border2);border-radius:2px;overflow:hidden}
+.stack-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--blue2),var(--gold))}
+.gate-row{display:flex;align-items:center;gap:6px;padding:3px 0;border-bottom:1px solid var(--border2);font-size:9px}
+.gate-row:last-child{border-bottom:none}
+.gate-name{flex:1;color:var(--text2)}
+.gate-delta{width:40px;text-align:right;font-weight:bold}
+.gate-delta.pos{color:var(--green)}
+.gate-delta.neg{color:var(--red)}
+.gate-delta.neu{color:var(--text2)}
+.slider-wrap{padding:6px 0}
+.slider-wrap input{width:100%;accent-color:var(--blue)}
+.slider-label{display:flex;justify-content:space-between;font-size:9px;color:var(--text2);margin-top:2px}
+.kill-grid{display:grid;grid-template-columns:repeat(24,1fr);gap:1px;margin-top:4px}
+.kill-cell{height:10px;border-radius:1px;font-size:6px;text-align:center;line-height:10px;cursor:pointer}
+.kill-cell.bad{background:var(--red2);color:#ff8a8a}
+.kill-cell.good{background:var(--green3);color:var(--green)}
+.kill-cell.meh{background:var(--border2);color:var(--text3)}
+.kelly-vis{display:flex;gap:4px;align-items:center;margin-top:4px}
+.kelly-bar{height:16px;border-radius:2px;transition:width 0.3s;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:bold;color:#000}
+.kb-full{background:var(--blue)}
+.kb-half{background:var(--green)}
+.circuit-row{display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--border2);font-size:10px}
+.circuit-row:last-child{border-bottom:none}
+.cr-label{flex:1;color:var(--text2)}
+.cr-val{font-weight:bold}
+.cr-status{width:8px;height:8px;border-radius:50%}
+.cr-ok{background:var(--green)}
+.cr-warn{background:var(--gold)}
+.cr-trip{background:var(--red)}
+.pos-row{display:flex;align-items:center;gap:6px;padding:3px 0;border-bottom:1px solid var(--border2);font-size:10px}
+.pos-row:last-child{border-bottom:none}
+.pr-sym{color:var(--blue);font-weight:bold;width:60px}
+.pr-side{width:24px;text-align:center}
+.pr-pnl{text-align:right;font-weight:bold;width:50px}
+.pr-pnl.pos{color:var(--green)}
+.pr-pnl.neg{color:var(--red)}
+.pr-bar-w{flex:1;height:3px;background:var(--border2);border-radius:1px;overflow:hidden}
+.pr-bar-f{height:100%;border-radius:1px}
+.pf-long{background:var(--green)}
+.pf-short{background:var(--red)}
+.llm-msg{padding:4px 6px;margin-bottom:4px;border-radius:2px;font-size:9px;line-height:1.5}
+.llm-msg.claude{background:#1a0a3a;border-left:2px solid var(--purple);color:var(--text)}
+.llm-msg.sys{background:var(--bg3);border-left:2px solid var(--text3);color:var(--text2)}
+.dstar-section{margin-bottom:8px}
+.dstar-head{font-size:9px;color:var(--text2);letter-spacing:0.1em;padding:3px 0;border-bottom:1px solid var(--border2);margin-bottom:4px}
+.pca-scatter{background:var(--bg3);border:1px solid var(--border2);border-radius:2px}
+.ic-matrix{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;margin-top:4px}
+.ic-cell{height:24px;border-radius:1px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:bold}
+.ic-pos-hi{background:#1a5a2e;color:var(--green)}
+.ic-pos-md{background:#0a3a1e;color:#3aa860}
+.ic-pos-lo{background:#081a10;color:#2a7a3a}
+.ic-neg{background:#1a0a0a;color:#5a2a2a}
+.ic-label{font-size:8px;color:var(--text3);text-align:center;margin-top:2px}
+.pending-item{padding:4px 6px;border:1px solid var(--border2);border-radius:2px;margin-bottom:4px;background:var(--bg3);display:flex;justify-content:space-between;align-items:center;font-size:9px}
+.pi-label{color:var(--text)}
+.pi-est{color:var(--text3)}
+.tab-row{display:flex;gap:2px;margin-bottom:6px}
+.tab{padding:3px 8px;font-size:8px;letter-spacing:0.1em;border:1px solid var(--border);color:var(--text2);cursor:pointer;border-radius:2px}
+.tab.active{background:var(--blue3);border-color:var(--blue);color:var(--blue)}
+.fullspan{grid-column:1/-1}
+.sep{height:1px;background:var(--border2);margin:8px 0}
+</style>
+
+
+<div class="nav">
+  <button class="nav-btn active" onclick="showPage('p1')">① MARKET</button>
+  <button class="nav-btn" onclick="showPage('p2')">② PULSE</button>
+  <button class="nav-btn" onclick="showPage('p3')">③ TRADE</button>
+  <button class="nav-btn" onclick="showPage('p4')">④ STAR RAY</button>
+  <div style="flex:1"></div>
+  <span style="font-size:9px;color:var(--green);padding:0 8px;letter-spacing:0.1em">● LIVE</span>
+  <span style="font-size:9px;color:var(--text3);padding:0 8px">M4D SURGE · PAPER MODE</span>
+</div>
+
+<!-- ═══ PAGE 1 · MARKET ═══ -->
+<div class="page active" id="p1">
+  <div class="page-title">① MARKET — VISUAL CONTEXT <span>PRICE · REGIME · ORDERBOOK · CROSS-ASSET · SIGNALS LIVE</span></div>
+
+  <div class="grid3" style="margin-bottom:8px">
+    <!-- Symbol ticker -->
+    <div class="panel" style="grid-column:span 2">
+      <div class="panel-head ph-blue">SYMBOL SELECT + LIVE PRICE <span class="badge badge-blue">BINANCE 5M</span></div>
+      <div class="panel-body" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <div style="display:flex;gap:4px;flex-wrap:wrap">
+          <span class="badge badge-green" style="cursor:pointer;padding:3px 8px;font-size:9px">BTC/USDT</span>
+          <span class="badge badge-blue" style="cursor:pointer;padding:3px 8px;font-size:9px">ETH/USDT</span>
+          <span class="badge badge-gray" style="cursor:pointer;padding:3px 8px;font-size:9px">SOL/USDT</span>
+          <span class="badge badge-gray" style="cursor:pointer;padding:3px 8px;font-size:9px">BNB/USDT</span>
+          <span class="badge badge-gray" style="cursor:pointer;padding:3px 8px;font-size:9px">AVAX/USDT</span>
+          <span class="badge badge-gray" style="cursor:pointer;padding:3px 8px;font-size:9px">LINK/USDT</span>
+          <span class="badge badge-gray" style="cursor:pointer;padding:3px 8px;font-size:9px">+14</span>
+        </div>
+        <div style="margin-left:auto;text-align:right">
+          <div style="font-size:20px;font-weight:bold;color:var(--green)">$64,880.50</div>
+          <div style="font-size:9px;color:var(--green)">▲ +1.24% (+795)</div>
+        </div>
+        <div style="border-left:1px solid var(--border);padding-left:8px">
+          <div style="font-size:9px;color:var(--text2)">ATR%</div>
+          <div style="font-size:13px;font-weight:bold;color:var(--gold)">0.82%</div>
+        </div>
+        <div style="border-left:1px solid var(--border);padding-left:8px">
+          <div style="font-size:9px;color:var(--text2)">RVOL</div>
+          <div style="font-size:13px;font-weight:bold;color:var(--blue)">1.47×</div>
+        </div>
+        <div style="border-left:1px solid var(--border);padding-left:8px">
+          <div style="font-size:9px;color:var(--text2)">JEDI</div>
+          <div style="font-size:13px;font-weight:bold;color:var(--purple)">0.61</div>
+        </div>
+      </div>
+    </div>
+    <!-- Regime badge -->
+    <div class="panel">
+      <div class="panel-head ph-green">REGIME ENGINE <span class="badge badge-green">LIVE</span></div>
+      <div class="panel-body">
+        <div style="text-align:center;padding:6px 0">
+          <div style="font-size:18px;font-weight:bold;color:var(--green);letter-spacing:0.1em">TRENDING</div>
+          <div style="font-size:8px;color:var(--text3);margin-top:2px">assign_regimes() ✓ price-based</div>
+        </div>
+        <div style="margin-top:4px">
+          <div style="font-size:8px;color:var(--text3);margin-bottom:2px">CONFIDENCE DIST</div>
+          <div style="display:flex;align-items:center;gap:3px;font-size:8px">
+            <span style="color:var(--green);width:48px">TREND</span>
+            <div style="flex:1;height:6px;background:var(--border2);border-radius:2px;overflow:hidden"><div style="width:68%;height:100%;background:var(--green);border-radius:2px"></div></div>
+            <span style="color:var(--green);width:24px">68%</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:3px;font-size:8px;margin-top:2px">
+            <span style="color:var(--blue);width:48px">BREAK</span>
+            <div style="flex:1;height:6px;background:var(--border2);border-radius:2px;overflow:hidden"><div style="width:18%;height:100%;background:var(--blue);border-radius:2px"></div></div>
+            <span style="color:var(--blue);width:24px">18%</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:3px;font-size:8px;margin-top:2px">
+            <span style="color:var(--text2);width:48px">RANGE</span>
+            <div style="flex:1;height:6px;background:var(--border2);border-radius:2px;overflow:hidden"><div style="width:9%;height:100%;background:var(--text2);border-radius:2px"></div></div>
+            <span style="color:var(--text2);width:24px">9%</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:3px;font-size:8px;margin-top:2px">
+            <span style="color:var(--red);width:48px">R-OFF</span>
+            <div style="flex:1;height:6px;background:var(--border2);border-radius:2px;overflow:hidden"><div style="width:5%;height:100%;background:var(--red);border-radius:2px"></div></div>
+            <span style="color:var(--red);width:24px">5%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid3" style="margin-bottom:8px">
+    <!-- Price chart (mini) -->
+    <div class="panel" style="grid-column:span 2">
+      <div class="panel-head ph-blue">PRICE + INDICATORS <span style="display:flex;gap:3px"><span class="badge badge-blue">EMA200</span><span class="badge badge-green">VWAP</span><span class="badge badge-gold">SUPERTREND</span><span class="badge badge-purple">BB</span></span></div>
+      <div class="panel-body">
+        <div class="candle-area">
+          <svg class="minichart" viewBox="0 0 500 120" style="height:120px">
+            <!-- EMA200 line -->
+            <polyline fill="none" stroke="var(--blue)" stroke-width="0.8" opacity="0.5" points="0,90 50,88 100,86 150,82 200,78 250,74 300,71 350,68 400,65 450,62 500,60"/>
+            <!-- VWAP line -->
+            <polyline fill="none" stroke="var(--green)" stroke-width="0.8" opacity="0.5" points="0,85 50,82 100,79 150,74 200,70 250,72 300,68 350,64 400,60 450,58 500,55"/>
+            <!-- Supertrend -->
+            <polyline fill="none" stroke="var(--gold)" stroke-width="0.7" stroke-dasharray="3 2" opacity="0.6" points="0,95 50,92 100,88 150,84 200,80 250,76 300,72 350,69 400,66 450,63 500,61"/>
+            <!-- Candles - mini representation -->
+            <g opacity="0.9">
+              <line x1="20" y1="84" x2="20" y2="98" stroke="var(--red)" stroke-width="0.5"/>
+              <rect x="17" y="87" width="6" height="8" fill="var(--red)"/>
+              <line x1="45" y1="78" x2="45" y2="92" stroke="var(--green)" stroke-width="0.5"/>
+              <rect x="42" y="80" width="6" height="8" fill="var(--green)"/>
+              <line x1="70" y1="72" x2="70" y2="86" stroke="var(--green)" stroke-width="0.5"/>
+              <rect x="67" y="74" width="6" height="8" fill="var(--green)"/>
+              <line x1="95" y1="68" x2="95" y2="82" stroke="var(--red)" stroke-width="0.5"/>
+              <rect x="92" y="70" width="6" height="7" fill="var(--red)"/>
+              <line x1="120" y1="62" x2="120" y2="76" stroke="var(--green)" stroke-width="0.5"/>
+              <rect x="117" y="64" width="6" height="8" fill="var(--green)"/>
+              <line x1="145" y1="58" x2="145" y2="70" stroke="var(--green)" stroke-width="0.5"/>
+              <rect x="142" y="60" width="6" height="6" fill="var(--green)"/>
+              <line x1="170" y1="55" x2="170" y2="68" stroke="var(--red)" stroke-width="0.5"/>
+              <rect x="167" y="57" width="6" height="7" fill="var(--red)"/>
+              <line x1="195" y1="50" x2="195" y2="64" stroke="var(--green)" stroke-width="0.5"/>
+              <rect x="192" y="52" width="6" height="8" fill="var(--green)"/>
+              <line x1="220" y1="48" x2="220" y2="60" stroke="var(--green)" stroke-width="0.5"/>
+              <rect x="217" y="50" width="6" height="7" fill="var(--green)"/>
+              <line x1="245" y1="52" x2="245" y2="64" stroke="var(--red)" stroke-width="0.5"/>
+              <rect x="242" y="54" width="6" height="6" fill="var(--red)"/>
+              <line x1="270" y1="46" x2="270" y2="58" stroke="var(--green)" stroke-width="0.5"/>
+              <rect x="267" y="48" width="6" height="7" fill="var(--green)"/>
+              <line x1="295" y1="42" x2="295" y2="54" stroke="var(--green)" stroke-width="0.5"/>
+              <rect x="292" y="44" width="6" height="7" fill="var(--green)"/>
+              <line x1="320" y1="40" x2="320" y2="52" stroke="var(--red)" stroke-width="0.5"/>
+              <rect x="317" y="42" width="6" height="6" fill="var(--red)"/>
+              <line x1="345" y1="36" x2="345" y2="48" stroke="var(--green)" stroke-width="0.5"/>
+              <rect x="342" y="38" width="6" height="7" fill="var(--green)"/>
+              <line x1="370" y1="32" x2="370" y2="44" stroke="var(--green)" stroke-width="0.5"/>
+              <rect x="367" y="34" width="6" height="7" fill="var(--green)"/>
+              <line x1="395" y1="28" x2="395" y2="40" stroke="var(--green)" stroke-width="0.5"/>
+              <rect x="392" y="30" width="6" height="8" fill="var(--green)"/>
+              <line x1="420" y1="26" x2="420" y2="38" stroke="var(--red)" stroke-width="0.5"/>
+              <rect x="417" y="28" width="6" height="6" fill="var(--red)"/>
+              <line x1="445" y1="22" x2="445" y2="34" stroke="var(--green)" stroke-width="0.5"/>
+              <rect x="442" y="24" width="6" height="7" fill="var(--green)"/>
+              <line x1="470" y1="18" x2="470" y2="30" stroke="var(--green)" stroke-width="0.5"/>
+              <rect x="467" y="20" width="6" height="8" fill="var(--green)"/>
+            </g>
+            <!-- Signal marker -->
+            <polygon points="480,14 476,22 484,22" fill="var(--gold)" opacity="0.9"/>
+            <text x="480" y="12" fill="var(--gold)" font-size="7" text-anchor="middle">LONG</text>
+            <!-- Volume bars bottom -->
+            <rect x="0" y="108" width="500" height="1" fill="var(--border)"/>
+          </svg>
+          <!-- Volume bars -->
+          <div class="vol-bar">
+            <div class="vb" style="height:30%;opacity:0.5"></div><div class="vb" style="height:60%;opacity:0.5"></div><div class="vb" style="height:40%;opacity:0.5"></div><div class="vb" style="height:70%;opacity:0.5"></div><div class="vb" style="height:50%;opacity:0.5"></div><div class="vb" style="height:35%;opacity:0.5"></div><div class="vb" style="height:80%;opacity:0.5"></div><div class="vb" style="height:55%;opacity:0.5"></div><div class="vb" style="height:45%;opacity:0.5"></div><div class="vb" style="height:65%;opacity:0.5"></div><div class="vb" style="height:40%;opacity:0.5"></div><div class="vb" style="height:90%;background:var(--green2)"></div><div class="vb" style="height:75%;background:var(--green2)"></div><div class="vb" style="height:85%;background:var(--green2)"></div><div class="vb" style="height:95%;background:var(--green2)"></div><div class="vb" style="height:100%;background:var(--green2)"></div><div class="vb" style="height:88%;background:var(--green2)"></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:space-between;font-size:8px;color:var(--text2)">
+          <span>SQZPOP: <span style="color:var(--green)">FIRE ●</span></span>
+          <span>ADX: <span style="color:var(--gold)">28.4</span></span>
+          <span>RSI: <span style="color:var(--text)">58.2</span></span>
+          <span>ATR_RANK: <span style="color:var(--green)">72pct</span></span>
+          <span>SQUEEZE: <span style="color:var(--red)">LOCK</span></span>
+          <span>EMA200: <span style="color:var(--green)">ABOVE ✓</span></span>
+        </div>
+      </div>
+    </div>
+    <!-- Orderbook -->
+    <div class="panel">
+      <div class="panel-head ph-teal">ORDER BOOK DEPTH <span class="badge badge-blue">L2</span></div>
+      <div class="panel-body" style="padding:4px">
+        <div style="display:grid;grid-template-columns:1fr 50px 50px;gap:4px;font-size:8px;color:var(--text3);padding:2px 0;border-bottom:1px solid var(--border)">
+          <span>SIZE</span><span style="text-align:right">PRICE</span><span style="text-align:right">SZ</span>
+        </div>
+        <div class="orderbook-row" style="position:relative"><div style="position:absolute;top:0;right:0;height:100%;width:35%;background:#2a0a0a;z-index:0;border-radius:1px"></div><span class="ob-ask" style="position:relative;z-index:1">64940</span><span style="text-align:right;position:relative;z-index:1">2.14</span><span style="text-align:right;position:relative;z-index:1;color:var(--text2)">1.8</span></div>
+        <div class="orderbook-row" style="position:relative"><div style="position:absolute;top:0;right:0;height:100%;width:55%;background:#2a0a0a;z-index:0;border-radius:1px"></div><span class="ob-ask" style="position:relative;z-index:1">64920</span><span style="text-align:right;position:relative;z-index:1">3.42</span><span style="text-align:right;position:relative;z-index:1;color:var(--text2)">2.9</span></div>
+        <div class="orderbook-row" style="position:relative"><div style="position:absolute;top:0;right:0;height:100%;width:80%;background:#2a0a0a;z-index:0;border-radius:1px"></div><span class="ob-ask" style="position:relative;z-index:1">64900</span><span style="text-align:right;position:relative;z-index:1">5.88</span><span style="text-align:right;position:relative;z-index:1;color:var(--text2)">4.2</span></div>
+        <div style="text-align:center;font-size:9px;color:var(--gold);padding:3px 0;border-bottom:1px solid var(--border);border-top:1px solid var(--border);background:var(--bg)">─── 64,880 ───</div>
+        <div class="orderbook-row" style="position:relative"><div style="position:absolute;top:0;left:0;height:100%;width:90%;background:#082010;z-index:0;border-radius:1px"></div><span class="ob-bid" style="position:relative;z-index:1">64860</span><span style="text-align:right;position:relative;z-index:1">6.72</span><span style="text-align:right;position:relative;z-index:1;color:var(--text2)">5.1</span></div>
+        <div class="orderbook-row" style="position:relative"><div style="position:absolute;top:0;left:0;height:100%;width:60%;background:#082010;z-index:0;border-radius:1px"></div><span class="ob-bid" style="position:relative;z-index:1">64840</span><span style="text-align:right;position:relative;z-index:1">4.21</span><span style="text-align:right;position:relative;z-index:1;color:var(--text2)">3.2</span></div>
+        <div class="orderbook-row" style="position:relative"><div style="position:absolute;top:0;left:0;height:100%;width:30%;background:#082010;z-index:0;border-radius:1px"></div><span class="ob-bid" style="position:relative;z-index:1">64820</span><span style="text-align:right;position:relative;z-index:1">1.88</span><span style="text-align:right;position:relative;z-index:1;color:var(--text2)">1.4</span></div>
+        <div style="margin-top:6px">
+          <div style="font-size:8px;color:var(--text3);margin-bottom:3px">OBI RATIO</div>
+          <div style="display:flex;height:6px;border-radius:2px;overflow:hidden">
+            <div style="width:58%;background:var(--green2)"></div>
+            <div style="width:42%;background:var(--red2)"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:7px;color:var(--text3);margin-top:1px"><span style="color:var(--green)">BID 58%</span><span style="color:var(--red)">ASK 42%</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid3" style="margin-bottom:8px">
+    <!-- Signal votes live -->
+    <div class="panel">
+      <div class="panel-head ph-green">LIVE SIGNAL VOTES <span class="badge badge-green">23 SIGNALS</span></div>
+      <div class="panel-body">
+        <div class="vote-row"><span class="vote-name">PULLBACK</span><div class="vote-bar-wrap"><div class="vote-fill" style="width:80%;background:var(--green)"></div></div><span class="vote-v pos">+1</span></div>
+        <div class="vote-row"><span class="vote-name">ADX_TREND</span><div class="vote-bar-wrap"><div class="vote-fill" style="width:90%;background:var(--green)"></div></div><span class="vote-v pos">+1</span></div>
+        <div class="vote-row"><span class="vote-name">SUPERTREND</span><div class="vote-bar-wrap"><div class="vote-fill" style="width:40%;background:var(--text2)"></div></div><span class="vote-v neg">0</span></div>
+        <div class="vote-row"><span class="vote-name">SQZPOP</span><div class="vote-bar-wrap"><div class="vote-fill" style="width:95%;background:var(--blue)"></div></div><span class="vote-v pos">+1</span></div>
+        <div class="vote-row"><span class="vote-name">EMA_STACK</span><div class="vote-bar-wrap"><div class="vote-fill" style="width:70%;background:var(--green)"></div></div><span class="vote-v pos">+1</span></div>
+        <div class="vote-row"><span class="vote-name">MACD_CROSS</span><div class="vote-bar-wrap"><div class="vote-fill" style="width:55%;background:var(--text2)"></div></div><span class="vote-v neg">0</span></div>
+        <div class="vote-row"><span class="vote-name">RSI_STRONG</span><div class="vote-bar-wrap"><div class="vote-fill" style="width:60%;background:var(--gold)"></div></div><span class="vote-v pos">+1</span></div>
+        <div class="vote-row"><span class="vote-name">OBV_TREND</span><div class="vote-bar-wrap"><div class="vote-fill" style="width:75%;background:var(--green)"></div></div><span class="vote-v pos">+1</span></div>
+        <div style="padding-top:4px;display:flex;justify-content:space-between;font-size:9px">
+          <span style="color:var(--text2)">JEDI SCORE</span>
+          <span style="color:var(--purple);font-weight:bold">0.61 / 1.00</span>
+        </div>
+      </div>
+    </div>
+    <!-- Cross-asset panel -->
+    <div class="panel">
+      <div class="panel-head ph-orange">CROSS-ASSET CONTEXT <span class="badge badge-green">RISK_ON</span></div>
+      <div class="panel-body">
+        <div class="stat-row"><span class="stat-label">BTC/ETH ratio</span><span class="stat-val green">18.2 ▲</span></div>
+        <div class="stat-row"><span class="stat-label">Alt beta</span><span class="stat-val green">0.84 ▲</span></div>
+        <div class="stat-row"><span class="stat-label">DeFi momentum</span><span class="stat-val green">+2.1%</span></div>
+        <div class="stat-row"><span class="stat-label">L1 spread</span><span class="stat-val blue">0.12</span></div>
+        <div class="stat-row"><span class="stat-label">BTC corr break</span><span class="stat-val gold">NORMAL</span></div>
+        <div class="stat-row"><span class="stat-label">Funding rate</span><span class="stat-val green">+0.012%</span></div>
+        <div style="margin-top:6px">
+          <div style="font-size:8px;color:var(--text3);margin-bottom:3px">COMPOSITE</div>
+          <div style="display:flex;gap:4px">
+            <div style="flex:1;height:18px;background:var(--green3);border:1px solid var(--green2);border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--green);font-weight:bold">RISK_ON</div>
+            <div style="flex:0.3;height:18px;background:var(--border2);border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--text3)">NEU</div>
+            <div style="flex:0.2;height:18px;background:var(--border2);border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--text3)">OFF</div>
+          </div>
+        </div>
+        <div style="margin-top:6px;font-size:8px;color:var(--text3)">Kelly adj: <span style="color:var(--green)">+20% (RISK_ON)</span></div>
+      </div>
+    </div>
+    <!-- MTF confirmation -->
+    <div class="panel">
+      <div class="panel-head ph-purple">MTF CONFIRMATION <span class="badge badge-green">ALIGNED</span></div>
+      <div class="panel-body">
+        <div class="stat-row"><span class="stat-label">1H trend</span><span class="stat-val green">BULLISH ▲</span></div>
+        <div class="stat-row"><span class="stat-label">5M signal dir</span><span class="stat-val green">LONG</span></div>
+        <div class="stat-row"><span class="stat-label">MTF conflict</span><span class="stat-val green">NONE</span></div>
+        <div class="stat-row"><span class="stat-label">Size adj</span><span class="stat-val">100%</span></div>
+        <div class="sep"></div>
+        <div class="stat-row"><span class="stat-label">ICT FVG above</span><span class="stat-val gold">64,920</span></div>
+        <div class="stat-row"><span class="stat-label">EQH proximity</span><span class="stat-val green">CLEAR</span></div>
+        <div class="stat-row"><span class="stat-label">EQL proximity</span><span class="stat-val green">CLEAR</span></div>
+        <div class="stat-row"><span class="stat-label">Round # magnet</span><span class="stat-val gold">65,000</span></div>
+        <div style="margin-top:6px;padding:4px;background:var(--green3);border:1px solid var(--green2);border-radius:2px;font-size:8px;color:var(--green);text-align:center;letter-spacing:0.05em">
+          ✓ MTF CONFIRMED — FULL SIZE
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PAGE 2 · PULSE ═══ -->
+<div class="page" id="p2">
+  <div class="page-title">② PULSE — ALGO SYSCONTROLS + SAFETY <span>GATES · KILL SWITCHES · KELLY · CIRCUIT BREAKERS · POSITIONS</span></div>
+
+  <div class="grid4" style="margin-bottom:8px">
+    <div class="panel">
+      <div class="panel-head ph-green">SHARPE STACK</div>
+      <div class="panel-body" style="padding:4px 6px">
+        <div class="stack-row"><span class="stack-label">BASELINE</span><span class="stack-sharpe" style="color:var(--text2)">1.36</span><div class="stack-bar-wrap"><div class="stack-fill" style="width:14%"></div></div></div>
+        <div class="stack-row"><span class="stack-label">+REGIME ROUTE</span><span class="stack-sharpe">2.20</span><div class="stack-bar-wrap"><div class="stack-fill" style="width:22%"></div></div></div>
+        <div class="stack-row"><span class="stack-label">+HOUR GATE</span><span class="stack-sharpe">2.41</span><div class="stack-bar-wrap"><div class="stack-fill" style="width:24%"></div></div></div>
+        <div class="stack-row"><span class="stack-label">+DAY GATE</span><span class="stack-sharpe">3.14</span><div class="stack-bar-wrap"><div class="stack-fill" style="width:32%"></div></div></div>
+        <div class="stack-row"><span class="stack-label">+GATES STACK</span><span class="stack-sharpe" style="color:var(--blue)">15.86</span><div class="stack-bar-wrap"><div class="stack-fill" style="width:90%"></div></div></div>
+        <div class="stack-row"><span class="stack-label">EUPHORIA MODE</span><span class="stack-sharpe" style="color:var(--gold)">19.83</span><div class="stack-bar-wrap"><div class="stack-fill" style="width:100%"></div></div></div>
+        <div class="stack-row"><span class="stack-label">RE-ENTRY ★</span><span class="stack-sharpe" style="color:var(--green);font-size:12px">29.72</span><div class="stack-bar-wrap"><div class="stack-fill" style="width:100%;background:var(--green)"></div></div></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head ph-gold">KELLY SIZING</div>
+      <div class="panel-body">
+        <div style="text-align:center;padding:4px 0">
+          <div style="font-size:8px;color:var(--text3);margin-bottom:2px">FULL KELLY</div>
+          <div style="font-size:20px;font-weight:bold;color:var(--blue)">19.12%</div>
+        </div>
+        <div style="text-align:center;padding:4px 0;border-top:1px solid var(--border2)">
+          <div style="font-size:8px;color:var(--text3);margin-bottom:2px">HALF KELLY (ACTIVE)</div>
+          <div style="font-size:20px;font-weight:bold;color:var(--green)">9.56%</div>
+        </div>
+        <div style="margin-top:4px">
+          <div class="kelly-vis">
+            <div class="kelly-bar kb-half" style="width:48%;font-size:7px">½K 9.6%</div>
+            <div class="kelly-bar kb-full" style="width:24%;font-size:7px">FK</div>
+          </div>
+        </div>
+        <div style="margin-top:6px">
+          <div style="font-size:8px;color:var(--text3);margin-bottom:2px">CROSS-ASSET MODIFIER</div>
+          <div style="display:flex;justify-content:space-between;font-size:8px">
+            <span style="color:var(--green)">RISK_ON: +20%</span>
+            <span style="color:var(--text2)">RISK_OFF: -30%</span>
+          </div>
+          <div style="font-size:9px;color:var(--green);margin-top:3px;font-weight:bold">ACTIVE SIZE: 11.47%</div>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head ph-red">CIRCUIT BREAKERS</div>
+      <div class="panel-body">
+        <div class="circuit-row"><div class="cr-status cr-ok"></div><span class="cr-label">Daily DD limit (5%)</span><span class="cr-val" style="color:var(--green)">1.2%</span></div>
+        <div class="circuit-row"><div class="cr-status cr-ok"></div><span class="cr-label">Max open positions</span><span class="cr-val" style="color:var(--green)">3/5</span></div>
+        <div class="circuit-row"><div class="cr-status cr-ok"></div><span class="cr-label">Correlation limit</span><span class="cr-val" style="color:var(--green)">0.42</span></div>
+        <div class="circuit-row"><div class="cr-status cr-warn"></div><span class="cr-label">RVOL exhaust gate</span><span class="cr-val" style="color:var(--gold)">NEAR</span></div>
+        <div class="circuit-row"><div class="cr-status cr-ok"></div><span class="cr-label">SQUEEZE lock</span><span class="cr-val" style="color:var(--green)">CLEAR</span></div>
+        <div class="circuit-row"><div class="cr-status cr-ok"></div><span class="cr-label">ATR rank gate</span><span class="cr-val" style="color:var(--green)">72pct ✓</span></div>
+        <div style="margin-top:6px;padding:4px;background:var(--bg3);border:1px solid var(--border);border-radius:2px">
+          <div style="font-size:8px;color:var(--text3)">PAPER MODE ACTIVE</div>
+          <div style="font-size:9px;color:var(--gold);margin-top:1px">No live orders until P0-D ✓</div>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head ph-purple">OPEN POSITIONS</div>
+      <div class="panel-body">
+        <div class="pos-row"><span class="pr-sym">BTC</span><span class="pr-side badge badge-green" style="font-size:7px">L</span><div class="pr-bar-w"><div class="pr-bar-f pf-long" style="width:80%"></div></div><span class="pr-pnl pos">+$142</span></div>
+        <div class="pos-row"><span class="pr-sym">ETH</span><span class="pr-side badge badge-green" style="font-size:7px">L</span><div class="pr-bar-w"><div class="pr-bar-f pf-long" style="width:45%"></div></div><span class="pr-pnl pos">+$38</span></div>
+        <div class="pos-row"><span class="pr-sym">SOL</span><span class="pr-side badge badge-red" style="font-size:7px">S</span><div class="pr-bar-w"><div class="pr-bar-f pf-short" style="width:25%"></div></div><span class="pr-pnl neg">-$22</span></div>
+        <div class="sep"></div>
+        <div style="display:flex;justify-content:space-between;font-size:9px;padding:2px 0">
+          <span style="color:var(--text2)">Net P&L</span>
+          <span style="color:var(--green);font-weight:bold">+$158</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:9px;padding:2px 0">
+          <span style="color:var(--text2)">Exposure</span>
+          <span style="color:var(--text)">28.4%</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:9px;padding:2px 0">
+          <span style="color:var(--text2)">Heat used</span>
+          <span style="color:var(--gold)">3/5 slots</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid3" style="margin-bottom:8px">
+    <!-- Gate toggles -->
+    <div class="panel">
+      <div class="panel-head ph-blue">GATE CONTROLS <span class="badge badge-blue">APPLY/SUSPEND</span></div>
+      <div class="panel-body">
+        <div class="toggle-row"><span class="toggle-label">REGIME_ROUTING</span><div style="display:flex;align-items:center;gap:6px"><span class="badge badge-green" style="font-size:7px">+0.844</span><div class="toggle on" onclick="this.classList.toggle('on');this.classList.toggle('off')"></div></div></div>
+        <div class="toggle-row"><span class="toggle-label">HOUR_KILLS</span><div style="display:flex;align-items:center;gap:6px"><span class="badge badge-green" style="font-size:7px">+2.57</span><div class="toggle on" onclick="this.classList.toggle('on');this.classList.toggle('off')"></div></div></div>
+        <div class="toggle-row"><span class="toggle-label">DAY_FILTER</span><div style="display:flex;align-items:center;gap:6px"><span class="badge badge-green" style="font-size:7px">+0.729</span><div class="toggle on" onclick="this.classList.toggle('on');this.classList.toggle('off')"></div></div></div>
+        <div class="toggle-row"><span class="toggle-label">SQUEEZE_LOCK</span><div style="display:flex;align-items:center;gap:6px"><span class="badge badge-green" style="font-size:7px">+edge</span><div class="toggle on" onclick="this.classList.toggle('on');this.classList.toggle('off')"></div></div></div>
+        <div class="toggle-row"><span class="toggle-label">ATR_RANK_GATE</span><div style="display:flex;align-items:center;gap:6px"><span class="badge badge-green" style="font-size:7px">+edge</span><div class="toggle on" onclick="this.classList.toggle('on');this.classList.toggle('off')"></div></div></div>
+        <div class="toggle-row"><span class="toggle-label">RVOL_EXHAUST</span><div style="display:flex;align-items:center;gap:6px"><span class="badge badge-green" style="font-size:7px">+edge</span><div class="toggle on" onclick="this.classList.toggle('on');this.classList.toggle('off')"></div></div></div>
+        <div class="toggle-row"><span class="toggle-label">LOW_JEDI_GATE</span><div style="display:flex;align-items:center;gap:6px"><span class="badge badge-green" style="font-size:7px">+edge</span><div class="toggle on" onclick="this.classList.toggle('on');this.classList.toggle('off')"></div></div></div>
+        <div class="toggle-row"><span class="toggle-label">RVOL_GATE</span><div style="display:flex;align-items:center;gap:6px"><span class="badge badge-gray" style="font-size:7px">±0</span><div class="toggle off" onclick="this.classList.toggle('on');this.classList.toggle('off')"></div></div></div>
+        <div class="toggle-row"><span class="toggle-label">SCALPER_MODE</span><div style="display:flex;align-items:center;gap:6px"><span class="badge badge-orange" style="font-size:7px">1.90</span><div class="toggle off" onclick="this.classList.toggle('on');this.classList.toggle('off')"></div></div></div>
+        <div class="toggle-row"><span class="toggle-label">EUPHORIA_ONLY</span><div style="display:flex;align-items:center;gap:6px"><span class="badge badge-gold" style="font-size:7px">19.83</span><div class="toggle off" onclick="this.classList.toggle('on');this.classList.toggle('off')"></div></div></div>
+      </div>
+    </div>
+    <!-- Hour kill grid -->
+    <div class="panel">
+      <div class="panel-head ph-red">HOUR_KILLS MAP <span class="badge badge-red">24H GRID</span></div>
+      <div class="panel-body">
+        <div style="font-size:8px;color:var(--text3);margin-bottom:4px">UTC hours — click to toggle kill/allow</div>
+        <div class="kill-grid">
+          <div class="kill-cell bad">0</div><div class="kill-cell bad">1</div><div class="kill-cell bad">2</div><div class="kill-cell bad">3</div>
+          <div class="kill-cell meh">4</div><div class="kill-cell meh">5</div><div class="kill-cell meh">6</div><div class="kill-cell good">7</div>
+          <div class="kill-cell good">8</div><div class="kill-cell good">9</div><div class="kill-cell good">10</div><div class="kill-cell good">11</div>
+          <div class="kill-cell good">12</div><div class="kill-cell good">13</div><div class="kill-cell good">14</div><div class="kill-cell good">15</div>
+          <div class="kill-cell meh">16</div><div class="kill-cell meh">17</div><div class="kill-cell bad">18</div><div class="kill-cell bad">19</div>
+          <div class="kill-cell meh">20</div><div class="kill-cell meh">21</div><div class="kill-cell bad">22</div><div class="kill-cell bad">23</div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:6px;font-size:7px">
+          <span><span class="badge badge-green">■</span> ALLOW</span>
+          <span><span class="badge badge-gray">■</span> NEUTRAL</span>
+          <span><span class="badge badge-red">■</span> KILL</span>
+        </div>
+        <div class="sep"></div>
+        <div style="font-size:8px;color:var(--text3);margin-bottom:4px">DAY FILTER</div>
+        <div style="display:flex;gap:4px">
+          <div style="flex:1;padding:3px;background:var(--green3);border:1px solid var(--green2);border-radius:2px;font-size:7px;color:var(--green);text-align:center">MON ✓</div>
+          <div style="flex:1;padding:3px;background:var(--green3);border:1px solid var(--green2);border-radius:2px;font-size:7px;color:var(--green);text-align:center">TUE ✓</div>
+          <div style="flex:1;padding:3px;background:var(--green3);border:1px solid var(--green2);border-radius:2px;font-size:7px;color:var(--green);text-align:center">WED ✓</div>
+          <div style="flex:1;padding:3px;background:var(--green3);border:1px solid var(--green2);border-radius:2px;font-size:7px;color:var(--green);text-align:center">THU ✓</div>
+          <div style="flex:1;padding:3px;background:var(--green3);border:1px solid var(--green2);border-radius:2px;font-size:7px;color:var(--green);text-align:center">FRI ✓</div>
+          <div style="flex:1;padding:3px;background:var(--red2);border:1px solid var(--red);border-radius:2px;font-size:7px;color:#ff8a8a;text-align:center">SAT ✗</div>
+          <div style="flex:1;padding:3px;background:var(--red2);border:1px solid var(--red);border-radius:2px;font-size:7px;color:#ff8a8a;text-align:center">SUN ✗</div>
+        </div>
+      </div>
+    </div>
+    <!-- IC decay monitor -->
+    <div class="panel">
+      <div class="panel-head ph-purple">IC DECAY MONITOR <span class="badge badge-green">14D ROLLING</span></div>
+      <div class="panel-body">
+        <div style="font-size:8px;color:var(--text3);margin-bottom:4px">Signal IC slope (14d window) — alert if &lt; -0.0003 for 3w</div>
+        <div class="gate-row"><span class="gate-name">PULLBACK</span><span style="color:var(--green);font-size:9px">+0.050</span><span class="gate-delta pos">▲ OK</span></div>
+        <div class="gate-row"><span class="gate-name">ADX_TREND</span><span style="color:var(--green);font-size:9px">+0.045</span><span class="gate-delta pos">▲ OK</span></div>
+        <div class="gate-row"><span class="gate-name">SQZPOP</span><span style="color:var(--blue);font-size:9px">+0.033</span><span class="gate-delta pos">▲ OK</span></div>
+        <div class="gate-row"><span class="gate-name">SUPERTREND</span><span style="color:var(--gold);font-size:9px">+0.025</span><span class="gate-delta" style="color:var(--gold)">▲ SPEC</span></div>
+        <div class="gate-row"><span class="gate-name">EMA_STACK</span><span style="color:var(--green);font-size:9px">+0.018</span><span class="gate-delta pos">▲ OK</span></div>
+        <div class="gate-row"><span class="gate-name">VOL_SURGE</span><span style="color:var(--gold);font-size:9px">-0.002</span><span class="gate-delta" style="color:var(--gold)">▼ PROB</span></div>
+        <div class="gate-row"><span class="gate-name">CONSEC_BULL</span><span style="color:var(--gold);font-size:9px">-0.004</span><span class="gate-delta" style="color:var(--gold)">▼ PROB</span></div>
+        <div style="margin-top:6px;padding:4px;background:var(--bg3);border:1px solid var(--border);border-radius:2px">
+          <div style="font-size:8px;color:var(--text3)">OOS SHARPE: <span style="color:var(--green)">+5.35</span> · IS/OOS: <span style="color:var(--blue)">1.41</span></div>
+          <div style="font-size:8px;color:var(--text3);margin-top:1px">Gate 5 fails: ic_not_decaying — regime variance expected</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PAGE 3 · TRADE ═══ -->
+<div class="page" id="p3">
+  <div class="page-title">③ TRADE — CO-TRADE SURFACE <span>ARB SCORE · PRELOADED VALS · FIRE/LAUNCH · AI REASONING</span></div>
+
+  <div class="grid3" style="margin-bottom:8px">
+    <!-- AI Arbitration score -->
+    <div class="panel">
+      <div class="panel-head ph-purple">CLAUDE ARB LAYER <span class="badge badge-purple">SONNET 4.6</span></div>
+      <div class="panel-body">
+        <div class="arb-score high">87 / 100</div>
+        <div style="text-align:center;font-size:8px;color:var(--text2);margin-bottom:8px;letter-spacing:0.08em">COMPOSITE CONVICTION SCORE</div>
+        <div style="display:flex;gap:4px;justify-content:center;flex-wrap:wrap;margin-bottom:8px">
+          <span class="badge badge-green">REGIME ✓</span>
+          <span class="badge badge-green">JEDI ✓</span>
+          <span class="badge badge-green">MTF ✓</span>
+          <span class="badge badge-green">HOUR ✓</span>
+          <span class="badge badge-green">CROSSASSET ✓</span>
+          <span class="badge badge-gold">RVOL ~</span>
+        </div>
+        <div class="llm-msg claude">
+          <span style="color:var(--purple);font-size:8px">CLAUDE:</span> TRENDING regime with strong PULLBACK+ADX confluence. SQZPOP firing post-squeeze breakout. 5/6 gates green. RVOL 1.47× marginal but acceptable. MTF 1H bullish aligned. Recommend LONG entry with half-Kelly sizing.
+        </div>
+        <div class="llm-msg sys">
+          <span style="color:var(--text3);font-size:8px">GEMMA4 PRE-FILTER:</span> Signal pattern matches trending+breakout ensemble. 23/23 signals evaluated. No structural blockers.
+        </div>
+      </div>
+    </div>
+
+    <!-- Preloaded trade vals -->
+    <div class="panel">
+      <div class="panel-head ph-gold">PRELOADED TRADE VALS <span class="badge badge-gold">AUTO-COMPUTED</span></div>
+      <div class="panel-body">
+        <div class="stat-row"><span class="stat-label">Symbol</span><span class="stat-val blue">BTC/USDT</span></div>
+        <div class="stat-row"><span class="stat-label">Direction</span><span class="stat-val green">LONG ▲</span></div>
+        <div class="stat-row"><span class="stat-label">Entry</span><span class="stat-val gold">$64,882</span></div>
+        <div class="stat-row"><span class="stat-label">Stop Loss</span><span class="stat-val red">$64,212 (-1.03%)</span></div>
+        <div class="stat-row"><span class="stat-label">TP1 (CIS exit)</span><span class="stat-val green">$65,420 (+0.83%)</span></div>
+        <div class="stat-row"><span class="stat-label">TP2 scale-out 50%</span><span class="stat-val green">$65,900 (+1.57%)</span></div>
+        <div class="stat-row"><span class="stat-label">Size (Half Kelly)</span><span class="stat-val">9.56% → 11.47% adj</span></div>
+        <div class="stat-row"><span class="stat-label">Risk:Reward</span><span class="stat-val green">1:1.52</span></div>
+        <div class="stat-row"><span class="stat-label">ATR stop dist</span><span class="stat-val">0.82 × 1.0 ATR</span></div>
+        <div class="stat-row"><span class="stat-label">Mode</span><span class="stat-val gold">PADAWAN (CIS)</span></div>
+        <div class="sep"></div>
+        <div style="font-size:8px;color:var(--text3)">Re-entry trigger: retest TP1 support → scale back in (29.72 Sharpe doctrine)</div>
+      </div>
+    </div>
+
+    <!-- Trade fire panel -->
+    <div class="panel">
+      <div class="panel-head ph-red">FIRE / LAUNCH <span class="badge badge-gold">PAPER MODE</span></div>
+      <div class="panel-body">
+        <div style="padding:6px;background:var(--green3);border:1px solid var(--green2);border-radius:2px;margin-bottom:8px">
+          <div style="font-size:8px;color:var(--green);letter-spacing:0.1em">AI RECOMMENDATION</div>
+          <div style="font-size:11px;color:var(--green);font-weight:bold;margin-top:2px">✓ ENTER LONG — HIGH CONVICTION</div>
+        </div>
+
+        <button class="fire-btn ready" style="margin-bottom:4px">⚡ FIRE LONG — AI SUPPORTED</button>
+        <button class="fire-btn" style="margin-bottom:4px;border-color:var(--blue);color:var(--blue)">◎ MANUAL LONG — OVERRIDE</button>
+        <button class="fire-btn" style="margin-bottom:8px;border-color:var(--red);color:var(--red)">▼ MANUAL SHORT — OVERRIDE</button>
+
+        <div style="font-size:8px;color:var(--text3);margin-bottom:4px">EXIT CONTROLS</div>
+        <div style="display:flex;gap:4px">
+          <button class="fire-btn" style="flex:1;padding:6px;font-size:8px;border-color:var(--gold);color:var(--gold)">CIS EXIT</button>
+          <button class="fire-btn" style="flex:1;padding:6px;font-size:8px">SCALE 50%</button>
+          <button class="fire-btn" style="flex:1;padding:6px;font-size:8px;border-color:var(--red);color:var(--red)">FLAT ALL</button>
+        </div>
+
+        <div class="sep"></div>
+        <div style="font-size:8px;color:var(--text3);margin-bottom:4px">ALGO AUTO-CONTROLS</div>
+        <div class="toggle-row"><span class="toggle-label">AUTO-FIRE on score ≥ 80</span><div class="toggle off" onclick="this.classList.toggle('on');this.classList.toggle('off')"></div></div>
+        <div class="toggle-row"><span class="toggle-label">CIS auto-exit</span><div class="toggle on" onclick="this.classList.toggle('on');this.classList.toggle('off')"></div></div>
+        <div class="toggle-row"><span class="toggle-label">Re-entry auto-watch</span><div class="toggle on" onclick="this.classList.toggle('on');this.classList.toggle('off')"></div></div>
+        <div class="toggle-row"><span class="toggle-label">Scale-out 50% at TP1</span><div class="toggle on" onclick="this.classList.toggle('on');this.classList.toggle('off')"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Trade log -->
+  <div class="panel fullspan">
+    <div class="panel-head ph-blue">TRADE LOG — SESSION <span class="badge badge-green">PAPER</span></div>
+    <div class="panel-body" style="padding:4px">
+      <div style="display:grid;grid-template-columns:60px 60px 50px 70px 70px 60px 70px 1fr;gap:4px;font-size:8px;color:var(--text3);padding:3px 4px;border-bottom:1px solid var(--border)">
+        <span>TIME</span><span>SYM</span><span>DIR</span><span>ENTRY</span><span>EXIT</span><span>PNL</span><span>MODE</span><span>NOTES</span>
+      </div>
+      <div style="display:grid;grid-template-columns:60px 60px 50px 70px 70px 60px 70px 1fr;gap:4px;font-size:9px;padding:3px 4px;border-bottom:1px solid var(--border2)">
+        <span style="color:var(--text2)">09:14</span>
+        <span style="color:var(--blue)">BTC</span>
+        <span class="badge badge-green" style="font-size:7px">LONG</span>
+        <span>64,420</span>
+        <span>64,980</span>
+        <span style="color:var(--green)">+$112</span>
+        <span class="badge badge-gold" style="font-size:7px">PADAWAN</span>
+        <span style="color:var(--text2)">CIS exit. Re-entry watch active.</span>
+      </div>
+      <div style="display:grid;grid-template-columns:60px 60px 50px 70px 70px 60px 70px 1fr;gap:4px;font-size:9px;padding:3px 4px;border-bottom:1px solid var(--border2)">
+        <span style="color:var(--text2)">10:32</span>
+        <span style="color:var(--blue)">ETH</span>
+        <span class="badge badge-green" style="font-size:7px">LONG</span>
+        <span>3,442</span>
+        <span style="color:var(--gold)">OPEN</span>
+        <span style="color:var(--green)">+$38</span>
+        <span class="badge badge-green" style="font-size:7px">EUPHORIA</span>
+        <span style="color:var(--text2)">Score 91. Scale-out armed at TP1.</span>
+      </div>
+      <div style="display:grid;grid-template-columns:60px 60px 50px 70px 70px 60px 70px 1fr;gap:4px;font-size:9px;padding:3px 4px;border-bottom:1px solid var(--border2)">
+        <span style="color:var(--text2)">11:08</span>
+        <span style="color:var(--blue)">SOL</span>
+        <span class="badge badge-red" style="font-size:7px">SHORT</span>
+        <span>143.2</span>
+        <span style="color:var(--gold)">OPEN</span>
+        <span style="color:var(--red)">-$22</span>
+        <span class="badge badge-blue" style="font-size:7px">MANUAL</span>
+        <span style="color:var(--text2)">MTF conflict — manual override, reduced size.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PAGE 4 · STAR RAY ═══ -->
+<div class="page" id="p4">
+  <div class="page-title">④ STAR RAY / DEATH STAR <span>OPTIMIZATION · PCA · DUMB BLOCKER · PIPELINE STATUS · ITER QUEUE</span></div>
+
+  <div class="grid3" style="margin-bottom:8px">
+    <!-- PCA panel -->
+    <div class="panel">
+      <div class="panel-head ph-purple">PCA DECOMPOSITION <span class="badge badge-purple">3 FACTORS</span></div>
+      <div class="panel-body">
+        <div style="font-size:8px;color:var(--text3);margin-bottom:4px">Principal components explaining signal variance</div>
+        <div class="pca-node" style="padding:4px;background:var(--purple3);border:1px solid var(--purple2);border-radius:2px;margin-bottom:4px">
+          <div style="font-size:8px;color:var(--text3)">PC1 — TREND FACTOR</div>
+          <div class="pca-var" style="color:var(--purple)">38.4%</div>
+          <div style="font-size:7px;color:var(--text3)">ADX·PULLBACK·EMA_STACK·OBV loaded</div>
+        </div>
+        <div class="pca-node" style="padding:4px;background:var(--blue3);border:1px solid var(--blue2);border-radius:2px;margin-bottom:4px">
+          <div style="font-size:8px;color:var(--text3)">PC2 — BREAKOUT FACTOR</div>
+          <div class="pca-var" style="color:var(--blue)">22.1%</div>
+          <div style="font-size:7px;color:var(--text3)">SQZPOP·VOL_BO·DON_BO·SUPERTREND loaded</div>
+        </div>
+        <div class="pca-node" style="padding:4px;background:var(--green3);border:1px solid var(--green2);border-radius:2px;margin-bottom:4px">
+          <div style="font-size:8px;color:var(--text3)">PC3 — MOMENTUM FACTOR</div>
+          <div class="pca-var" style="color:var(--green)">14.8%</div>
+          <div style="font-size:7px;color:var(--text3)">RSI_STRONG·RSI_CROSS·MACD_CROSS loaded</div>
+        </div>
+        <div style="font-size:8px;color:var(--text2);padding:3px 0">Cumulative: <span style="color:var(--gold)">75.3%</span> explained · Residual: 24.7%</div>
+        <div style="font-size:7px;color:var(--text3);margin-top:2px">Redundancy alert threshold: correlation &gt; 0.85 → prune candidate</div>
+      </div>
+    </div>
+
+    <!-- Regime-signal IC matrix -->
+    <div class="panel">
+      <div class="panel-head ph-green">REGIME × SIGNAL IC MATRIX <span class="badge badge-green">OOS</span></div>
+      <div class="panel-body">
+        <div style="display:grid;grid-template-columns:70px repeat(4,1fr);gap:2px;margin-bottom:2px">
+          <span style="font-size:7px;color:var(--text3)"></span>
+          <span style="font-size:7px;color:var(--green);text-align:center">TREND</span>
+          <span style="font-size:7px;color:var(--blue);text-align:center">BREAK</span>
+          <span style="font-size:7px;color:var(--text2);text-align:center">RANGE</span>
+          <span style="font-size:7px;color:var(--red);text-align:center">R-OFF</span>
+        </div>
+        <div style="display:grid;grid-template-columns:70px repeat(4,1fr);gap:2px">
+          <span style="font-size:7px;color:var(--text2);align-self:center">PULLBACK</span>
+          <div class="ic-cell ic-pos-hi">+0.050</div><div class="ic-cell ic-neg">-0.012</div><div class="ic-cell ic-neg">-0.008</div><div class="ic-cell ic-neg">-0.003</div>
+          <span style="font-size:7px;color:var(--text2);align-self:center">ADX_TREND</span>
+          <div class="ic-cell ic-pos-hi">+0.045</div><div class="ic-cell ic-pos-lo">+0.004</div><div class="ic-cell ic-neg">-0.011</div><div class="ic-cell ic-pos-lo">+0.004</div>
+          <span style="font-size:7px;color:var(--text2);align-self:center">SQZPOP</span>
+          <div class="ic-cell ic-pos-lo">+0.008</div><div class="ic-cell ic-pos-md">+0.033</div><div class="ic-cell ic-pos-lo">+0.006</div><div class="ic-cell ic-neg">-0.004</div>
+          <span style="font-size:7px;color:var(--text2);align-self:center">SUPERTREND</span>
+          <div class="ic-cell ic-neg">-0.018</div><div class="ic-cell ic-pos-md">+0.025</div><div class="ic-cell ic-neg">-0.022</div><div class="ic-cell ic-neg">-0.009</div>
+          <span style="font-size:7px;color:var(--text2);align-self:center">GOLDEN</span>
+          <div class="ic-cell ic-pos-lo">+0.003</div><div class="ic-cell ic-neg">-0.002</div><div class="ic-cell ic-neg">-0.005</div><div class="ic-cell ic-pos-lo">+0.005</div>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:6px;font-size:7px">
+          <span><span style="color:var(--green)">■ ≥0.03</span></span>
+          <span><span style="color:#3aa860">■ 0.01-0.03</span></span>
+          <span><span style="color:#2a7a3a">■ 0-0.01</span></span>
+          <span><span style="color:#5a2a2a">■ &lt;0</span></span>
+        </div>
+        <div style="margin-top:6px;font-size:8px;color:var(--text3)">⚠ SUPERTREND: globally neg → regime-gate to BREAKOUT only</div>
+      </div>
+    </div>
+
+    <!-- Dumb blocker -->
+    <div class="panel">
+      <div class="panel-head ph-red">DUMB BLOCKER / SANITY CHECKS <span class="badge badge-red">GUARD</span></div>
+      <div class="panel-body">
+        <div style="font-size:8px;color:var(--text3);margin-bottom:4px">Auto-reject conditions (pre-fire validation)</div>
+        <div class="gate-row"><div style="width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0"></div><span class="gate-name">IS/OOS ratio &lt; 2.0</span><span class="gate-delta" style="color:var(--green)">1.41 ✓</span></div>
+        <div class="gate-row"><div style="width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0"></div><span class="gate-name">Min OOS Sharpe &gt; 1.0</span><span class="gate-delta" style="color:var(--green)">5.35 ✓</span></div>
+        <div class="gate-row"><div style="width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0"></div><span class="gate-name">Circular regime detect</span><span class="gate-delta" style="color:var(--green)">CLEAN ✓</span></div>
+        <div class="gate-row"><div style="width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0"></div><span class="gate-name">HALO cv overflow</span><span class="gate-delta" style="color:var(--gold)">PENDING</span></div>
+        <div class="gate-row"><div style="width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0"></div><span class="gate-name">Signal vote lookahead</span><span class="gate-delta" style="color:var(--green)">CLEAN ✓</span></div>
+        <div class="gate-row"><div style="width:6px;height:6px;border-radius:50%;background:var(--gold);flex-shrink:0"></div><span class="gate-name">Gate selection snooping</span><span class="gate-delta" style="color:var(--gold)">MILD ⚠</span></div>
+        <div class="gate-row"><div style="width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0"></div><span class="gate-name">Min trades per fold (50)</span><span class="gate-delta" style="color:var(--green)">87 ✓</span></div>
+        <div class="gate-row"><div style="width:6px;height:6px;border-radius:50%;background:var(--gold);flex-shrink:0"></div><span class="gate-name">Re-entry thin stats</span><span class="gate-delta" style="color:var(--gold)">WARN ⚠</span></div>
+        <div class="sep"></div>
+        <div style="padding:4px;background:#1a0500;border:1px solid #5a3000;border-radius:2px;font-size:8px;color:var(--orange)">
+          ⚠ Expected live Sharpe: 6-10 after 40-60% slippage haircut
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid3">
+    <!-- Optimization pipeline -->
+    <div class="panel" style="grid-column:span 2">
+      <div class="panel-head ph-gold">OPTIMIZATION PIPELINE — ITER QUEUE <span class="badge badge-gold">RENTECH DOCTRINE</span></div>
+      <div class="panel-body">
+        <div class="tab-row">
+          <div class="tab active">PENDING</div>
+          <div class="tab">P1 SIGNAL</div>
+          <div class="tab">P2 ALPHA</div>
+          <div class="tab">P0 PAPER</div>
+        </div>
+        <div class="pending-item"><span class="pi-label"><span class="badge badge-purple" style="font-size:7px;margin-right:4px">ITER</span>HMM Regime (3-state Markov) — soft probability routing</span><span class="pi-est" style="color:var(--purple)">~3h</span></div>
+        <div class="pending-item"><span class="pi-label"><span class="badge badge-green" style="font-size:7px;margin-right:4px">ITER</span>Re-entry holdout validation — 87 trades, separate fold</span><span class="pi-est" style="color:var(--green)">~1h</span></div>
+        <div class="pending-item"><span class="pi-label"><span class="badge badge-gold" style="font-size:7px;margin-right:4px">ITER</span>ICT FVG exit signal + EQH/EQL tighter (0.05% not 0.2%)</span><span class="pi-est" style="color:var(--gold)">~2h</span></div>
+        <div class="pending-item"><span class="pi-label"><span class="badge badge-blue" style="font-size:7px;margin-right:4px">P1-C</span>MTF confirm: 5m+1h conflict → -50% size. mtf_confirm.py</span><span class="pi-est">~2h</span></div>
+        <div class="pending-item"><span class="pi-label"><span class="badge badge-blue" style="font-size:7px;margin-right:4px">P1-C</span>IC decay slope monitor (14d rolling, -0.0003 alert). ic_monitor.py</span><span class="pi-est">~1h</span></div>
+        <div class="pending-item"><span class="pi-label"><span class="badge badge-blue" style="font-size:7px;margin-right:4px">P1-D</span>Cost-adjusted Sharpe: 0.10% slip + 0.05% spread haircut</span><span class="pi-est">~1h</span></div>
+        <div class="pending-item"><span class="pi-label"><span class="badge badge-gray" style="font-size:7px;margin-right:4px">P2-A</span>Funding rate signal — extreme = overextended gate</span><span class="pi-est" style="color:var(--text3)">P2</span></div>
+        <div class="pending-item"><span class="pi-label"><span class="badge badge-gray" style="font-size:7px;margin-right:4px">P2-B</span>OBI ratio as scored signal — IC test on useObiStream</span><span class="pi-est" style="color:var(--text3)">P2</span></div>
+        <div class="pending-item"><span class="pi-label"><span class="badge badge-gray" style="font-size:7px;margin-right:4px">P2-C</span>Cross-asset as Kelly multiplier: RISK_ON +20% / RISK_OFF -30%</span><span class="pi-est" style="color:var(--text3)">P2</span></div>
+      </div>
+    </div>
+
+    <!-- RenTech gates -->
+    <div class="panel">
+      <div class="panel-head ph-teal">RENTECH GATES STATUS <span class="badge badge-gold">4/5</span></div>
+      <div class="panel-body">
+        <div style="text-align:center;margin-bottom:8px">
+          <div style="font-size:22px;font-weight:bold;color:var(--gold)">PROMISING</div>
+          <div style="font-size:8px;color:var(--text3)">4/5 RenTech gates passed</div>
+        </div>
+        <div class="circuit-row"><div class="cr-status cr-ok"></div><span class="cr-label">G1: OOS Sharpe &gt; 1.0</span><span style="color:var(--green);font-size:9px">5.35 ✓</span></div>
+        <div class="circuit-row"><div class="cr-status cr-ok"></div><span class="cr-label">G2: IS/OOS ratio &lt; 2.0</span><span style="color:var(--green);font-size:9px">1.41 ✓</span></div>
+        <div class="circuit-row"><div class="cr-status cr-ok"></div><span class="cr-label">G3: WR &gt; 50% EUPHORIA</span><span style="color:var(--green);font-size:9px">62.4% ✓</span></div>
+        <div class="circuit-row"><div class="cr-status cr-ok"></div><span class="cr-label">G4: Min 87 OOS trades</span><span style="color:var(--green);font-size:9px">87 ✓</span></div>
+        <div class="circuit-row"><div class="cr-status cr-trip"></div><span class="cr-label">G5: ic_not_decaying</span><span style="color:var(--red);font-size:9px">FAILS ✗</span></div>
+        <div style="margin-top:4px;padding:3px;background:var(--border2);border-radius:2px;font-size:7px;color:var(--text3)">G5 note: regime variance expected → conditional IC by regime is the fix</div>
+        <div class="sep"></div>
+        <div style="font-size:8px;color:var(--text2)">Next milestone:</div>
+        <div style="font-size:9px;color:var(--gold);margin-top:2px">5/5 after HMM soft routing ships</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  const idx = {'p1':0,'p2':1,'p3':2,'p4':3}[id];
+  document.querySelectorAll('.nav-btn')[idx].classList.add('active');
+}
+
+document.querySelectorAll('.kill-cell').forEach(c => {
+  c.onclick = () => {
+    if(c.classList.contains('bad')) { c.classList.remove('bad'); c.classList.add('good'); }
+    else if(c.classList.contains('good')) { c.classList.remove('good'); c.classList.add('meh'); }
+    else { c.classList.remove('meh'); c.classList.add('bad'); }
+  };
+});
+
+document.querySelectorAll('.tab').forEach(t => {
+  t.onclick = () => {
+    t.parentElement.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+  };
+});
+</script>

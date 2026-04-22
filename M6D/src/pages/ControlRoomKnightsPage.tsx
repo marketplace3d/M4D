@@ -1,7 +1,8 @@
 import MaxCogVizKnights from '../viz/ControlRoomKnights.jsx';
-import SocialAlphaPulse from '../viz/SocialAlphaPulse';
 import { useEffect, useMemo, useState } from 'react';
 import { PriceOrb, RiskOrb, ConfluenceOrb, VolumeOrb } from '../viz/MaxCogVizOrbsII';
+import SocialAlphaPulse from '../viz/SocialAlphaPulse';
+import { ContextPanel, StatusPanel } from '../components/TradePanelPrimitives';
 
 /** #warriors — primary 27-panel control room (replaces former `ControlRoom27.jsx` route). */
 export default function ControlRoomKnightsPage() {
@@ -9,6 +10,11 @@ export default function ControlRoomKnightsPage() {
   const [activity, setActivity] = useState<any>(null);
   const [sentiment, setSentiment] = useState<any>(null);
   const [newsTop, setNewsTop] = useState('NEWS FETCH ERROR — CHECK API KEY / CORS.');
+  const [uiLock, setUiLock] = useState(false);
+  const [serverLock, setServerLock] = useState(false);
+  const [haltLock, setHaltLock] = useState(false);
+  const [lockUpdatedAt, setLockUpdatedAt] = useState<string | null>(null);
+  const [lockSource, setLockSource] = useState('—');
 
   useEffect(() => {
     const load = () => {
@@ -17,6 +23,14 @@ export default function ControlRoomKnightsPage() {
         if (d) setSentiment(d);
         const s = d?.summary?.top_signal || d?.summary?.note || '';
         if (s) setNewsTop(String(s).slice(0, 40));
+      }).catch(() => {});
+      fetch(`${DS}/v1/control/halt-lock/`).then(r => r.ok ? r.json() : null).then((d) => {
+        if (!d) return;
+        if (typeof d.ui_lock === 'boolean') setUiLock(d.ui_lock);
+        if (typeof d.terminal_lock === 'boolean') setServerLock(d.terminal_lock);
+        if (typeof d.halt_lock === 'boolean') setHaltLock(d.halt_lock);
+        setLockUpdatedAt(typeof d.updated_at === 'string' ? d.updated_at : null);
+        setLockSource(typeof d.updated_source === 'string' ? d.updated_source.toUpperCase() : '—');
       }).catch(() => {});
     };
     load();
@@ -52,24 +66,24 @@ export default function ControlRoomKnightsPage() {
   const runPath = activity?.ok === false ? 'DEGRADED' : 'ACTIVE';
   const pulseDir = socialData.direction === 'bullish' ? 'LONG' : socialData.direction === 'bearish' ? 'SHORT' : 'FLAT';
   const alertHot = Number(activity?.jedi_score ?? socialData.energy ?? 0) >= 18 || String(activity?.gate_label ?? '').toUpperCase() === 'HOT';
-
   return (
-    <div className="viz-center-page viz-center-page--control27" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <div className="viz-center-page viz-center-page--control27" style={{ display: 'flex', flexDirection: 'column', gap: 10, minHeight: 0 }}>
       {/* Top orb monitor strip (PULSE identity) */}
       <section
         aria-label="Pulse top context orbs"
         style={{
+          flex: '0 0 auto',
           border: '1px solid #1e3a4a',
           borderRadius: 10,
           background: '#050a12',
-          padding: '8px 10px',
+          padding: '6px 8px',
           display: 'flex',
           alignItems: 'center',
-          gap: 10,
+          gap: 8,
           overflowX: 'auto',
         }}
       >
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <PriceOrb
             direction={pulseDir}
             candles={[]}
@@ -101,6 +115,26 @@ export default function ControlRoomKnightsPage() {
           />
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 9, color: uiLock ? '#f59e0b' : '#64748b', border: `1px solid ${uiLock ? '#f59e0b66' : '#33415566'}`, borderRadius: 8, padding: '1px 6px' }}>
+            UI {uiLock ? 'ON' : 'OFF'}
+          </span>
+          <span style={{ fontSize: 9, color: serverLock ? '#ef4444' : '#64748b', border: `1px solid ${serverLock ? '#ef444466' : '#33415566'}`, borderRadius: 8, padding: '1px 6px' }}>
+            SERVER {serverLock ? 'ON' : 'OFF'}
+          </span>
+          <span style={{ fontSize: 9, color: haltLock ? '#ef4444' : '#22c55e', border: `1px solid ${haltLock ? '#ef444466' : '#22c55e66'}`, borderRadius: 8, padding: '1px 6px' }}>
+            HALT {haltLock ? 'ON' : 'OFF'}
+          </span>
+          <span style={{ fontSize: 9, color: '#64748b', border: '1px solid #33415566', borderRadius: 8, padding: '1px 6px' }}>
+            SRC {lockSource}
+          </span>
+          <span style={{ fontSize: 9, color: '#64748b' }}>
+            {(() => {
+              if (!lockUpdatedAt) return 'age —';
+              const ms = Date.now() - Date.parse(lockUpdatedAt);
+              if (!Number.isFinite(ms) || ms < 0) return 'age —';
+              return `age ${Math.floor(ms / 60000)}m`;
+            })()}
+          </span>
           <span
             style={{
               fontSize: 10,
@@ -148,44 +182,37 @@ export default function ControlRoomKnightsPage() {
         </div>
       </section>
 
-      <section aria-label="Pulse priority info panels">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
-          <section className="mission-council__social-alpha" aria-label="Social alpha pulse" style={{ margin: 0 }}>
-            <div className="mission-council__social-alpha-frame">
-              <SocialAlphaPulse data={socialData} showSignalGates={false} />
-            </div>
-          </section>
+      <div style={{ flex: '1 1 auto', minHeight: 0, overflow: 'auto' }}>
+        <section aria-label="Social and priority row" style={{ margin: '0.4rem 0 0.8rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
+            <section className="mission-council__social-alpha" aria-label="Social alpha pulse" style={{ margin: 0 }}>
+              <div className="mission-council__social-alpha-frame">
+                <SocialAlphaPulse
+                  data={socialData}
+                  maAligned={socialData.energy >= 50}
+                  macroAligned={regime !== 'FOMC_FLAT'}
+                  showSignalGates={false}
+                />
+              </div>
+            </section>
 
-          <section className="mission-council__social-alpha" aria-label="System visibility panel" style={{ margin: 0 }}>
-            <header className="mission-council__social-alpha-head">
-              <span className="mission-council__social-alpha-k">SYSTEM VISIBILITY</span>
-              <span className="mission-council__social-alpha-hint">Execution + state trace</span>
-            </header>
-            <div className="mission-council__social-alpha-frame" style={{ height: 'auto', minHeight: 0, padding: 10, gap: 8 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 9, color: '#7f96aa' }}>Run Path</span><span style={{ fontSize: 10, color: runPath === 'ACTIVE' ? '#22c55e' : '#ef4444', fontWeight: 700 }}>{runPath}</span></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 9, color: '#7f96aa' }}>Exec Loop</span><span style={{ fontSize: 10, color: '#a78bfa', fontWeight: 700 }}>{loopPhase}</span></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 9, color: '#7f96aa' }}>Regime</span><span style={{ fontSize: 10, color: '#93c5fd', fontWeight: 700 }}>{regime}</span></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 9, color: '#7f96aa' }}>Drawdown</span><span style={{ fontSize: 10, color: drawdown > 2 ? '#ef4444' : '#22c55e', fontWeight: 700 }}>{drawdown.toFixed(2)}%</span></div>
-            </div>
-          </section>
+            <StatusPanel title="SYSTEM VISIBILITY" hint="Execution + state trace">
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 9, color: '#7f96aa' }}>Run Path</span><span style={{ fontSize: 10, color: runPath === 'ACTIVE' ? '#22c55e' : '#ef4444', fontWeight: 700 }}>{runPath}</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 9, color: '#7f96aa' }}>Exec Loop</span><span style={{ fontSize: 10, color: '#a78bfa', fontWeight: 700 }}>{loopPhase}</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 9, color: '#7f96aa' }}>Regime</span><span style={{ fontSize: 10, color: '#93c5fd', fontWeight: 700 }}>{regime}</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 9, color: '#7f96aa' }}>Drawdown</span><span style={{ fontSize: 10, color: drawdown > 2 ? '#ef4444' : '#22c55e', fontWeight: 700 }}>{drawdown.toFixed(2)}%</span></div>
+            </StatusPanel>
 
-          <section className="mission-council__social-alpha" aria-label="Live priority panel" style={{ margin: 0 }}>
-            <header className="mission-council__social-alpha-head">
-              <span className="mission-council__social-alpha-k">LIVE PRIORITY</span>
-              <span className="mission-council__social-alpha-hint">Immediate operator focus</span>
-            </header>
-            <div className="mission-council__social-alpha-frame" style={{ height: 'auto', minHeight: 0, padding: 10, gap: 8 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 9, color: '#7f96aa' }}>Top Signal</span><span style={{ fontSize: 10, color: '#d7e7f7', fontWeight: 700, maxWidth: 180, textAlign: 'right' }}>{newsTop.slice(0, 26)}</span></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 9, color: '#7f96aa' }}>Direction</span><span style={{ fontSize: 10, color: '#22d3ee', fontWeight: 700 }}>{socialData.direction.toUpperCase()}</span></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 9, color: '#7f96aa' }}>Energy</span><span style={{ fontSize: 10, color: '#f59e0b', fontWeight: 700 }}>{Math.abs(socialData.energy).toFixed(0)}</span></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 9, color: '#7f96aa' }}>Confidence</span><span style={{ fontSize: 10, color: '#38bdf8', fontWeight: 700 }}>{Math.round(socialData.confidence * 100)}%</span></div>
-            </div>
-          </section>
-        </div>
-      </section>
+            <ContextPanel title="LIVE PRIORITY" hint="Immediate operator focus">
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 9, color: '#7f96aa' }}>Top Signal</span><span style={{ fontSize: 10, color: '#d7e7f7', fontWeight: 700, maxWidth: 180, textAlign: 'right' }}>{newsTop.slice(0, 26)}</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 9, color: '#7f96aa' }}>Direction</span><span style={{ fontSize: 10, color: '#22d3ee', fontWeight: 700 }}>{socialData.direction.toUpperCase()}</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 9, color: '#7f96aa' }}>Energy</span><span style={{ fontSize: 10, color: '#f59e0b', fontWeight: 700 }}>{Math.abs(socialData.energy).toFixed(0)}</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 9, color: '#7f96aa' }}>Confidence</span><span style={{ fontSize: 10, color: '#38bdf8', fontWeight: 700 }}>{Math.round(socialData.confidence * 100)}%</span></div>
+            </ContextPanel>
+          </div>
+        </section>
 
-      <div style={{ flex: 1, minHeight: 0 }}>
-      <MaxCogVizKnights />
+        <MaxCogVizKnights />
       </div>
     </div>
   );

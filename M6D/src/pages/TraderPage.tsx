@@ -42,6 +42,26 @@ const C = {
 };
 
 type BrainTab = 'SIGNALS' | 'ROUTING' | 'OPS' | 'BROKER';
+type AccountScope = 'ALL' | 'PAPER' | 'IBKR';
+type LayoutProfile = '4K' | 'DESKTOP' | 'COMPACT';
+type ActionKind = 'close_longs' | 'close_shorts' | 'flatten_all' | 'flatten_lock' | 'rescue';
+
+type ActionReceipt = {
+  id: string;
+  eventId: string;
+  action: ActionKind;
+  scope: AccountScope;
+  status: 'ACK' | 'PARTIAL' | 'ERR';
+  message: string;
+  ts: string;
+};
+type RescueStageState = {
+  freeze: 'IDLE' | 'RUN' | 'DONE' | 'ERR';
+  cancel: 'IDLE' | 'RUN' | 'DONE' | 'ERR';
+  flatten: 'IDLE' | 'RUN' | 'DONE' | 'ERR';
+  serverLock: 'IDLE' | 'RUN' | 'DONE' | 'ERR';
+  audit: 'IDLE' | 'RUN' | 'DONE' | 'ERR';
+};
 
 // ── Primitives ──────────────────────────────────────────────────────────
 function Row({ k, v, vc = C.text, mono = true }: { k: string; v: string | number; vc?: string; mono?: boolean }) {
@@ -1062,12 +1082,30 @@ export default function TraderPage() {
   const [flattenSymbol, setFlattenSymbol] = useState('ES');
   const [lastCycleId, setLastCycleId] = useState('');
   const [lastControlMsg, setLastControlMsg] = useState('');
-  const [auditRows, setAuditRows] = useState<any[]>([]);
   const [showOrbs, setShowOrbs] = useState(false);
   const [healthTrend, setHealthTrend] = useState<'UP' | 'DOWN' | 'FLAT'>('FLAT');
   const prevHealthRef = useRef<number | null>(null);
   const [traceOpen, setTraceOpen] = useState(false);
   const [haltLock, setHaltLock] = useState(false);
+  const [uiLock, setUiLock] = useState(false);
+  const [terminalLock, setTerminalLock] = useState(false);
+  const [lockUpdatedAt, setLockUpdatedAt] = useState<string | null>(null);
+  const [lockSource, setLockSource] = useState<string>('—');
+  const [sessionData, setSessionData] = useState<any>(null);
+  const [accountScope, setAccountScope] = useState<AccountScope>('ALL');
+  const [dockOpen, setDockOpen] = useState(true);
+  const [layoutProfile, setLayoutProfile] = useState<LayoutProfile>('DESKTOP');
+  const [paperStatus, setPaperStatus] = useState<any>(null);
+  const [receipts, setReceipts] = useState<ActionReceipt[]>([]);
+  const [posSortKey, setPosSortKey] = useState<'symbol' | 'side' | 'qty' | 'avg' | 'unrealized' | 'account' | 'kill'>('symbol');
+  const [posSortDir, setPosSortDir] = useState<'asc' | 'desc'>('asc');
+  const [rescueStage, setRescueStage] = useState<RescueStageState>({
+    freeze: 'IDLE',
+    cancel: 'IDLE',
+    flatten: 'IDLE',
+    serverLock: 'IDLE',
+    audit: 'IDLE',
+  });
 
   const loadBrain = useCallback(() => {
     fetch(`${DS}/v1/walkforward/`).then(r => r.ok ? r.json() : null).then(d => { if (d) setWf(d); }).catch(() => {});
@@ -1076,6 +1114,7 @@ export default function TraderPage() {
     fetch(`${DS}/v1/ai/ensemble/`).then(r => r.ok ? r.json() : null).then(d => { if (d) setEns(d); }).catch(() => {});
     fetch(`${DS}/v1/ai/pca/`).then(r => r.ok ? r.json() : null).then(d => { if (d) setPca(d); }).catch(() => {});
     fetch(`${DS}/v1/ibkr/test/`).then(r => r.ok ? r.json() : null).then(d => { if (d) setIbkr(d); }).catch(() => {});
+    fetch(`${DS}/v1/paper/status/`).then(r => r.ok ? r.json() : null).then(d => { if (d) setPaperStatus(d); }).catch(() => {});
     fetch(`${DS}/v1/cross/report/`).then(r => r.ok ? r.json() : null).then(d => { if (d) setCrossData(d); }).catch(() => {});
   }, []);
 
@@ -1108,6 +1147,17 @@ export default function TraderPage() {
     return () => clearInterval(id);
   }, []);
 
+  // Hard run gate (I-OPT-OOO P0/P1): only allow run actions when session and risk gate are green.
+  const gateNow = String(actData?.gate_label ?? '—');
+  const sessionAllowedNow = !!sessionData?.allowed;
+  const riskGateOpenNow = gateNow === 'HOT' || gateNow === 'ALIVE';
+  const canRunNow = !haltLock && sessionAllowedNow && riskGateOpenNow;
+  const runBlockReason =
+    haltLock ? 'HALT LOCK ON'
+    : !sessionAllowedNow ? 'SESSION BLOCKED'
+    : !riskGateOpenNow ? `RISK GATE ${gateNow}`
+    : null;
+
   const handleApprove = (sym: string) => {
     if (haltLock) {
       setLastControlMsg('HALT LOCK active: approval blocked');
@@ -1126,6 +1176,10 @@ export default function TraderPage() {
   };
 
   const runPaperNow = () => {
+    if (!canRunNow) {
+      setLastControlMsg(`paper run blocked: ${runBlockReason ?? 'safety gate'}`);
+      return;
+    }
     setControlBusy('paper');
     fetch(`${DS}/v1/paper/run/?mode=${mode}`, { method: 'POST' })
       .then(r => r.ok ? r.json() : null)
@@ -1142,8 +1196,8 @@ export default function TraderPage() {
   };
 
   const runIbkrNow = () => {
-    if (haltLock) {
-      setLastControlMsg('HALT LOCK active: IBKR run blocked');
+    if (!canRunNow) {
+      setLastControlMsg(`ibkr run blocked: ${runBlockReason ?? 'safety gate'}`);
       return;
     }
     setControlBusy('ibkr');
@@ -1182,6 +1236,84 @@ export default function TraderPage() {
       });
   };
 
+  const setUiHaltLock = (next: boolean, reason?: string, note?: string) => {
+    setHaltLock(next);
+    fetch(`${DS}/v1/control/halt-lock/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        halt_lock: next,
+        lock_key: 'ui',
+        updated_by: 'm4d-trader',
+        unlock_reason: reason || undefined,
+        unlock_note: note || undefined,
+      }),
+    }).then(r => r.ok ? r.json() : null).then((d) => {
+      if (d) {
+        if (typeof d.halt_lock === 'boolean') setHaltLock(d.halt_lock);
+        if (typeof d.ui_lock === 'boolean') setUiLock(d.ui_lock);
+        if (typeof d.terminal_lock === 'boolean') setTerminalLock(d.terminal_lock);
+        setLockUpdatedAt(typeof d.updated_at === 'string' ? d.updated_at : null);
+        setLockSource(typeof d.updated_source === 'string' ? d.updated_source.toUpperCase() : 'UI');
+      }
+      setLastControlMsg(next ? 'HALT LOCK enabled (persisted)' : 'HALT LOCK disabled (persisted)');
+    }).catch(() => {
+      setLastControlMsg(next ? 'HALT LOCK enabled (local only)' : 'HALT LOCK disabled (local only)');
+    });
+  };
+
+  const pushReceipt = (r: Omit<ActionReceipt, 'id' | 'ts'>) => {
+    setReceipts((prev) => [
+      {
+        ...r,
+        id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+        ts: new Date().toISOString(),
+      },
+      ...prev,
+    ].slice(0, 30));
+  };
+
+  const makeEventId = (action: ActionKind) => `${action}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+
+  const flattenSymbols = async (symbols: string[], flowLabel: string, action: ActionKind, scope: AccountScope, account: 'IBKR' | 'PAPER') => {
+    if (symbols.length === 0) {
+      const eventId = makeEventId(action);
+      const msg = `${flowLabel}: no symbols to close`;
+      setLastControlMsg(msg);
+      pushReceipt({ eventId, action, scope, status: 'ERR', message: msg });
+      return { okCount: 0, total: 0, eventId };
+    }
+    setControlBusy(flowLabel);
+    const eventId = makeEventId(action);
+    const results = await Promise.allSettled(
+      symbols.map(async (sym) => {
+        const ep = account === 'IBKR'
+          ? `${DS}/v1/ibkr/flatten/?symbol=${encodeURIComponent(sym)}&asset=FUTURES`
+          : `${DS}/v1/paper/flatten/?symbol=${encodeURIComponent(sym)}`;
+        const r = await fetch(ep, { method: 'POST' });
+        if (!r.ok) return { ok: false, symbol: sym, error: `HTTP_${r.status}` };
+        const data = await r.json();
+        return { ok: !!data?.ok, symbol: sym, error: data?.error || '' };
+      }),
+    );
+    const okCount = results.filter((r) => r.status === 'fulfilled' && r.value.ok).length;
+    const failed = results
+      .filter((r) => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.ok))
+      .map((r) => (r.status === 'fulfilled' ? r.value.symbol : 'unknown'));
+    const message = `${flowLabel}: ${okCount}/${symbols.length} sent${failed.length ? ` · failed: ${failed.join(',')}` : ''}`;
+    setLastControlMsg(message);
+    pushReceipt({
+      eventId,
+      action,
+      scope,
+      status: okCount === symbols.length ? 'ACK' : okCount > 0 ? 'PARTIAL' : 'ERR',
+      message,
+    });
+    setControlBusy(null);
+    loadBrain();
+    return { okCount, total: symbols.length, failed, eventId };
+  };
+
   const approveAllReady = () => {
     if (haltLock) {
       setLastControlMsg('HALT LOCK active: approve-all blocked');
@@ -1218,21 +1350,6 @@ export default function TraderPage() {
     setLastControlMsg(`rejected visible: ${syms.length}`);
   };
 
-  const loadAudit = (cycleId?: string) => {
-    const cid = (cycleId ?? lastCycleId).trim();
-    const qs = cid ? `?cycle_id=${encodeURIComponent(cid)}&limit=20` : '?broker=all&limit=20';
-    setControlBusy('audit');
-    fetch(`${DS}/v1/audit/order-intent/${qs}`)
-      .then(r => r.ok ? r.json() : null)
-      .then((d) => {
-        setAuditRows(Array.isArray(d?.rows) ? d.rows : []);
-        setLastControlMsg(cid ? `audit loaded for ${cid}` : 'latest audit loaded');
-      })
-      .catch(() => setLastControlMsg('audit load failed'))
-      .finally(() => setControlBusy(null));
-  };
-
-  const [sessionData, setSessionData] = useState<any>(null);
   useEffect(() => {
     const load = () => fetch(`${DS}/v1/session/`).then(r => r.ok ? r.json() : null).then(d => { if (d) setSessionData(d); }).catch(() => {});
     load();
@@ -1244,7 +1361,13 @@ export default function TraderPage() {
     fetch(`${DS}/v1/control/halt-lock/`)
       .then(r => r.ok ? r.json() : null)
       .then((d) => {
-        if (d && typeof d.halt_lock === 'boolean') setHaltLock(d.halt_lock);
+        if (d) {
+          if (typeof d.halt_lock === 'boolean') setHaltLock(d.halt_lock);
+          if (typeof d.ui_lock === 'boolean') setUiLock(d.ui_lock);
+          if (typeof d.terminal_lock === 'boolean') setTerminalLock(d.terminal_lock);
+          setLockUpdatedAt(typeof d.updated_at === 'string' ? d.updated_at : null);
+          setLockSource(typeof d.updated_source === 'string' ? d.updated_source.toUpperCase() : '—');
+        }
       })
       .catch(() => {});
   }, []);
@@ -1257,12 +1380,43 @@ export default function TraderPage() {
   const crossC        = crossRegime === 'RISK_ON' ? C.HEALTHY : crossRegime === 'RISK_OFF' ? C.RETIRE : C.muted;
   const fngVal        = fngData?.value ?? null;
   const ibkrConn      = ibkr?.connected ?? false;
+  const ibkrPositions = (ibkr?.open_positions ?? []).map((p: any) => ({
+    symbol: String(p.symbol ?? ''),
+    side: Number(p.qty ?? 0) > 0 ? 'LONG' : Number(p.qty ?? 0) < 0 ? 'SHORT' : 'FLAT',
+    qty: Number(p.qty ?? 0),
+    avg: Number(p.avg_cost ?? 0),
+    unrealized: Number(p.unrealized_pnl ?? 0),
+    account: 'IBKR',
+    kill: haltLock || terminalLock,
+  }));
+  const paperPositions = (paperStatus?.open_positions ?? []).map((p: any) => ({
+    symbol: String(p.symbol ?? ''),
+    side: Number(p.qty ?? 0) > 0 ? 'LONG' : Number(p.qty ?? 0) < 0 ? 'SHORT' : 'FLAT',
+    qty: Number(p.qty ?? 0),
+    avg: Number(p.avg_cost ?? p.avg_entry ?? 0),
+    unrealized: Number(p.unrealized_pnl ?? p.unrealized ?? 0),
+    account: 'PAPER',
+    kill: haltLock || terminalLock,
+  }));
+  const openPositions = [
+    ...(accountScope === 'ALL' || accountScope === 'IBKR' ? ibkrPositions : []),
+    ...(accountScope === 'ALL' || accountScope === 'PAPER' ? paperPositions : []),
+  ];
+  const longPositions = openPositions.filter((p: any) => Number(p.qty ?? 0) > 0);
+  const shortPositions = openPositions.filter((p: any) => Number(p.qty ?? 0) < 0);
+  const sortedPositions = [...openPositions].sort((a: any, b: any) => {
+    const av = a[posSortKey];
+    const bv = b[posSortKey];
+    const base = typeof av === 'number' && typeof bv === 'number'
+      ? av - bv
+      : String(av).localeCompare(String(bv));
+    return posSortDir === 'asc' ? base : -base;
+  });
   const masterHealthScore =
     (ibkrConn ? 35 : 0) +
     (sessionData?.allowed ? 25 : 0) +
     ((gate_label === 'HOT' || gate_label === 'ALIVE') ? 20 : gate_label === 'SLOW' ? 10 : 0) +
-    (approvalCount > 0 ? 10 : 5) +
-    (auditRows.length > 0 ? 10 : 0);
+    (approvalCount > 0 ? 15 : 5);
   const masterHealth = Math.max(0, Math.min(100, masterHealthScore));
   const masterState = masterHealth >= 75 ? 'HEALTHY' : masterHealth >= 45 ? 'WATCH' : 'ALERT';
   const masterStateColor = masterState === 'HEALTHY' ? C.HEALTHY : masterState === 'WATCH' ? C.WATCH : C.RETIRE;
@@ -1271,7 +1425,6 @@ export default function TraderPage() {
     { label: 'Session gate', ok: !!sessionData?.allowed, value: sessionData?.allowed ? 'OPEN' : (sessionData ? 'BLOCKED' : '—') },
     { label: 'Risk gate', ok: gate_label === 'HOT' || gate_label === 'ALIVE', value: gate_label || '—' },
     { label: 'Approval queue', ok: approvalCount > 0, value: `${approvalCount} ready` },
-    { label: 'Audit stream', ok: auditRows.length > 0, value: auditRows.length > 0 ? `${auditRows.length} rows` : 'empty' },
   ];
   const failedChecks = traceChecks.filter(c => !c.ok).map(c => c.label);
   const traceAction =
@@ -1280,6 +1433,180 @@ export default function TraderPage() {
     : !(gate_label === 'HOT' || gate_label === 'ALIVE') ? 'Risk gate not green: hold entries, review gate report.'
     : approvalCount === 0 ? 'No ready queue: wait for new high-confidence signals.'
     : 'System healthy for guided approvals.';
+  const cotraderConfidence = Math.max(0, Math.min(100, Math.round(
+    (masterHealth * 0.45)
+    + ((gate_label === 'HOT' || gate_label === 'ALIVE') ? 20 : gate_label === 'SLOW' ? 8 : 0)
+    + (approvalCount > 0 ? 18 : 4)
+    + (sessionData?.allowed ? 12 : 0),
+  )));
+  const cotraderPosture =
+    cotraderConfidence >= 80 ? 'ATTACK'
+    : cotraderConfidence >= 55 ? 'STALK'
+    : 'DEFEND';
+  const cotraderPostureColor =
+    cotraderPosture === 'ATTACK' ? C.HEALTHY
+    : cotraderPosture === 'STALK' ? C.WATCH
+    : C.RETIRE;
+  const riskFlags = [
+    !ibkrConn ? 'IBKR link offline' : null,
+    !sessionData?.allowed ? 'Session blocked' : null,
+    !(gate_label === 'HOT' || gate_label === 'ALIVE') ? `Risk gate ${gate_label}` : null,
+    haltLock ? 'HALT LOCK ON' : null,
+    terminalLock ? 'SERVER LOCK ON' : null,
+  ].filter(Boolean) as string[];
+  const primaryGuidance =
+    riskFlags.length > 0 ? 'RISK_BLOCKED'
+    : approvalCount > 0 ? 'READY_TO_GUIDE'
+    : 'NO_READY_SIGNALS';
+  const ibkrOpenCount = ibkrPositions.length;
+  const paperOpenCount = paperPositions.length;
+  const balanceDrift = Math.abs(ibkrOpenCount - paperOpenCount);
+  const mapSvgPath = '/Volumes/AI/AI-4D/M4D/AGENT/SYSTEM-MAP.svg';
+  const specPath = '/Volumes/AI/AI-4D/M4D/AGENT/SYSTEM-SPEC.md';
+  const runAction = async (action: ActionKind) => {
+    const paperScoped = accountScope === 'PAPER' || accountScope === 'ALL';
+    const ibkrScoped = accountScope === 'IBKR' || accountScope === 'ALL';
+    if (action === 'close_longs') {
+      const ibkrSyms = ibkrScoped ? longPositions.filter((p: any) => p.account === 'IBKR').map((p: any) => String(p.symbol)).filter(Boolean) : [];
+      const paperSyms = paperScoped ? longPositions.filter((p: any) => p.account === 'PAPER').map((p: any) => String(p.symbol)).filter(Boolean) : [];
+      const outIbkr = await flattenSymbols(ibkrSyms, 'close longs', action, accountScope, 'IBKR');
+      const outPaper = await flattenSymbols(paperSyms, 'close longs', action, accountScope, 'PAPER');
+      if (outIbkr.total + outPaper.total > 0) {
+        pushReceipt({
+          eventId: `${outIbkr.eventId}-merge`,
+          action,
+          scope: accountScope,
+          status: outIbkr.okCount + outPaper.okCount === outIbkr.total + outPaper.total ? 'ACK' : (outIbkr.okCount + outPaper.okCount) > 0 ? 'PARTIAL' : 'ERR',
+          message: `close_longs merged: ${outIbkr.okCount + outPaper.okCount}/${outIbkr.total + outPaper.total}`,
+        });
+      }
+      return;
+    }
+    if (action === 'close_shorts') {
+      const ibkrSyms = ibkrScoped ? shortPositions.filter((p: any) => p.account === 'IBKR').map((p: any) => String(p.symbol)).filter(Boolean) : [];
+      const paperSyms = paperScoped ? shortPositions.filter((p: any) => p.account === 'PAPER').map((p: any) => String(p.symbol)).filter(Boolean) : [];
+      const outIbkr = await flattenSymbols(ibkrSyms, 'close shorts', action, accountScope, 'IBKR');
+      const outPaper = await flattenSymbols(paperSyms, 'close shorts', action, accountScope, 'PAPER');
+      if (outIbkr.total + outPaper.total > 0) {
+        pushReceipt({
+          eventId: `${outIbkr.eventId}-merge`,
+          action,
+          scope: accountScope,
+          status: outIbkr.okCount + outPaper.okCount === outIbkr.total + outPaper.total ? 'ACK' : (outIbkr.okCount + outPaper.okCount) > 0 ? 'PARTIAL' : 'ERR',
+          message: `close_shorts merged: ${outIbkr.okCount + outPaper.okCount}/${outIbkr.total + outPaper.total}`,
+        });
+      }
+      return;
+    }
+    if (action === 'flatten_lock') {
+      const ibkrSyms = ibkrScoped ? openPositions.filter((p: any) => p.account === 'IBKR').map((p: any) => String(p.symbol)).filter(Boolean) : [];
+      const paperSyms = paperScoped ? openPositions.filter((p: any) => p.account === 'PAPER').map((p: any) => String(p.symbol)).filter(Boolean) : [];
+      const outIbkr = await flattenSymbols(ibkrSyms, 'flatten all', action, accountScope, 'IBKR');
+      const outPaper = await flattenSymbols(paperSyms, 'flatten all', action, accountScope, 'PAPER');
+      setUiHaltLock(true);
+      const ok = outIbkr.okCount + outPaper.okCount;
+      const total = outIbkr.total + outPaper.total;
+      pushReceipt({
+        eventId: `${outIbkr.eventId}-merge`,
+        action,
+        scope: accountScope,
+        status: ok === total ? 'ACK' : ok > 0 ? 'PARTIAL' : 'ERR',
+        message: `lock requested after flatten (${ok}/${total})`,
+      });
+      return;
+    }
+    if (action === 'flatten_all') {
+      const ibkrSyms = ibkrScoped ? openPositions.filter((p: any) => p.account === 'IBKR').map((p: any) => String(p.symbol)).filter(Boolean) : [];
+      const paperSyms = paperScoped ? openPositions.filter((p: any) => p.account === 'PAPER').map((p: any) => String(p.symbol)).filter(Boolean) : [];
+      const outIbkr = await flattenSymbols(ibkrSyms, 'flatten all', action, accountScope, 'IBKR');
+      const outPaper = await flattenSymbols(paperSyms, 'flatten all', action, accountScope, 'PAPER');
+      const ok = outIbkr.okCount + outPaper.okCount;
+      const total = outIbkr.total + outPaper.total;
+      if (total > 0) {
+        pushReceipt({
+          eventId: `${outIbkr.eventId}-merge`,
+          action,
+          scope: accountScope,
+          status: ok === total ? 'ACK' : ok > 0 ? 'PARTIAL' : 'ERR',
+          message: `flatten_all merged: ${ok}/${total}`,
+        });
+      }
+      return;
+    }
+    if (action === 'rescue') {
+      panicRescue();
+    }
+  };
+
+  const panicRescue = () => {
+    if (terminalLock) {
+      setLastControlMsg('panic rescue blocked: server lock already active');
+      return;
+    }
+    const eventId = makeEventId('rescue');
+    setRescueStage({ freeze: 'RUN', cancel: 'IDLE', flatten: 'IDLE', serverLock: 'IDLE', audit: 'IDLE' });
+    setControlBusy('panic-rescue');
+    setLastControlMsg('rescue stage 1/5: freeze entries');
+    fetch(`${DS}/v1/control/halt-lock/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ halt_lock: true, lock_key: 'ui', updated_by: `m4d-trader-${eventId}` }),
+    }).then((r) => {
+      if (!r.ok) throw new Error(`stage1 lock failed ${r.status}`);
+      setRescueStage((s) => ({ ...s, freeze: 'DONE', cancel: 'RUN' }));
+      setLastControlMsg('rescue stage 2/5: cancel pending approvals');
+      setDismissed(new Set(active.map((s) => s.symbol)));
+      setRescueStage((s) => ({ ...s, cancel: 'DONE', flatten: 'RUN' }));
+      setLastControlMsg('rescue stage 3/5: flatten positions');
+      const ibkrSyms = openPositions.filter((p: any) => p.account === 'IBKR').map((p: any) => String(p.symbol ?? '')).filter(Boolean);
+      const paperSyms = openPositions.filter((p: any) => p.account === 'PAPER').map((p: any) => String(p.symbol ?? '')).filter(Boolean);
+      return flattenSymbols(ibkrSyms, 'rescue flatten', 'rescue', accountScope, 'IBKR')
+        .then((outIbkr) => flattenSymbols(paperSyms, 'rescue flatten', 'rescue', accountScope, 'PAPER').then((outPaper) => ({ outIbkr, outPaper })))
+        .then((out) => {
+          const ok = out.outIbkr.okCount + out.outPaper.okCount;
+          const total = out.outIbkr.total + out.outPaper.total;
+          if (ok < total) throw new Error(`stage3 partial ${ok}/${total}`);
+          setRescueStage((s) => ({ ...s, flatten: 'DONE', serverLock: 'RUN' }));
+          setLastControlMsg('rescue stage 4/5: enforce server lock');
+          return fetch(`${DS}/v1/control/halt-lock/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ halt_lock: true, lock_key: 'terminal', updated_by: `m4d-rescue-${eventId}` }),
+          });
+        })
+        .then((r) => {
+          if (!r.ok) throw new Error(`stage4 server lock failed ${r.status}`);
+          setRescueStage((s) => ({ ...s, serverLock: 'DONE', audit: 'RUN' }));
+          setLastControlMsg('rescue stage 5/5: audit event emitted');
+          pushReceipt({
+            eventId,
+            action: 'rescue',
+            scope: accountScope,
+            status: 'ACK',
+            message: 'rescue flow completed (freeze/cancel/flatten/server-lock/audit)',
+          });
+          setRescueStage((s) => ({ ...s, audit: 'DONE' }));
+          setControlBusy(null);
+        });
+    }).catch((e) => {
+      setRescueStage((s) => ({
+        freeze: s.freeze === 'RUN' ? 'ERR' : s.freeze,
+        cancel: s.cancel === 'RUN' ? 'ERR' : s.cancel,
+        flatten: s.flatten === 'RUN' ? 'ERR' : s.flatten,
+        serverLock: s.serverLock === 'RUN' ? 'ERR' : s.serverLock,
+        audit: s.audit === 'RUN' ? 'ERR' : s.audit,
+      }));
+      pushReceipt({
+        eventId,
+        action: 'rescue',
+        scope: accountScope,
+        status: 'ERR',
+        message: `rescue halted: ${e instanceof Error ? e.message : 'unknown error'}`,
+      });
+      setLastControlMsg(`rescue halted: ${e instanceof Error ? e.message : 'unknown error'}`);
+      setControlBusy(null);
+    });
+  };
 
   useEffect(() => {
     const prev = prevHealthRef.current;
@@ -1292,6 +1619,7 @@ export default function TraderPage() {
   }, [masterHealth]);
 
   const TABS: BrainTab[] = ['SIGNALS', 'ROUTING', 'OPS', 'BROKER'];
+  const dockWidth = layoutProfile === '4K' ? 420 : layoutProfile === 'COMPACT' ? 280 : 340;
   const TAB_C: Record<BrainTab, string> = {
     SIGNALS: '#3ae87a', ROUTING: '#b07aff', OPS: '#ffcc3a', BROKER: C.PADAWAN,
   };
@@ -1317,15 +1645,15 @@ export default function TraderPage() {
         <div style={{ width: 1, height: 20, background: C.border, flexShrink: 0 }} />
 
         {/* Primary controls: run / flatten / audit */}
-        <button onClick={runPaperNow} disabled={controlBusy != null} style={{
+        <button onClick={runPaperNow} disabled={controlBusy != null || !canRunNow} style={{
           background: 'none', border: `1px solid ${C.PADAWAN}`, color: C.PADAWAN,
           fontSize: 8, padding: '1px 6px', cursor: 'pointer', letterSpacing: 1, borderRadius: 2, flexShrink: 0,
-          opacity: controlBusy ? 0.65 : 1,
+          opacity: (controlBusy || !canRunNow) ? 0.5 : 1,
         }}>▶ PAPER RUN</button>
-        <button onClick={runIbkrNow} disabled={controlBusy != null} style={{
+        <button onClick={runIbkrNow} disabled={controlBusy != null || !canRunNow} style={{
           background: 'none', border: `1px solid ${C.BREAKOUT}`, color: C.BREAKOUT,
           fontSize: 8, padding: '1px 6px', cursor: 'pointer', letterSpacing: 1, borderRadius: 2, flexShrink: 0,
-          opacity: controlBusy ? 0.65 : 1,
+          opacity: (controlBusy || !canRunNow) ? 0.5 : 1,
         }}>▶ IBKR RUN</button>
         <input
           value={flattenSymbol}
@@ -1365,32 +1693,27 @@ export default function TraderPage() {
         }}>REJECT ALL</button>
         <button onClick={() => {
           const next = !haltLock;
-          setHaltLock(next);
-          fetch(`${DS}/v1/control/halt-lock/`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ halt_lock: next, updated_by: 'm4d-trader' }),
-          }).then(r => r.ok ? r.json() : null).then((d) => {
-            if (d && typeof d.halt_lock === 'boolean') {
-              setHaltLock(d.halt_lock);
-              setLastControlMsg(d.halt_lock ? 'HALT LOCK enabled (persisted)' : 'HALT LOCK disabled (persisted)');
-            } else {
-              setLastControlMsg(next ? 'HALT LOCK enabled' : 'HALT LOCK disabled');
+          if (!next) {
+            const unlockReason = (window.prompt('Unlock reason code (e.g. MANUAL_CLEAR / DRIFT_NORMALIZED / SESSION_RESET):', 'MANUAL_CLEAR') || '').trim().toUpperCase();
+            if (!unlockReason) {
+              setLastControlMsg('unlock cancelled: reason code required');
+              return;
             }
-          }).catch(() => {
-            setLastControlMsg(next ? 'HALT LOCK enabled (local only)' : 'HALT LOCK disabled (local only)');
-          });
+            const unlockNote = (window.prompt('Unlock note (what changed, min 5 chars):', '') || '').trim();
+            if (unlockNote.length < 5) {
+              setLastControlMsg('unlock cancelled: note too short');
+              return;
+            }
+            setUiHaltLock(next, unlockReason, unlockNote);
+            return;
+          }
+          setUiHaltLock(next);
         }} style={{
           background: haltLock ? '#2a0909' : 'none',
           border: `1px solid ${haltLock ? C.RETIRE : C.border}`,
           color: haltLock ? C.RETIRE : C.muted,
           fontSize: 8, padding: '1px 6px', cursor: 'pointer', letterSpacing: 1, borderRadius: 2, flexShrink: 0,
         }}>{haltLock ? 'HALT LOCK ON' : 'HALT LOCK OFF'}</button>
-        <button onClick={() => loadAudit()} disabled={controlBusy != null} style={{
-          background: 'none', border: `1px solid ${C.dim}`, color: C.text,
-          fontSize: 8, padding: '1px 6px', cursor: 'pointer', letterSpacing: 1, borderRadius: 2, flexShrink: 0,
-          opacity: controlBusy ? 0.65 : 1,
-        }}>AUDIT</button>
         <button onClick={() => setShowOrbs(v => !v)} style={{
           background: 'none', border: `1px solid ${showOrbs ? C.PADAWAN : C.border}`, color: showOrbs ? C.PADAWAN : C.muted,
           fontSize: 8, padding: '1px 6px', cursor: 'pointer', letterSpacing: 1, borderRadius: 2, flexShrink: 0,
@@ -1433,6 +1756,11 @@ export default function TraderPage() {
             </span>
           </span>
         ))}
+        {runBlockReason && (
+          <span style={{ fontSize: 8, color: C.WATCH, border: `1px solid ${C.WATCH}66`, borderRadius: 9, padding: '1px 6px', flexShrink: 0 }}>
+            RUN BLOCK: {runBlockReason}
+          </span>
+        )}
 
         <div style={{ width: 1, height: 20, background: C.border, flexShrink: 0 }} />
 
@@ -1504,12 +1832,24 @@ export default function TraderPage() {
           {controlBusy ? `running: ${controlBusy}` : (lastControlMsg || 'idle')}
         </span>
         {haltLock && <span style={{ fontSize: 8.5, color: C.RETIRE, fontWeight: 700 }}>HALT LOCK ACTIVE</span>}
+        <span style={{ fontSize: 8, color: uiLock ? C.WATCH : C.dim, border: `1px solid ${(uiLock ? C.WATCH : C.border)}66`, borderRadius: 8, padding: '1px 6px' }}>
+          UI LOCK {uiLock ? 'ON' : 'OFF'}
+        </span>
+        <span style={{ fontSize: 8, color: terminalLock ? C.RETIRE : C.dim, border: `1px solid ${(terminalLock ? C.RETIRE : C.border)}66`, borderRadius: 8, padding: '1px 6px' }}>
+          SERVER LOCK {terminalLock ? 'ON' : 'OFF'}
+        </span>
+        <span style={{ fontSize: 8, color: C.dim, border: `1px solid ${C.border}66`, borderRadius: 8, padding: '1px 6px' }}>
+          SRC {lockSource}
+        </span>
+        <span style={{ fontSize: 8, color: C.dim }}>
+          age {(() => {
+            if (!lockUpdatedAt) return '—';
+            const ms = Date.now() - Date.parse(lockUpdatedAt);
+            if (!Number.isFinite(ms) || ms < 0) return '—';
+            return `${Math.floor(ms / 60000)}m`;
+          })()}
+        </span>
         {lastCycleId && <span style={{ fontSize: 8, color: C.PADAWAN, fontFamily: 'monospace' }}>cycle {lastCycleId}</span>}
-        {auditRows.length > 0 && (
-          <span style={{ fontSize: 8, color: C.muted }}>
-            audit: {auditRows[0]?.symbol ?? '—'} {auditRows[0]?.action ?? '—'} {auditRows[0]?.source_db ?? ''}
-          </span>
-        )}
         {showOrbs && (
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
             <XSentinelOrb
@@ -1564,26 +1904,6 @@ export default function TraderPage() {
         </div>
       )}
 
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 8, padding: '4px 10px',
-        borderBottom: `1px solid ${C.border}`, background: '#040a10', overflowX: 'auto', flexShrink: 0,
-      }}>
-        <span style={{ fontSize: 8, color: C.dim, letterSpacing: 1 }}>GAPS TO SURFACE</span>
-        {[
-          { l: 'Recon panel', s: 'MISSING', c: C.WATCH },
-          { l: 'Stale-data hard gate', s: 'PARTIAL', c: C.WATCH },
-          { l: 'Hard risk veto reasons', s: 'PARTIAL', c: C.WATCH },
-          { l: 'TCA/slippage', s: 'MISSING', c: C.RETIRE },
-          { l: 'Mode promotion gates', s: 'MISSING', c: C.RETIRE },
-        ].map((g) => (
-          <span key={g.l} style={{
-            fontSize: 8, color: g.c, border: `1px solid ${g.c}66`, borderRadius: 10, padding: '1px 7px', flexShrink: 0,
-          }}>
-            {g.l}: {g.s}
-          </span>
-        ))}
-      </div>
-
       {/* ── ALGO BRAIN ─────────────────────────────────────────────────────── */}
       {showBrain && (
         <div style={{ flexShrink: 0, background: C.bg1, borderBottom: `1px solid ${C.border}` }}>
@@ -1608,9 +1928,277 @@ export default function TraderPage() {
       )}
 
       {/* ── 4K MAXCOGVIZ ───────────────────────────────────────────────────── */}
-      <div className="viz-center-page viz-center-page--control27"
-        style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-        <MaxCogVizKnights />
+      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+        <div
+          className="viz-center-page viz-center-page--control27"
+          style={{ flex: 1, minHeight: 0, overflow: 'auto' }}
+        >
+          <MaxCogVizKnights />
+        </div>
+        <div style={{
+          width: dockOpen ? dockWidth : 24,
+          minWidth: dockOpen ? dockWidth : 24,
+          borderLeft: `1px solid ${C.border}`,
+          background: '#040910',
+          padding: dockOpen ? '8px 9px' : '8px 2px',
+          overflowY: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 8,
+          transition: 'width 140ms ease',
+        }}>
+          <button
+            onClick={() => setDockOpen((v) => !v)}
+            title={dockOpen ? 'Collapse trade interface dock' : 'Expand trade interface dock'}
+            style={{
+              alignSelf: dockOpen ? 'flex-end' : 'center',
+              border: `1px solid ${C.border}`,
+              background: '#07111a',
+              color: C.PADAWAN,
+              borderRadius: 3,
+              padding: '1px 6px',
+              fontSize: 10,
+              cursor: 'pointer',
+              lineHeight: 1.2,
+            }}
+          >
+            {dockOpen ? '>' : '<'}
+          </button>
+          {dockOpen && (
+            <>
+          <div style={{ fontSize: 9, color: C.PADAWAN, letterSpacing: 2, fontFamily: 'Barlow Condensed, sans-serif' }}>
+            TRADE INTERFACE DOCK
+          </div>
+          <div style={{ border: `1px solid ${C.border}`, borderRadius: 5, padding: 8, background: '#050d17' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+              <span style={{ fontSize: 8, color: C.dim }}>ACCOUNT SCOPE</span>
+              <span style={{ fontSize: 8, color: C.text }}>{accountScope}</span>
+            </div>
+            <div style={{ display: 'flex', gap: 4 }}>
+              {(['ALL', 'PAPER', 'IBKR'] as const).map((a) => (
+                <button key={a} onClick={() => setAccountScope(a)} style={{
+                  background: accountScope === a ? '#0a1a24' : 'none',
+                  border: `1px solid ${accountScope === a ? C.PADAWAN : C.border}`,
+                  color: accountScope === a ? C.PADAWAN : C.muted, fontSize: 8, padding: '1px 6px',
+                  cursor: 'pointer', borderRadius: 2, fontFamily: 'Barlow Condensed, sans-serif',
+                }}>{a}</button>
+              ))}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 7, marginBottom: 4 }}>
+              <span style={{ fontSize: 8, color: C.dim }}>LAYOUT</span>
+              <span style={{ fontSize: 8, color: C.text }}>{layoutProfile}</span>
+            </div>
+            <div style={{ display: 'flex', gap: 4 }}>
+              {(['4K', 'DESKTOP', 'COMPACT'] as const).map((p) => (
+                <button key={p} onClick={() => setLayoutProfile(p)} style={{
+                  background: layoutProfile === p ? '#0a1a24' : 'none',
+                  border: `1px solid ${layoutProfile === p ? C.PADAWAN : C.border}`,
+                  color: layoutProfile === p ? C.PADAWAN : C.muted, fontSize: 8, padding: '1px 6px',
+                  cursor: 'pointer', borderRadius: 2, fontFamily: 'Barlow Condensed, sans-serif',
+                }}>{p}</button>
+              ))}
+            </div>
+          </div>
+          <div style={{ border: `1px solid ${C.border}`, borderRadius: 5, padding: 8, background: '#050d17' }}>
+            <div style={{ fontSize: 8, color: C.dim, marginBottom: 6 }}>POSITIONS (LIVE)</div>
+            <Row k="Total" v={openPositions.length} />
+            <Row k="Long" v={longPositions.length} vc={C.HEALTHY} />
+            <Row k="Short" v={shortPositions.length} vc={C.RETIRE} />
+            <div style={{ display: 'flex', gap: 4, marginTop: 6, flexWrap: 'wrap' }}>
+              <button onClick={() => runAction('close_longs')} disabled={controlBusy != null} style={{
+                background: '#0b2a12', border: `1px solid ${C.HEALTHY}`, color: C.HEALTHY, fontSize: 8, padding: '2px 7px', borderRadius: 3, cursor: 'pointer', opacity: controlBusy ? 0.6 : 1,
+              }}>CLOSE LONGS</button>
+              <button onClick={() => runAction('close_shorts')} disabled={controlBusy != null} style={{
+                background: '#2a0909', border: `1px solid ${C.RETIRE}`, color: C.RETIRE, fontSize: 8, padding: '2px 7px', borderRadius: 3, cursor: 'pointer', opacity: controlBusy ? 0.6 : 1,
+              }}>CLOSE SHORTS</button>
+            </div>
+            <div style={{ marginTop: 6, display: 'flex', gap: 4 }}>
+              <button onClick={() => runAction('flatten_all')} disabled={controlBusy != null} style={{
+                background: '#171e2a', border: `1px solid ${C.PADAWAN}`, color: C.PADAWAN, fontSize: 8, padding: '2px 7px', borderRadius: 3, cursor: 'pointer', opacity: controlBusy ? 0.6 : 1,
+              }}>FLATTEN NOW</button>
+              <button onClick={() => runAction('flatten_lock')} disabled={controlBusy != null} style={{
+                background: '#2a0909', border: `1px solid ${C.WATCH}`, color: C.WATCH, fontSize: 8, padding: '2px 7px', borderRadius: 3, cursor: 'pointer', opacity: controlBusy ? 0.6 : 1,
+              }}>FLATTEN + LOCK</button>
+            </div>
+          </div>
+          <div style={{ border: `1px solid ${C.border}`, borderRadius: 5, padding: 8, background: '#050d17' }}>
+            <div style={{ fontSize: 8, color: C.dim, marginBottom: 6 }}>SAFETY / RESCUE PROTOCOL</div>
+            <Row k="UI lock" v={uiLock ? 'ON' : 'OFF'} vc={uiLock ? C.WATCH : C.dim} />
+            <Row k="Server lock" v={terminalLock ? 'ON' : 'OFF'} vc={terminalLock ? C.RETIRE : C.dim} />
+            <Row k="DS/API" v={ibkrConn ? 'BROKER LIVE' : 'BROKER OFF'} vc={ibkrConn ? C.HEALTHY : C.WATCH} />
+            <div style={{ display: 'flex', gap: 4, marginTop: 6, flexWrap: 'wrap' }}>
+              <button onClick={() => runAction('rescue')} disabled={controlBusy != null} style={{
+                background: '#311109', border: `1px solid ${C.RETIRE}`, color: C.RETIRE, fontSize: 8, padding: '2px 7px', borderRadius: 3, cursor: 'pointer', opacity: controlBusy ? 0.6 : 1,
+              }}>SAFETY RESCUE</button>
+              <button onClick={() => {
+                setLastControlMsg('alt-comms panel active: copy command below');
+              }} style={{
+                background: 'none', border: `1px solid ${C.PADAWAN}`, color: C.PADAWAN, fontSize: 8, padding: '2px 7px', borderRadius: 3, cursor: 'pointer',
+              }}>ALT COMMS</button>
+            </div>
+          </div>
+          <div style={{ border: `1px solid ${C.border}`, borderRadius: 5, padding: 8, background: '#050d17' }}>
+            <div style={{ fontSize: 8, color: C.dim, marginBottom: 6 }}>SERVER LOCKDOWN (ALWAYS-ON)</div>
+            <div style={{ marginBottom: 6 }}>
+              <span style={{
+                fontSize: 8,
+                color: C.HEALTHY,
+                border: `1px solid ${C.HEALTHY}66`,
+                borderRadius: 8,
+                padding: '1px 6px',
+              }}>
+                PAPER FLATTEN: LIVE
+              </span>
+            </div>
+            <div style={{ fontSize: 8, color: C.text, lineHeight: 1.45 }}>
+              Primary: terminal authority (`go.sh`).<br />
+              UI can request lock, but server lock is final veto.
+            </div>
+            <div style={{ marginTop: 6, display: 'flex', gap: 4 }}>
+              <button onClick={() => navigator.clipboard?.writeText('./go.sh lock-on').then(() => setLastControlMsg('copied: ./go.sh lock-on')).catch(() => setLastControlMsg('copy failed: ./go.sh lock-on'))} style={{
+                background: '#2a0909', border: `1px solid ${C.RETIRE}`, color: C.RETIRE, fontSize: 8, padding: '2px 7px', borderRadius: 3, cursor: 'pointer',
+              }}>COPY LOCK-ON</button>
+              <button onClick={() => navigator.clipboard?.writeText('./go.sh lock-status').then(() => setLastControlMsg('copied: ./go.sh lock-status')).catch(() => setLastControlMsg('copy failed: ./go.sh lock-status'))} style={{
+                background: 'none', border: `1px solid ${C.border}`, color: C.muted, fontSize: 8, padding: '2px 7px', borderRadius: 3, cursor: 'pointer',
+              }}>COPY STATUS</button>
+            </div>
+          </div>
+          <div style={{ border: `1px solid ${C.border}`, borderRadius: 5, padding: 8, background: '#050d17' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, alignItems: 'center' }}>
+              <span style={{ fontSize: 8, color: C.dim }}>COTRADER LIVE CONTEXT</span>
+              <span style={{ fontSize: 8, color: cotraderPostureColor, fontFamily: 'monospace' }}>{cotraderPosture}</span>
+            </div>
+            <Row k="Confidence" v={`${cotraderConfidence}%`} vc={cotraderPostureColor} />
+            <Row k="Mode" v={mode} vc={(C as any)[mode] ?? C.text} />
+            <Row k="Gate / Session" v={`${gate_label} / ${sessionData?.allowed ? 'OPEN' : 'BLOCKED'}`} vc={riskFlags.length ? C.WATCH : C.HEALTHY} />
+            <Row k="Queue ready" v={approvalCount} vc={approvalCount > 0 ? C.HEALTHY : C.muted} />
+            <Row k="Guide state" v={primaryGuidance} vc={riskFlags.length ? C.WATCH : C.HEALTHY} />
+            <div style={{ marginTop: 6, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+              {(riskFlags.length ? riskFlags : ['No active risk flags']).slice(0, 4).map((f) => (
+                <span key={f} style={{
+                  fontSize: 7.5,
+                  color: riskFlags.length ? C.WATCH : C.HEALTHY,
+                  border: `1px solid ${(riskFlags.length ? C.WATCH : C.HEALTHY)}55`,
+                  borderRadius: 8,
+                  padding: '1px 6px',
+                }}>
+                  {f}
+                </span>
+              ))}
+            </div>
+          </div>
+          <div style={{ border: `1px solid ${C.border}`, borderRadius: 5, padding: 8, background: '#050d17' }}>
+            <div style={{ fontSize: 8, color: C.dim, marginBottom: 6 }}>ALGO SYSTEM VISIBILITY (IOPT)</div>
+            <Row k="Observe" v={`gate=${gate_label} cross=${crossRegime} fng=${fngVal ?? '—'}`} vc={C.text} />
+            <Row k="Decide" v={`mode=${mode} ready=${approvalCount}`} vc={(C as any)[mode] ?? C.text} />
+            <Row k="Execute" v={controlBusy ? `BUSY:${controlBusy}` : 'IDLE'} vc={controlBusy ? C.WATCH : C.HEALTHY} />
+            <Row k="Review" v={`receipts=${receipts.length} cycle=${lastCycleId || '—'}`} vc={C.PADAWAN} />
+            <Row k="WF OOS" v={wf?.overall?.oos_sharpe != null ? Number(wf.overall.oos_sharpe).toFixed(3) : '—'} vc={C.text} />
+            <Row k="Ensemble" v={ens?.summary?.best_mode ?? '—'} vc={C.text} />
+          </div>
+          <div style={{ border: `1px solid ${C.border}`, borderRadius: 5, padding: 8, background: '#050d17' }}>
+            <div style={{ fontSize: 8, color: C.dim, marginBottom: 6 }}>IBKR PAPER EXECUTION POLISH</div>
+            <Row k="IBKR positions" v={ibkrOpenCount} vc={ibkrOpenCount > 0 ? C.PADAWAN : C.dim} />
+            <Row k="Paper positions" v={paperOpenCount} vc={paperOpenCount > 0 ? C.HEALTHY : C.dim} />
+            <Row k="Exposure drift" v={balanceDrift} vc={balanceDrift > 0 ? C.WATCH : C.HEALTHY} />
+            <Row k="Lock state" v={terminalLock || haltLock ? 'LOCKED' : 'UNLOCKED'} vc={terminalLock || haltLock ? C.RETIRE : C.HEALTHY} />
+            <div style={{ marginTop: 6, fontSize: 8, color: C.text, lineHeight: 1.45 }}>
+              Keep paper and IBKR surfaces aligned before live-forward progression. Use flatten+lock if drift grows during blocked session.
+            </div>
+          </div>
+          <div style={{ border: `1px solid ${C.border}`, borderRadius: 5, padding: 8, background: '#050d17' }}>
+            <div style={{ fontSize: 8, color: C.dim, marginBottom: 6 }}>SYSTEM MAP / SPEC QUICK VIEW</div>
+            <Row k="Spec" v="SYSTEM-SPEC.md" vc={C.PADAWAN} />
+            <Row k="Map" v="SYSTEM-MAP.svg" vc={C.PADAWAN} />
+            <div style={{ marginTop: 4, fontSize: 7.5, color: C.dim, lineHeight: 1.45 }}>
+              Layer alignment: L2-5 signals, L8-11 routing, L13 ops, broker controls.
+            </div>
+            <div style={{ marginTop: 6, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+              <button onClick={() => navigator.clipboard?.writeText(specPath).then(() => setLastControlMsg('copied: SYSTEM-SPEC path')).catch(() => setLastControlMsg('copy failed: SYSTEM-SPEC path'))} style={{
+                background: 'none', border: `1px solid ${C.PADAWAN}`, color: C.PADAWAN, fontSize: 8, padding: '2px 7px', borderRadius: 3, cursor: 'pointer',
+              }}>COPY SPEC PATH</button>
+              <button onClick={() => navigator.clipboard?.writeText(mapSvgPath).then(() => setLastControlMsg('copied: SYSTEM-MAP path')).catch(() => setLastControlMsg('copy failed: SYSTEM-MAP path'))} style={{
+                background: 'none', border: `1px solid ${C.PADAWAN}`, color: C.PADAWAN, fontSize: 8, padding: '2px 7px', borderRadius: 3, cursor: 'pointer',
+              }}>COPY MAP PATH</button>
+            </div>
+          </div>
+          <div style={{ border: `1px solid ${C.border}`, borderRadius: 5, padding: 8, background: '#050d17' }}>
+            <div style={{ fontSize: 8, color: C.dim, marginBottom: 6 }}>RESCUE STAGE (IOPT)</div>
+            {([
+              ['freeze', rescueStage.freeze, 'freeze entries'],
+              ['cancel', rescueStage.cancel, 'cancel pending'],
+              ['flatten', rescueStage.flatten, 'flatten positions'],
+              ['serverLock', rescueStage.serverLock, 'server lock'],
+              ['audit', rescueStage.audit, 'audit event'],
+            ] as [string, RescueStageState[keyof RescueStageState], string][]).map(([k, st, label]) => {
+              const col = st === 'DONE' ? C.HEALTHY : st === 'RUN' ? C.WATCH : st === 'ERR' ? C.RETIRE : C.dim;
+              return (
+                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                  <span style={{ fontSize: 8, color: C.muted }}>{label}</span>
+                  <span style={{ fontSize: 8, color: col, fontFamily: 'monospace' }}>{st}</span>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ border: `1px solid ${C.border}`, borderRadius: 5, padding: 8, background: '#050d17' }}>
+            <div style={{ fontSize: 8, color: C.dim, marginBottom: 6 }}>MT5 POSITION MATRIX</div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 8 }}>
+              <thead>
+                <tr>
+                  {[
+                    ['symbol', 'SYM'],
+                    ['side', 'SIDE'],
+                    ['qty', 'QTY'],
+                    ['avg', 'AVG'],
+                    ['unrealized', 'UPNL'],
+                    ['account', 'ACCT'],
+                    ['kill', 'KILL'],
+                  ].map(([k, l]) => (
+                    <th key={k} onClick={() => {
+                      const nk = k as 'symbol' | 'side' | 'qty' | 'avg' | 'unrealized' | 'account' | 'kill';
+                      if (posSortKey === nk) setPosSortDir(posSortDir === 'asc' ? 'desc' : 'asc');
+                      else {
+                        setPosSortKey(nk);
+                        setPosSortDir('asc');
+                      }
+                    }} style={{ cursor: 'pointer', color: C.dim, textAlign: 'left', paddingBottom: 4 }}>{l}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {sortedPositions.slice(0, 14).map((p: any, i: number) => (
+                  <tr key={`${p.account}-${p.symbol}-${i}`}>
+                    <td style={{ color: C.text }}>{p.symbol}</td>
+                    <td style={{ color: p.side === 'LONG' ? C.HEALTHY : p.side === 'SHORT' ? C.RETIRE : C.dim }}>{p.side}</td>
+                    <td style={{ color: C.text, fontFamily: 'monospace' }}>{p.qty}</td>
+                    <td style={{ color: C.dim, fontFamily: 'monospace' }}>{Number(p.avg).toFixed(2)}</td>
+                    <td style={{ color: Number(p.unrealized) >= 0 ? C.HEALTHY : C.RETIRE, fontFamily: 'monospace' }}>{Number(p.unrealized).toFixed(2)}</td>
+                    <td style={{ color: C.PADAWAN }}>{p.account}</td>
+                    <td style={{ color: p.kill ? C.RETIRE : C.HEALTHY }}>{p.kill ? 'ON' : 'OFF'}</td>
+                  </tr>
+                ))}
+                {sortedPositions.length === 0 && (
+                  <tr><td colSpan={7} style={{ color: C.dim }}>no positions in current scope</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ border: `1px solid ${C.border}`, borderRadius: 5, padding: 8, background: '#050d17' }}>
+            <div style={{ fontSize: 8, color: C.dim, marginBottom: 6 }}>ACTION RECEIPTS (ACK/ERR)</div>
+            {receipts.slice(0, 8).map((r) => (
+              <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 6, marginBottom: 4 }}>
+                <span style={{ fontSize: 8, color: r.status === 'ACK' ? C.HEALTHY : C.RETIRE }}>
+                  {r.status} · {r.action} · {r.scope}
+                </span>
+                <span style={{ fontSize: 7, color: C.dim, fontFamily: 'monospace' }}>{r.eventId}</span>
+                <span style={{ gridColumn: '1 / span 2', fontSize: 7.5, color: C.text }}>{r.message}</span>
+              </div>
+            ))}
+            {receipts.length === 0 && <span style={{ fontSize: 8, color: C.dim }}>no action receipts yet</span>}
+          </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { LineChart, Line, ResponsiveContainer } from 'recharts'
 import './m4d.css'
 
 // ── All M4D pages ─────────────────────────────────────────────────────────────
@@ -16,7 +15,6 @@ import FullSystemVizPage  from './pages/FullSystemVizPage'
 import LaunchPadPage      from './pages/LaunchPadPage'
 import FootplatePage      from './pages/FootplatePage'
 import BoomExplore        from './pages/BoomExplore'
-import TradeBotPage       from './pages/TradeBotPage'
 import TvLwChartsLivePage from './pages/TvLwChartsLivePage'
 import AlgoDataTablePage  from './pages/AlgoDataTablePage'
 import FlowMapsStudioPage from './pages/FlowMapsStudioPage'
@@ -29,6 +27,9 @@ import MMBrainPage             from './pages/MMBrainPage'
 import ObiPage                 from './pages/ObiPage'
 import StarOptimizerPage       from './pages/StarOptimizerPage'
 import TraderPage              from './pages/TraderPage'
+import SurgePulseTradePage     from './pages/SurgePulseTradePage'
+import SurgeClaudeSpecPage     from './pages/SurgeClaudeSpecPage'
+import PulsePage               from './pages/PulsePage'
 
 // ── M4D support ───────────────────────────────────────────────────────────────
 import { WarriorMobileSyncProvider } from './WarriorMobileSyncContext'
@@ -38,9 +39,9 @@ import { useServiceHealth } from './hooks/useServiceHealth'
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type PageId =
-  | 'hub' | 'council' | 'warriors' | 'obi' | 'spx' | 'fx' | 'ict' | 'ict-old'
+  | 'hub' | 'council' | 'tradebot' | 'pulse' | 'surge-spec' | 'warriors' | 'obi' | 'spx' | 'fx' | 'ict' | 'ict-old'
   | 'crypto' | 'warrior' | 'missionviz' | 'launchpad' | 'footplate'
-  | 'boom' | 'trader' | 'tradebot' | 'chartslive' | 'algos' | 'flowmaps'
+  | 'boom' | 'trader' | 'chartslive' | 'algos' | 'flowmaps'
   | 'testlab' | 'tradesafe' | 'codev' | 'sysarch' | 'oracle' | 'mmbrain'
   | 'star'
 
@@ -52,15 +53,17 @@ type Regime = 'BULL' | 'BEAR' | 'NEUTRAL'
 
 const M4D_TABS: { id: PageId; label: string; icon: string; color?: string }[] = [
   { id: 'council',    label: 'MARKET',   icon: '⚔',  color: '#38bdf8' },
+  { id: 'tradebot',   label: 'TRADE',    icon: '🔥'                   },
+  { id: 'pulse',      label: 'PULSE',    icon: '◉'                    },
+  { id: 'star',       label: 'STAR',     icon: '★',  color: '#f0c030' },
+  { id: 'surge-spec', label: 'CLAUDE',   icon: '⌘',  color: '#a78bfa' },
   { id: 'trader',     label: 'TRADER',   icon: '◎',  color: '#22c55e' },
-  { id: 'warriors',   label: 'PULSE',    icon: '◉'                    },
+  { id: 'warriors',   label: 'ENERGY',   icon: '◉'                    },
   { id: 'obi',        label: 'OBI',      icon: '◉',  color: '#a78bfa' },
   { id: 'spx',        label: 'SPX',      icon: '▲'                    },
   { id: 'fx',         label: 'FX',       icon: '€',  color: '#38bdf8' },
   { id: 'ict',        label: 'ICT',      icon: '◈',  color: '#a78bfa' },
   { id: 'crypto',     label: 'BTC',      icon: '₿',  color: '#f59e0b' },
-  { id: 'tradebot',   label: 'TRADE',    icon: '🔥'                   },
-  { id: 'star',       label: 'STAR-RAY', icon: '★',  color: '#f0c030' },
   { id: 'warrior',    label: 'COUNCIL',  icon: '⬡'                    },
   { id: 'boom',       label: 'BOOM',     icon: '✦'                    },
 ]
@@ -68,16 +71,18 @@ const M4D_TABS: { id: PageId; label: string; icon: string; color?: string }[] = 
 const RAIL_ITEMS: { id: PageId; icon: string; label: string }[] = [
   { id: 'hub',        icon: '⌂',  label: 'HOME'       },
   { id: 'council',    icon: '⚔',  label: 'MARKET'     },
+  { id: 'tradebot',   icon: '🔥', label: 'TRADE'      },
+  { id: 'pulse',      icon: '◉',  label: 'PULSE'      },
+  { id: 'star',       icon: '★',  label: 'STAR'       },
+  { id: 'surge-spec', icon: '⌘',  label: 'CLAUDE SPEC' },
   { id: 'trader',     icon: '◎',  label: 'TRADER 4K'  },
-  { id: 'warriors',   icon: '◉',  label: 'PULSE'      },
+  { id: 'warriors',   icon: '◉',  label: 'ENERGY'     },
   { id: 'obi',        icon: '◉',  label: 'OBI CO-TRADER' },
   { id: 'spx',        icon: '▲',  label: 'SPX CHART'  },
   { id: 'fx',         icon: '€',  label: 'FX CHARTS'  },
   { id: 'ict',        icon: '◈',  label: 'ICT CHARTS' },
   { id: 'crypto',     icon: '₿',  label: 'BTC CRYPTO' },
   { id: 'missionviz', icon: '🛡', label: 'CONTROL'    },
-  { id: 'tradebot',   icon: '🔥', label: 'TRADE BOT'  },
-  { id: 'star',       icon: '★',  label: 'STAR-RAY'   },
   { id: 'launchpad',  icon: '⚡', label: 'OPT PAD'    },
   { id: 'footplate',  icon: '⚙',  label: 'ENGINE'     },
   { id: 'algos',      icon: '⊞',  label: 'ALGO TABLE' },
@@ -108,7 +113,9 @@ const M3D_HASHES: Record<string, string> = {
 
 const HASH_MAP: Record<string, PageId> = {
   hub: 'hub', market: 'council', council: 'council',
-  pulse: 'warriors', warriors: 'warriors', w: 'warriors',
+  'surge-spec': 'surge-spec', claude: 'surge-spec',
+  pulse2: 'pulse',
+  pulse: 'pulse', warriors: 'warriors', energy: 'warriors', w: 'warriors',
   obi: 'obi',
   spx: 'spx', charts: 'spx', c: 'spx',
   fx: 'fx',
@@ -121,7 +128,7 @@ const HASH_MAP: Record<string, PageId> = {
   footplate: 'footplate', engine: 'footplate',
   boom: 'boom',
   trader: 'trader', tr: 'trader',
-  tradebot: 'tradebot', trade: 'tradebot', t: 'tradebot',
+  trade: 'tradebot', t: 'tradebot', tradebot: 'tradebot',
   star: 'star', starray: 'star', 'star-ray': 'star',
   chartslive: 'chartslive', clive: 'chartslive',
   algos: 'algos',
@@ -133,20 +140,6 @@ const HASH_MAP: Record<string, PageId> = {
 function readHash(): PageId {
   const h = window.location.hash.replace('#', '').toLowerCase()
   return HASH_MAP[h] ?? 'hub'
-}
-
-// ── Sparkline (recharts) ──────────────────────────────────────────────────────
-
-function Spark({ data, color }: { data: number[]; color: string }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'flex-end', height: 18, width: 36 }}>
-      <ResponsiveContainer width="100%" height={18}>
-        <LineChart data={data.map((v, i) => ({ i, v }))}>
-          <Line type="monotone" dataKey="v" stroke={color} dot={false} strokeWidth={1.5} />
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
-  )
 }
 
 // ── Orb ───────────────────────────────────────────────────────────────────────
@@ -176,32 +169,10 @@ function RSection({ title, children, open: defaultOpen = true }: { title: string
   )
 }
 
-// ── Mock algo strip data ──────────────────────────────────────────────────────
-// Replace with live /v1/council fetch when wiring to M3D API
-
-const STRIP_ALGOS = [
-  { id:'NS', vote:1,  s:[40,42,45,44,47,50,52] },
-  { id:'CI', vote:-1, s:[60,58,55,57,54,52,50] },
-  { id:'BQ', vote:1,  s:[30,33,36,35,38,40,42] },
-  { id:'CC', vote:0,  s:[45,45,46,45,46,45,46] },
-  { id:'WH', vote:1,  s:[25,28,31,30,33,36,38] },
-  { id:'SA', vote:-1, s:[65,62,60,58,56,54,52] },
-  { id:'8E', vote:1,  s:[20,23,26,25,28,30,32] },
-  { id:'VT', vote:1,  s:[35,37,40,39,42,44,46] },
-  { id:'MS', vote:0,  s:[50,50,51,50,51,50,51] },
-  { id:'SE', vote:1,  s:[22,25,28,27,30,33,35] },
-  { id:'MM', vote:-1, s:[70,67,65,63,61,59,57] },
-  { id:'OR', vote:1,  s:[28,31,34,33,36,39,41] },
-  { id:'DV', vote:1,  s:[33,35,38,37,40,43,45] },
-  { id:'WN', vote:-1, s:[55,53,51,50,48,46,44] },
-]
-
-const MOCK_MOVERS = [
-  { sym:'BTCUSDT', score:18, pct:2.4 }, { sym:'NVDA',    score:15, pct:1.8 },
-  { sym:'SPY',     score:12, pct:0.9 }, { sym:'SOLUSDT', score:-14, pct:-2.1 },
-  { sym:'META',    score:10, pct:1.2 }, { sym:'TSLA',    score:-11, pct:-1.6 },
-  { sym:'AAPL',    score:8,  pct:0.7 }, { sym:'QQQ',     score:9,   pct:0.8 },
-]
+const LIVE_HINT = 'LIVE SURFACES ONLY · use Trader/Market/Pulse panels for action context';
+const SYSTEM_MAP_PATH = '/Volumes/AI/AI-4D/M4D/AGENT/SYSTEM-MAP.svg';
+const SYSTEM_SPEC_PATH = '/Volumes/AI/AI-4D/M4D/AGENT/SYSTEM-SPEC.md';
+const IOPT_MASTER_PATH = '/Volumes/AI/AI-4D/M4D/AGENT/I-OPT-OOO/I-OPT-OOO-MASTER.MD';
 
 // ── App ───────────────────────────────────────────────────────────────────────
 
@@ -232,11 +203,11 @@ export default function App() {
   // Page title
   useEffect(() => {
     const titles: Partial<Record<PageId, string>> = {
-      hub:'M4D — HOME', council:'M4D — MARKET', warriors:'M4D — PULSE',
+      hub:'M4D — HOME', council:'M4D — MARKET', tradebot:'M4D — TRADE', pulse:'M4D — PULSE', 'surge-spec':'M4D — CLAUDE SPEC', warriors:'M4D — ENERGY',
       obi:'M4D — OBI', spx:'M4D — SPX', fx:'M4D — FX', ict:'M4D — ICT', 'ict-old':'M4D — ICT·OLD',
       crypto:'M4D — BTC', warrior:'M4D — COUNCIL', missionviz:'M4D — CONTROL',
       launchpad:'M4D — OPT', footplate:'M4D — ENGINE', boom:'M4D — BOOM',
-      trader:'M4D — TRADER', tradebot:'M4D — TRADE', chartslive:'M4D — LIVE WS', algos:'M4D — ALGOS',
+      trader:'M4D — TRADER', chartslive:'M4D — LIVE WS', algos:'M4D — ALGOS',
       flowmaps:'M4D — MAPS', testlab:'M4D — LAB', tradesafe:'M4D — RISK',
       codev:'M4D — CO-DEV', sysarch:'M4D — SYS', oracle:'M4D — ORACLE',
       mmbrain:'M4D — MM', star:'M4D — STAR',
@@ -261,6 +232,8 @@ export default function App() {
     switch (page) {
       case 'hub':        return <MissionHub onCouncil={() => go('council')} onLaunchPad={() => go('launchpad')} onFootplate={() => go('footplate')} onWarriors={() => go('warriors')} onTradeBot={() => go('tradebot')} onBoom={() => go('boom')} onSpx={() => go('spx')} onFx={() => go('fx')} onCrypto={() => go('crypto')} onWarrior={() => go('warrior')} onMissionViz={() => go('missionviz')} />
       case 'council':    return <MissionCouncil onOpenWarriors={() => go('warriors')} />
+      case 'pulse':      return <PulsePage />
+      case 'surge-spec': return <SurgeClaudeSpecPage />
       case 'warriors':   return <ControlRoomKnightsPage />
       case 'obi':        return <ObiPage />
       case 'spx':        return <TvLwChartsPage />
@@ -274,7 +247,7 @@ export default function App() {
       case 'footplate':  return <FootplatePage />
       case 'boom':       return <BoomExplore />
       case 'trader':     return <TraderPage />
-      case 'tradebot':   return <TradeBotPage />
+      case 'tradebot':   return <SurgePulseTradePage />
       case 'chartslive': return <TvLwChartsLivePage />
       case 'algos':      return <AlgoDataTablePage />
       case 'flowmaps':   return <FlowMapsStudioPage />
@@ -376,11 +349,10 @@ export default function App() {
             <div className="m6d-orb-card">
               <div className="m6d-orb-card-title">Market Context</div>
               {[
-                { label:'Session', val:'NY Open'  },
-                { label:'VIX',    val:'14.2 ↓'  },
-                { label:'DXY',    val:'104.3 →' },
-                { label:'SPX',    val:'5,218 ↑' },
-                { label:'BTC',    val:'83,400 ↑'},
+                { label:'Source', val:'#trader live panels' },
+                { label:'Policy', val:'NO MOCK CONTEXT' },
+                { label:'Action', val:'use TRADER page' },
+                { label:'Gate', val:'service + risk checks' },
               ].map(r => (
                 <div key={r.label} className="ctx-row">
                   <span className="ctx-label">{r.label}</span>
@@ -393,9 +365,9 @@ export default function App() {
               <div className="m6d-orb-card-title">MaxCogViz Status</div>
               {[
                 { label:'AI Mode',    val:'Co-Trader', color:'var(--purple)' },
-                { label:'Conviction', val:'HIGH',       color:'var(--gold)'   },
-                { label:'Risk Gate',  val:'ARMED',      color:'var(--green)'  },
-                { label:'Kelly',      val:'2.1×',       color:'var(--blue)'   },
+                { label:'Conviction', val:'LIVE@TRADER', color:'var(--gold)'   },
+                { label:'Risk Gate',  val:'LIVE@TRADER', color:'var(--green)'  },
+                { label:'Kelly',      val:'LIVE@TRADER', color:'var(--blue)'   },
               ].map(r => (
                 <div key={r.label} className="ctx-row">
                   <span className="ctx-label">{r.label}</span>
@@ -436,42 +408,27 @@ export default function App() {
             <span>{rightOpen ? '▶' : '◀'}</span>
             <span>{rightOpen ? '▶' : '◀'}</span>
           </button>
-          <RSection title="⊞  Top Movers">
-            {MOCK_MOVERS.map(m => {
-              const cls = m.score > 0 ? 'pos' : m.score < 0 ? 'neg' : 'neu'
-              return (
-                <div key={m.sym} className="mover-row">
-                  <span className="sym">{m.sym}</span>
-                  <span className={`score ${cls}`}>{m.score > 0 ? '+' : ''}{m.score}</span>
-                  <span className={`score ${cls}`} style={{ marginLeft:4 }}>
-                    {m.pct > 0 ? '+' : ''}{m.pct.toFixed(1)}%
-                  </span>
-                </div>
-              )
-            })}
+          <RSection title="⊞  Live Ops Context">
+            <div style={{ padding:'4px 2px', color:'var(--muted)', fontSize:10, lineHeight:1.5 }}>
+              {LIVE_HINT}
+            </div>
           </RSection>
 
-          <RSection title="◉  Algo Sparklines">
-            {STRIP_ALGOS.slice(0, 8).map(a => {
-              const color = a.vote > 0 ? '#4ade80' : a.vote < 0 ? '#f43f5e' : '#415065'
-              return (
-                <div key={a.id} style={{ display:'flex', alignItems:'center', gap:6, padding:'3px 2px', borderBottom:'1px solid rgba(255,255,255,0.03)' }}>
-                  <span style={{ fontSize:10, fontWeight:700, color, width:22 }}>{a.id}</span>
-                  <Spark data={a.s} color={color} />
-                  <span style={{ fontSize:9, color, marginLeft:'auto' }}>
-                    {a.vote > 0 ? '↑ L' : a.vote < 0 ? '↓ S' : '→'}
-                  </span>
-                </div>
-              )
-            })}
+          <RSection title="◉  Service State">
+            {services.map((s: { label?: string; name?: string; ok?: boolean; healthy?: boolean }) => (
+              <div key={s.label ?? s.name} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'3px 2px', borderBottom:'1px solid rgba(255,255,255,0.03)' }}>
+                <span style={{ fontSize:10, color:'var(--muted)' }}>{s.label ?? s.name}</span>
+                <span style={{ fontSize:10, color:(s.ok ?? s.healthy) ? 'var(--green)' : 'var(--red)' }}>{(s.ok ?? s.healthy) ? 'LIVE' : 'DOWN'}</span>
+              </div>
+            ))}
           </RSection>
 
           <RSection title="◈  Prediction" open={false}>
             {[
-              { label:'Direction',  val:'↑ LONG',    color:'var(--green)'  },
-              { label:'Kelly',      val:'2.1× base', color:'var(--gold)'   },
-              { label:'Confidence', val:'78%',        color:'var(--blue)'   },
-              { label:'Risk Gate',  val:'PASS',       color:'var(--green)'  },
+              { label:'Mode',       val: mode.toUpperCase(), color:'var(--blue)' },
+              { label:'Page',       val: page.toUpperCase(), color:'var(--green)'  },
+              { label:'Policy',     val:'LIVE ONLY',         color:'var(--gold)'   },
+              { label:'Risk Gate',  val:'TRADER PANEL',      color:'var(--green)'  },
             ].map(r => (
               <div key={r.label} className="ctx-row" style={{ padding:'4px 0' }}>
                 <span className="ctx-label">{r.label}</span>
@@ -485,31 +442,73 @@ export default function App() {
               Wire /news endpoint → replace this section
             </div>
           </RSection>
+          <RSection title="◎  IOPT Surface">
+            {[
+              { label: 'TRADER (actions + receipts)', pageId: 'trader' as PageId },
+              { label: 'SYS ARCH (layer visibility)', pageId: 'sysarch' as PageId },
+              { label: 'CO-DEV MAP (gaps/roadmap)', pageId: 'codev' as PageId },
+            ].map((item) => (
+              <button
+                key={item.label}
+                onClick={() => go(item.pageId)}
+                style={{
+                  width: '100%',
+                  textAlign: 'left',
+                  marginBottom: 6,
+                  background: page === item.pageId ? 'var(--blue-dim)' : 'transparent',
+                  border: '1px solid var(--border)',
+                  color: page === item.pageId ? 'var(--blue)' : 'var(--muted)',
+                  borderRadius: 4,
+                  padding: '5px 7px',
+                  fontSize: 10,
+                  cursor: 'pointer',
+                }}
+              >
+                {item.label}
+              </button>
+            ))}
+            <div style={{ paddingTop: 4, borderTop: '1px solid var(--border)' }}>
+              {[
+                { label: 'COPY SYSTEM MAP', value: SYSTEM_MAP_PATH },
+                { label: 'COPY SYSTEM SPEC', value: SYSTEM_SPEC_PATH },
+                { label: 'COPY IOPT MASTER', value: IOPT_MASTER_PATH },
+              ].map((item) => (
+                <button
+                  key={item.label}
+                  onClick={() => navigator.clipboard?.writeText(item.value)}
+                  style={{
+                    width: '100%',
+                    textAlign: 'left',
+                    marginTop: 6,
+                    background: 'transparent',
+                    border: '1px solid var(--border)',
+                    color: 'var(--muted)',
+                    borderRadius: 4,
+                    padding: '4px 7px',
+                    fontSize: 10,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </RSection>
         </div>
       </div>
 
       {/* ── Bottom council algo strip ────────────────────────────────────── */}
       <div className="m6d-bottom">
         <span style={{ fontSize:9, color:'var(--muted)', marginRight:4, textTransform:'uppercase', letterSpacing:1, flexShrink:0 }}>
-          COUNCIL
+          LIVE
         </span>
 
-        {STRIP_ALGOS.map(a => {
-          const max = Math.max(...a.s)
-          const color = a.vote > 0 ? '#4ade80' : a.vote < 0 ? '#f43f5e' : '#415065'
-          const trend = a.s[a.s.length - 1]! - a.s[0]!
-          return (
-            <div key={a.id} className={`m6d-algo-chip ${a.vote > 0 ? 'long' : a.vote < 0 ? 'short' : 'neutral'}`}>
-              {a.id}
-              <div className="m6d-sparkline" style={{ marginLeft:2 }}>
-                {a.s.slice(-5).map((v, i) => (
-                  <div key={i} className="spark-bar" style={{ height: Math.max(3, Math.round((v / max) * 16)), background: color, opacity: 0.7 }} />
-                ))}
-              </div>
-              {trend > 0 ? '↑' : trend < 0 ? '↓' : '→'}
-            </div>
-          )
-        })}
+        {services.map((s: { label?: string; name?: string; ok?: boolean; healthy?: boolean }) => (
+          <div key={s.label ?? s.name} className={`m6d-algo-chip ${(s.ok ?? s.healthy) ? 'long' : 'short'}`}>
+            {(s.label ?? s.name)?.toUpperCase().slice(0, 6)}
+            {(s.ok ?? s.healthy) ? '↑' : '↓'}
+          </div>
+        ))}
 
         <div className="m6d-spacer" />
         <span className="jedi-score">JEDI {jedi > 0 ? `+${jedi}` : jedi}</span>

@@ -4,6 +4,10 @@
  * Layered SVG build-plan doc — iterative opt roadmap baked in.
  */
 import { useState } from 'react';
+const SYSTEM_MAP_FILE_URL = 'file:///Volumes/AI/AI-4D/M4D/AGENT/SYSTEM-MAP.svg';
+const SYSTEM_SPEC_FILE = '/Volumes/AI/AI-4D/M4D/AGENT/SYSTEM-SPEC.md';
+type SurfaceStatus = 'LIVE' | 'BUILD' | 'PLANNED';
+type SurfaceItem = { feature: string; page: string; hash: string; status: SurfaceStatus };
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const C = {
@@ -184,11 +188,29 @@ const ITER_STEPS = [
   { n:'P2', color:C.paper,label:'Backtest Reconciliation', detail:'DS vs live drift. Optimizer feedback loop.' },
   { n:'P2', color:C.paper,label:'TV Webhook Bridge',       detail:'ICT levels from Pine alerts → signal layer.' },
 ];
+const SURFACE_ITEMS: SurfaceItem[] = [
+  { feature: 'L2-5 Signal Library + IC monitor', page: 'Trader', hash: '#trader', status: 'LIVE' },
+  { feature: 'Walk-forward + regime breakdown', page: 'Trader', hash: '#trader', status: 'LIVE' },
+  { feature: 'L8-11 Sharpe routing + gate vetos', page: 'Trader', hash: '#trader', status: 'LIVE' },
+  { feature: 'Cross-asset dims + PCA activity gate', page: 'Trader', hash: '#trader', status: 'LIVE' },
+  { feature: 'L13 Delta Ops + CIS + mode table', page: 'Trader', hash: '#trader', status: 'LIVE' },
+  { feature: 'HALO mode + stealth execution visibility', page: 'Trader', hash: '#trader', status: 'LIVE' },
+  { feature: 'IBKR/PAPER run cycle + position matrix', page: 'Trader', hash: '#trader', status: 'LIVE' },
+  { feature: 'Action bus receipts + rescue stages + lockdown', page: 'Trader', hash: '#trader', status: 'LIVE' },
+  { feature: 'System map layer narrative', page: 'System Architecture', hash: '#sysarch', status: 'LIVE' },
+  { feature: 'Iter-opt pending queue (P0/P1/P2)', page: 'System Architecture', hash: '#sysarch', status: 'LIVE' },
+  { feature: 'Coverage + gap visibility map', page: 'Co-Dev Map', hash: '#codev', status: 'LIVE' },
+  { feature: 'Liquidity thermal + target overlays', page: 'ICT/BTC/SPX/FX pages', hash: '#ict', status: 'LIVE' },
+  { feature: 'P0-D Alpaca adapter execution path', page: 'Co-Dev Map + System Architecture', hash: '#codev', status: 'BUILD' },
+  { feature: 'P1-A HMM posterior regime weighting', page: 'System Architecture (iter)', hash: '#sysarch', status: 'BUILD' },
+  { feature: 'Re-entry holdout validation view', page: 'System Architecture (iter)', hash: '#sysarch', status: 'PLANNED' },
+  { feature: 'ICT/HALO formula fix tracking', page: 'System Architecture (iter)', hash: '#sysarch', status: 'BUILD' },
+];
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function SystemArchitecturePage() {
   const [hovered, setHovered] = useState<string | null>(null);
-  const [tab, setTab] = useState<'arch' | 'iter'>('arch');
+  const [tab, setTab] = useState<'arch' | 'iter' | 'surface'>('arch');
 
   const hNode = hovered ? NODE_MAP[hovered] : null;
 
@@ -206,8 +228,16 @@ export default function SystemArchitecturePage() {
       }}>
         <span style={{ fontSize: 16, fontWeight: 900, letterSpacing: 2, color: C.jedi }}>SYSTEM ARCHITECTURE</span>
         <span style={{ fontSize: 10, color: C.text }}>M4D COTRADER · M3D ALGOTRADER · MOE · ICT/LIQ · PAPER EXEC</span>
+        <button onClick={() => window.open(SYSTEM_MAP_FILE_URL, '_blank')} style={{
+          background: C.bg2, border: `1px solid ${C.muted}`, color: C.text,
+          borderRadius: 4, padding: '4px 8px', fontSize: 10, cursor: 'pointer',
+        }}>OPEN SYSTEM MAP</button>
+        <button onClick={() => navigator.clipboard?.writeText(SYSTEM_SPEC_FILE)} style={{
+          background: C.bg2, border: `1px solid ${C.muted}`, color: C.text,
+          borderRadius: 4, padding: '4px 8px', fontSize: 10, cursor: 'pointer',
+        }}>COPY SYSTEM SPEC PATH</button>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
-          {(['arch', 'iter'] as const).map(t => (
+          {(['arch', 'iter', 'surface'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)} style={{
               background: tab === t ? C.bg2 : 'transparent',
               border: `1px solid ${tab === t ? C.jedi : C.muted}`,
@@ -215,7 +245,7 @@ export default function SystemArchitecturePage() {
               borderRadius: 4, padding: '4px 12px', fontSize: 10,
               cursor: 'pointer', fontFamily: 'inherit', letterSpacing: 1,
             }}>
-              {t === 'arch' ? 'ARCHITECTURE' : 'ITER ROADMAP'}
+              {t === 'arch' ? 'ARCHITECTURE' : t === 'iter' ? 'ITER ROADMAP' : 'SURFACE COVERAGE'}
             </button>
           ))}
         </div>
@@ -378,7 +408,7 @@ export default function SystemArchitecturePage() {
             )}
           </div>
         </div>
-      ) : (
+      ) : tab === 'iter' ? (
         /* ── Iterative roadmap tab ───────────────────────────────────────── */
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px 32px' }}>
           <div style={{ maxWidth: 900 }}>
@@ -474,6 +504,52 @@ export default function SystemArchitecturePage() {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      ) : (
+        <div style={{ flex: 1, overflowY: 'auto', padding: '24px 32px' }}>
+          <div style={{ maxWidth: 980 }}>
+            <div style={{ fontSize: 10, letterSpacing: 2, color: C.muted, marginBottom: 12 }}>
+              SYSTEM-MAP FEATURE SURFACE MATRIX
+            </div>
+            <div style={{ marginBottom: 10, fontSize: 10, color: C.text }}>
+              Every feature in `SYSTEM-MAP.svg` is mapped to a relevant M4D page and state.
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 0.9fr 0.5fr 0.6fr', gap: 8, marginBottom: 8 }}>
+              <div style={{ fontSize: 9, color: C.muted }}>FEATURE</div>
+              <div style={{ fontSize: 9, color: C.muted }}>SURFACED PAGE</div>
+              <div style={{ fontSize: 9, color: C.muted }}>NAV</div>
+              <div style={{ fontSize: 9, color: C.muted }}>STATE</div>
+            </div>
+            {SURFACE_ITEMS.map((item) => {
+              const stColor = item.status === 'LIVE' ? C.legend : item.status === 'BUILD' ? C.risk : C.muted;
+              return (
+                <div key={item.feature} style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1.6fr 0.9fr 0.5fr 0.6fr',
+                  gap: 8,
+                  alignItems: 'center',
+                  padding: '8px 10px',
+                  marginBottom: 6,
+                  background: C.bg1,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 6,
+                }}>
+                  <div style={{ fontSize: 10, color: C.textHi }}>{item.feature}</div>
+                  <div style={{ fontSize: 10, color: C.text }}>{item.page}</div>
+                  <button
+                    onClick={() => { window.location.hash = item.hash.replace('#', ''); }}
+                    style={{
+                      background: 'transparent', border: `1px solid ${C.muted}`, color: C.text,
+                      borderRadius: 4, padding: '3px 6px', fontSize: 9, cursor: 'pointer',
+                    }}
+                  >
+                    open
+                  </button>
+                  <div style={{ fontSize: 10, color: stColor, fontWeight: 700 }}>{item.status}</div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

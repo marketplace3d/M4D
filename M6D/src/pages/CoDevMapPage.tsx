@@ -2,6 +2,8 @@
  * CoDevMapPage — Visual co-development map for M4D CoTrader + M3D AlgoTrader
  * System status, gap analysis, and paper testing roadmap.
  */
+const IOPT_MASTER_FILE = '/Volumes/AI/AI-4D/M4D/AGENT/I-OPT-OOO/I-OPT-OOO-MASTER.MD';
+const SYSTEM_MAP_FILE_URL = 'file:///Volumes/AI/AI-4D/M4D/AGENT/SYSTEM-MAP.svg';
 
 type Status = 'live' | 'partial' | 'missing';
 
@@ -318,6 +320,14 @@ export default function CoDevMapPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <span style={{ fontSize: 20, fontWeight: 900, letterSpacing: 2, color: '#38bdf8' }}>CO-DEV MAP</span>
           <span style={{ fontSize: 11, color: '#64748b' }}>M4D COTRADER · M3D ALGOTRADER · PAPER TESTING ROADMAP</span>
+          <button onClick={() => window.open(SYSTEM_MAP_FILE_URL, '_blank')} style={{
+            background: 'transparent', border: '1px solid rgba(56,189,248,0.35)', color: '#38bdf8',
+            borderRadius: 4, padding: '3px 8px', fontSize: 10, cursor: 'pointer',
+          }}>OPEN SYSTEM MAP</button>
+          <button onClick={() => navigator.clipboard?.writeText(IOPT_MASTER_FILE)} style={{
+            background: 'transparent', border: '1px solid rgba(167,139,250,0.35)', color: '#a78bfa',
+            borderRadius: 4, padding: '3px 8px', fontSize: 10, cursor: 'pointer',
+          }}>COPY IOPT MASTER</button>
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 16 }}>
             {([['●', '#4ade80', 'LIVE'], ['◑', '#fbbf24', 'PARTIAL'], ['○', '#f87171', 'MISSING']] as const).map(
               ([dot, color, label]) => (
@@ -369,6 +379,22 @@ export default function CoDevMapPage() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {ROADMAP.map(step => <RoadmapCard key={step.n} step={step} />)}
+      </div>
+      <div style={{
+        marginTop: 16, background: 'rgba(15,23,42,0.8)', border: '1px solid rgba(56,189,248,0.2)',
+        borderRadius: 10, padding: 14,
+      }}>
+        <div style={{ fontSize: 10, letterSpacing: 2, color: '#64748b', marginBottom: 8 }}>IOPT SURFACE STANDARD</div>
+        {[
+          'Action Bus Receipts panel',
+          'Account Scope panel',
+          'MT5 Position Matrix panel',
+          'Rescue Stage panel',
+          'Server Lockdown panel',
+          'Layout Profile panel',
+        ].map((item) => (
+          <div key={item} style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>- {item}</div>
+        ))}
       </div>
     </div>
   );

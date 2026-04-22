@@ -198,3 +198,21 @@ Define targets with the team; track weekly.
 1. **Static SVG** — **Shipped:** [assets/iopt_ooo_system_layers.svg](assets/iopt_ooo_system_layers.svg) (M3D → M4D → hard risk → W4D). Note file: [assets/DIAGRAM-SVG-SOURCE.md](assets/DIAGRAM-SVG-SOURCE.md) (pointer only — edit the `.svg`). Spec: [VIZ-DIAGRAM-SPEC.MD](VIZ-DIAGRAM-SPEC.MD).
 2. **One-page operator runbook** — **Shipped:** [OPERATOR-RUNBOOK.MD](OPERATOR-RUNBOOK.MD) (flatten, halt, rollback, escalation placeholders, health curls).
 3. **Cross-link** from [AGENT/SYSTEM-SPEC.md](../../AGENT/SYSTEM-SPEC.md) — **Shipped:** Section **16** points to this folder and the SVG.
+
+---
+
+## 15) IOPT Surface Panels (live interface standard)
+
+These are the necessary panels to surface in M4D so operators can act without switching context:
+
+- **Action Bus Receipts panel** — `ACK/PARTIAL/ERR`, `eventId`, scope, and message for every action (`close_longs`, `close_shorts`, `flatten_lock`, `rescue`).
+- **Account Scope panel** — explicit `ALL|PAPER|IBKR` state visible before any action fires.
+- **MT5 Position Matrix panel** — sortable columns: symbol, side, qty, avg, unrealized, account, kill-switch.
+- **Rescue Stage panel** — freeze -> cancel pending -> flatten -> server lock -> audit event; must halt on failed stage.
+- **Server Lockdown panel** — terminal authority commands visible (`go.sh lock-on`, `go.sh lock-status`) with copy affordance.
+- **Layout Profile panel** — `4K|DESKTOP|COMPACT` profile state to keep controls legible in each runtime form factor.
+
+### Surface policy
+
+- No mock data should be shown as live market context.
+- If a scope/action is not yet implemented (e.g., paper flatten endpoint), surface explicit `PARTIAL` or `ERR` receipt; never silent success.
