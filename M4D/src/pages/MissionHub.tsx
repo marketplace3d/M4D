@@ -119,7 +119,7 @@ export default function MissionHub({
 
       {/* Footer */}
       <div style={{ fontFamily: mono, fontSize: 9, color: '#21262d', marginTop: 48, letterSpacing: '0.1em' }}>
-        127.0.0.1:5550
+        127.0.0.1:5555
       </div>
     </div>
   );

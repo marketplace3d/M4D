@@ -7,7 +7,7 @@
 #   2. engine/src/fetcher.rs — add fetch_stock_1m() via Polygon WebSocket
 #   3. engine/src/algos/mod.rs — add equity-specific algos (ORB, SEPA, composites)
 #   4. Regime-conditional weight matrix baked into council-algos.v1.json
-#   5. TradeI live table page in M6D ready to consume 3000+ asset feed
+#   5. TradeI live table page in M4D ready to consume 3000+ asset feed
 set -euo pipefail
 Y=$'\033[0;33m'; NC=$'\033[0m'
 echo -e "${Y}[go5000] NOT YET BUILT — see prerequisites in this script.${NC}"

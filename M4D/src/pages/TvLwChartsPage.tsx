@@ -24,6 +24,8 @@ import {
   type ChartControls,
 } from '@pwa/lib/chartControls';
 import BoomLwChart from '../components/BoomLwChart';
+import ObiLivePanel from '../components/ObiLivePanel';
+import { useObiStream } from '../hooks/useObiStream';
 import { SoloMasterOrb, type SoloOrbDirection } from '../viz/SoloMasterOrb';
 import {
   computePriceTargets,
@@ -33,6 +35,114 @@ import {
 import './TvLwChartsPage.css';
 
 const CHART_STRIP_ID: ChartStripId = 'spx';
+
+// ── Heatseeker scoring (ported from HEATSEEKER V6.3 Pine) ─────────────────────
+type HeatTier = 'S' | 'A' | 'B' | 'C';
+interface HeatResult {
+  alphaScore: number;
+  tier: HeatTier;
+  regime: 'BULL TREND' | 'BEAR TREND' | 'TRANSITION' | 'RANGING';
+  regimeScore: number;
+  jediBull: boolean;
+  jediBear: boolean;
+  targetLevel: number;
+  dirBias: number;
+}
+
+function ema(values: number[], period: number): number {
+  if (values.length === 0) return 0;
+  const k = 2 / (period + 1);
+  let e = values[Math.max(0, values.length - period)]!;
+  for (let i = Math.max(1, values.length - period + 1); i < values.length; i++) {
+    e = values[i]! * k + e * (1 - k);
+  }
+  return e;
+}
+
+function sma(values: number[], period: number): number {
+  const slice = values.slice(-period);
+  return slice.length ? slice.reduce((a, b) => a + b, 0) / slice.length : 0;
+}
+
+function atr(bars: import('$indicators/boom3d-tech').Bar[], period: number): number {
+  const trs: number[] = [];
+  for (let i = Math.max(1, bars.length - period); i < bars.length; i++) {
+    const b = bars[i]!, prev = bars[i - 1]!;
+    trs.push(Math.max(b.high - b.low, Math.abs(b.high - prev.close), Math.abs(b.low - prev.close)));
+  }
+  return trs.length ? trs.reduce((a, b) => a + b, 0) / trs.length : 0;
+}
+
+function computeHeatseeker(bars: import('$indicators/boom3d-tech').Bar[]): HeatResult | null {
+  if (bars.length < 55) return null;
+
+  const closes  = bars.map(b => b.close);
+  const opens   = bars.map(b => b.open);
+  const highs   = bars.map(b => b.high);
+  const lows    = bars.map(b => b.low);
+  const vols    = bars.map(b => b.volume ?? 0);
+
+  // dirBias from EMA(close-open, 21)
+  const diffs   = closes.map((c, i) => c - opens[i]!);
+  const emaDiff = ema(diffs, 21);
+  const dirBias = emaDiff > 0 ? 1 : emaDiff < 0 ? -1 : 0;
+
+  // ATR14
+  const atr14 = atr(bars, 14);
+
+  // FVG detection on last 3 bars
+  const n = bars.length;
+  const avgBody = sma(closes.map((c, i) => Math.abs(c - opens[i]!)), 20);
+  const bullFVG = lows[n-1]! > highs[n-3]! &&
+    (lows[n-1]! - highs[n-3]!) >= 0.45 * atr14 &&
+    (closes[n-2]! - opens[n-2]!) > 1.3 * avgBody;
+  const bearFVG = highs[n-1]! < lows[n-3]! &&
+    (lows[n-3]! - highs[n-1]!) >= 0.45 * atr14 &&
+    (opens[n-2]! - closes[n-2]!) > 1.3 * avgBody;
+
+  // POC (50-bar midpoint proxy)
+  const rangeHigh = Math.max(...highs.slice(-50));
+  const rangeLow  = Math.min(...lows.slice(-50));
+  const poc = (rangeHigh + rangeLow) / 2;
+
+  // RVOL
+  const rvol = vols[n-1]! / Math.max(1e-9, sma(vols, 20));
+
+  // Regime shape
+  const shapeScore = (dirBias > 0 && closes[n-1]! > poc) || (dirBias < 0 && closes[n-1]! < poc) ? 1.0 : 0.4;
+
+  // ADX proxy (simplified — spread of EMA9 vs EMA21 normalised by ATR)
+  const e9  = ema(closes, 9);
+  const e21 = ema(closes, 21);
+  const adxProxy = Math.min(50, Math.abs(e9 - e21) / Math.max(1e-9, atr14) * 20);
+
+  // regimeScore (no MTF available — confluenceMult fixed at 1.0)
+  const regimeRaw = shapeScore * 0.8 +
+    (adxProxy > 25 ? dirBias * 0.8 : 0) +
+    (rvol > 1.8 ? dirBias * 0.4 : 0);
+  const regimeScore = Math.min(1, Math.max(-1, regimeRaw));
+
+  // Alpha score
+  const volAcc = sma(vols, 14) / Math.max(1e-9, sma(vols, 50));
+  const fvgHit = bullFVG || bearFVG ? 1.0 : 0.6;
+  const obHit  = dirBias !== 0 ? 1.0 : 0.5;
+  const alphaRaw = (volAcc * 35 * 0.38) + (fvgHit * 25 * 0.25) + (obHit * 20 * 0.14) + (1.0 * 25 * 0.23) + (regimeScore * 15);
+  const alphaScore = Math.min(100, Math.max(0, Math.round(alphaRaw * 1.61)));
+
+  const tier: HeatTier = alphaScore >= 85 ? 'S' : alphaScore >= 72 ? 'A' : alphaScore >= 58 ? 'B' : 'C';
+  const regime = Math.abs(regimeScore) < 0.3 ? 'RANGING'
+    : regimeScore > 0.5  ? 'BULL TREND'
+    : regimeScore < -0.5 ? 'BEAR TREND'
+    : 'TRANSITION';
+
+  const targetLevel = dirBias > 0 ? rangeHigh + atr14 * 0.6 : rangeLow - atr14 * 0.6;
+
+  return {
+    alphaScore, tier, regime, regimeScore, dirBias, targetLevel,
+    jediBull: regimeScore > 0.4 && alphaScore >= 72,
+    jediBear: regimeScore < -0.4 && alphaScore >= 72,
+  };
+}
 const SOLO_DOCK_KEY = 'm4d.tvLw.soloDock';
 const TARGET_UI_KEY = 'm4d.tvLw.targetUi';
 
@@ -84,7 +194,7 @@ function saveSoloDock(s: SoloDockState): void {
 }
 
 export default function TvLwChartsPage() {
-  const TOP_STOCKS = ['TSLA', 'NVDA', 'AAPL', 'MSFT', 'AMZN', 'META', 'GOOGL'] as const;
+  const TOP_STOCKS = ['ES', 'EURUSD', 'XAUUSD', 'BTC', 'SPY', 'QQQ', 'TSLA', 'NVDA', 'AAPL', 'MSFT', 'AMZN', 'META', 'GOOGL'] as const;
   const vitePolygonKey =
     (import.meta.env.VITE_POLYGON_IO_KEY || import.meta.env.VITE_POLYGON_API_KEY) as
       | string
@@ -101,8 +211,14 @@ export default function TvLwChartsPage() {
   const [tickerInput, setTickerInput] = useState('');
   const [tickerFocus, setTickerFocus] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [showObi, setShowObi] = useState(false);
+  const obiSnap = useObiStream(sym, vitePolygonKey, showObi);
+
+  const [showHeat, setShowHeat] = useState(true);
   const [targetUi, setTargetUi] = useState(loadTargetUi);
   const [soloDock, setSoloDock] = useState<SoloDockState>(() => loadSoloDock());
+  const [xaiSentiment, setXaiSentiment] = useState<number | null>(null);
+  const [jediAlign, setJediAlign] = useState<number | null>(null);
   const preSafetySigRef = useRef<{
     sigMode: ChartControls['sigMode'];
     sigRvolMin: number;
@@ -279,6 +395,47 @@ export default function TvLwChartsPage() {
     void load(initial);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- mount: restore strip symbol + bars
 
+  // ── XAI sentiment + jediAlign from DS quant :8000 ───────────────────────────
+  useEffect(() => {
+    const fetchOrb = () => {
+      fetch('http://127.0.0.1:8000/v1/ai/activity/')
+        .then(r => r.ok ? r.json() : null)
+        .then(d => {
+          if (!d) return;
+          const grok = d?.current?.grok_score;
+          if (typeof grok === 'number') setXaiSentiment(grok * 2 - 1); // 0→1 to -1→+1
+        }).catch(() => {});
+      fetch('http://127.0.0.1:3030/v1/council')
+        .then(r => r.ok ? r.json() : null)
+        .then(d => {
+          if (!d) return;
+          const js = d?.jedi_score;
+          if (typeof js === 'number') setJediAlign(js / 27);
+        }).catch(() => {});
+    };
+    fetchOrb();
+    const id = setInterval(fetchOrb, 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // ── M6D shell integration — listen for TF/symbol changes from the microbar ──
+  useEffect(() => {
+    const onTf = (e: Event) => {
+      const preset = (e as CustomEvent<TimeframePreset>).detail;
+      if (preset) { setTf(preset); saveTimeframe(preset); void load(sym, preset); }
+    };
+    const onSym = (e: Event) => {
+      const next = (e as CustomEvent<string>).detail?.trim().toUpperCase();
+      if (next) void load(next);
+    };
+    window.addEventListener('m6d:setTf', onTf);
+    window.addEventListener('m6d:setSym', onSym);
+    return () => {
+      window.removeEventListener('m6d:setTf', onTf);
+      window.removeEventListener('m6d:setSym', onSym);
+    };
+  }, [load, sym]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const setTimeframe = useCallback(
     (next: TimeframePreset) => {
       setTf(next);
@@ -308,12 +465,16 @@ export default function TvLwChartsPage() {
     }
   }, [targetUi]);
 
-  const tickerSuggestions = TOP_STOCKS.filter((t) => t.includes(tickerInput.trim().toUpperCase())).slice(0, 7);
+  const tickerQuery = tickerInput.trim().toUpperCase();
+  const tickerSuggestions = (tickerQuery.length === 0
+    ? TOP_STOCKS
+    : TOP_STOCKS.filter((t) => t.startsWith(tickerQuery) || t.includes(tickerQuery))
+  ).slice(0, 13);
   const selectTicker = useCallback(
     (raw: string) => {
       const next = raw.trim().toUpperCase();
       if (!next) return;
-      setTickerInput(next);
+      setTickerInput('');
       setTickerFocus(false);
       void load(next);
     },
@@ -352,6 +513,14 @@ export default function TvLwChartsPage() {
     ? `SOLO — ${solo.dirText} · S ${solo.strength}% (below ${SOLO_PARTICIPATION_FLOOR_PCT}% participation: no conviction / bias ignored) · raw bias ${solo.biasScore > 0 ? '+' : ''}${solo.biasScore} · RVOL ${solo.rvolRatio > 0 ? `${solo.rvolRatio.toFixed(2)}×` : '—'}`
     : `SOLO — ${solo.dirText} · bias ${solo.biasScore > 0 ? '+' : ''}${solo.biasScore} (orb ${soloOrbScore > 0 ? '+' : ''}${soloOrbScore}) · S ${solo.strength}% · C ${solo.confidence}% · RVOL ${solo.rvolRatio > 0 ? `${solo.rvolRatio.toFixed(2)}×` : '—'}`;
 
+  const heat = useMemo(() => showHeat ? computeHeatseeker(bars) : null, [bars, showHeat]);
+
+  const lastBar = bars.length > 0 ? bars[bars.length - 1]! : null;
+  const prevBar = bars.length > 1 ? bars[bars.length - 2]! : null;
+  const lastPrice = lastBar?.close ?? null;
+  const priceChgPct = lastPrice && prevBar ? (lastBar!.close - prevBar.close) / prevBar.close * 100 : null;
+  const fmtPrice = (p: number) => p >= 1000 ? p.toLocaleString('en-US', { maximumFractionDigits: 2 }) : p < 10 ? p.toFixed(5) : p.toFixed(2);
+
   return (
     <div className="tv-lw-page">
       <div
@@ -377,7 +546,9 @@ export default function TvLwChartsPage() {
                 strengthPct={solo.strength}
                 onMoveStrengthPct={50}
                 rvolRatio={solo.rvolRatio}
-                density="focus"
+                density="rich"
+                xaiSentiment={xaiSentiment}
+                jediAlign={jediAlign}
               />
             </div>
             <div className="tv-lw-solo-dock__controls" role="toolbar" aria-label="SOLO dock">
@@ -442,178 +613,48 @@ export default function TvLwChartsPage() {
           </button>
         )}
       </div>
-      <header className="tv-lw-head">
-        <div className="tv-lw-brand">
-          <span className="tv-lw-k mission-top-k">SPX</span>
-          <div className="tv-lw-head-meta-line">
-            <span className="tv-lw-sub-inline">S&P proxy strip · own symbol</span>
-            SYMBOL {sym} · TF {tf.toUpperCase()}
-          </div>
-        </div>
-        <div className="tv-lw-hintline">
-          <a href="#pulse">PULSE</a> · <a href="#warrior">COUNCIL</a> · <a href="#boom">BOOM</a>
-        </div>
-      </header>
-
+      {/* ── Indicator strip: ticker · TF · indicators ────────────────────── */}
       <div className="tv-lw-control-strip">
-        <div className="tv-lw-toolbar" role="group" aria-label="Symbol and timeframe">
-          <div className="tv-lw-toolbar__primary">
-          <div className="tv-lw-group" role="toolbar" aria-label="Instruments">
-          <div className="tv-lw-ticker-wrap">
-            <input
-              type="text"
-              className="tv-lw-ticker-input"
-              value={tickerInput}
-              placeholder="TSLA"
-              aria-label="Search ticker"
-              onFocus={() => setTickerFocus(true)}
-              onBlur={() => setTimeout(() => setTickerFocus(false), 120)}
-              onChange={(e) => setTickerInput(e.target.value.toUpperCase())}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  void selectTicker(tickerInput);
-                }
-              }}
-            />
-            {tickerFocus ? (
-              <div className="tv-lw-ticker-dd" role="listbox" aria-label="Top stocks">
-                {tickerSuggestions.map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    className="tv-lw-ticker-dd-item"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      void selectTicker(t);
-                    }}
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
-            ) : null}
+        <div className="tv-lw-masters-row" role="group" aria-label="Chart overlays">
+
+          {/* Ticker input */}
+          <div className="tv-lw-masters-seg tv-lw-masters-seg--sym">
+            <div className="tv-lw-ticker-wrap">
+              <input
+                type="text"
+                className="tv-lw-ticker-input"
+                value={tickerInput}
+                placeholder={sym}
+                aria-label="Symbol"
+                onFocus={() => setTickerFocus(true)}
+                onClick={() => setTickerFocus(true)}
+                onBlur={() => setTimeout(() => setTickerFocus(false), 120)}
+                onChange={(e) => setTickerInput(e.target.value.toUpperCase())}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void selectTicker(tickerInput); } }}
+              />
+              {tickerFocus ? (
+                <div className="tv-lw-ticker-dd" role="listbox">
+                  {tickerSuggestions.map((t) => (
+                    <button key={t} type="button" className="tv-lw-ticker-dd-item"
+                      onMouseDown={(e) => { e.preventDefault(); void selectTicker(t); }}>
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
           </div>
-          {SYMBOLS.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              className={sym === s.id ? 'active' : undefined}
-              onClick={() => void load(s.id)}
-            >
-              {s.label}
-            </button>
-          ))}
-          </div>
-          <div className="tv-lw-time-row" role="toolbar" aria-label="Timeframe">
+
+          {/* TF buttons */}
+          <div className="tv-lw-masters-seg tv-lw-masters-seg--tf">
             {TIMEFRAME_OPTIONS.map((o) => (
-              <button
-                key={o.id}
-                type="button"
-                className={tf === o.id ? 'active' : undefined}
-                onClick={() => setTimeframe(o.id)}
-              >
+              <button key={o.id} type="button"
+                className={tf === o.id ? 'tv-lw-pill tv-lw-pill--on' : 'tv-lw-pill'}
+                onClick={() => setTimeframe(o.id)}>
                 {o.label}
               </button>
             ))}
           </div>
-          </div>
-          <div className="tv-lw-toolbar__actions">
-            <div className="tv-lw-targets-anchor">
-              <button
-                type="button"
-                id="tv-lw-targets-fab-btn"
-                className={`tv-lw-targets-fab${targetUi.hud ? ' tv-lw-targets-fab--open' : ''}`}
-                aria-expanded={targetUi.hud}
-                aria-controls="tv-lw-targets-panel"
-                onClick={() => setTargetUi((u) => ({ ...u, hud: !u.hud }))}
-                title={targetUi.hud ? 'Hide targets & ratings' : 'Targets & ratings (VP · session · OB)'}
-              >
-                <span className="tv-lw-targets-fab__chev" aria-hidden>
-                  {targetUi.hud ? '▾' : '◂'}
-                </span>
-                <span className="tv-lw-targets-fab__label">INFO</span>
-              </button>
-              {targetUi.hud ? (
-                <div
-                  id="tv-lw-targets-panel"
-                  className="tv-lw-targets-panel tv-lw-targets-panel--anchored"
-                  role="region"
-                  aria-labelledby="tv-lw-targets-panel-title"
-                >
-                  <div className="tv-lw-targets-panel__head">
-                    <div className="tv-lw-targets-panel__head-row">
-                      <span className="tv-lw-targets-panel__title" id="tv-lw-targets-panel-title">
-                        {sym} · C {formatTargetPrice(targetPack.lastClose)}
-                        {targetPack.atr > 0 ? ` · ATR ${formatTargetPrice(targetPack.atr)}` : ''}
-                      </span>
-                      <button
-                        type="button"
-                        className="tv-lw-targets-panel__close"
-                        aria-label="Close targets panel"
-                        onClick={() => setTargetUi((u) => ({ ...u, hud: false }))}
-                      >
-                        ×
-                      </button>
-                    </div>
-                    <div className="tv-lw-targets-panel__filters" role="group" aria-label="Target source">
-                      {(['all', 'vp', 'sess', 'ob'] as const).map((f) => (
-                        <button
-                          key={f}
-                          type="button"
-                          className={
-                            targetUi.filter === f
-                              ? 'tv-lw-pill tv-lw-pill--on tv-lw-pill--compact'
-                              : 'tv-lw-pill tv-lw-pill--compact'
-                          }
-                          onClick={() => setTargetUi((u) => ({ ...u, filter: f }))}
-                        >
-                          {f === 'all' ? 'ALL' : f.toUpperCase()}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  {bars.length < 25 ? (
-                    <p className="tv-lw-targets-panel__empty">Load more history — targets need ≥25 bars.</p>
-                  ) : filteredTargets.length === 0 ? (
-                    <p className="tv-lw-targets-panel__empty">No rows for this filter (turn on VP / SESS / OB on chart).</p>
-                  ) : (
-                    <ul className="tv-lw-targets-panel__list">
-                      {filteredTargets.slice(0, 10).map((t, i) => (
-                        <li key={`${t.label}-${t.price}-${i}`} className="tv-lw-targets-panel__row">
-                          <span className="tv-lw-targets-panel__lab" title={t.sources.join(' · ')}>
-                            {t.label}
-                          </span>
-                          <span className="tv-lw-targets-panel__px">{formatTargetPrice(t.price)}</span>
-                          <span
-                            className={
-                              t.rating >= 82
-                                ? 'tv-lw-targets-panel__rt tv-lw-targets-panel__rt--hot'
-                                : t.rating >= 64
-                                  ? 'tv-lw-targets-panel__rt tv-lw-targets-panel__rt--mid'
-                                  : 'tv-lw-targets-panel__rt'
-                            }
-                          >
-                            {t.rating}
-                          </span>
-                          <span className="tv-lw-targets-panel__bk">{t.bucket.toUpperCase()}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  <p className="tv-lw-targets-panel__foot">
-                    Rating = layer weight + distance in ATR (merged if prices cluster). Order book not in LW — use
-                    exchange L2.
-                  </p>
-                </div>
-              ) : null}
-            </div>
-            <button type="button" className="tv-lw-reload" onClick={() => void load(sym)} title="Reload bars">
-              ↻
-            </button>
-          </div>
-        </div>
-        <div className="tv-lw-masters-row" role="group" aria-label="Chart overlays">
           <div className="tv-lw-masters-seg tv-lw-masters-seg--ict-master" role="group" aria-label="ICT layers master">
             <button
               type="button"
@@ -737,6 +778,41 @@ export default function TvLwChartsPage() {
               title="Purple squeeze tint"
             >
               PURPLE
+            </button>
+            <button
+              type="button"
+              className={
+                controls.squeezePurpleBg && controls.showSqueeze && controls.showCouncilArrows && controls.showSessionLevels
+                  ? 'tv-lw-pill tv-lw-pill--purple-on'
+                  : 'tv-lw-pill tv-lw-pill--purple-off'
+              }
+              onClick={() => {
+                const next = !(controls.squeezePurpleBg && controls.showSqueeze && controls.showCouncilArrows && controls.showSessionLevels);
+                persist({ ...controls, squeezePurpleBg: next, showSqueeze: next, showCouncilArrows: next, showSessionLevels: next });
+              }}
+              title="BOOM mode: Purple + SQZ + SIG + SESS"
+            >
+              BOOM
+            </button>
+          </div>
+          <div className="tv-lw-masters-seg" role="group" aria-label="Live order flow">
+            <button
+              type="button"
+              className={showObi ? 'tv-lw-pill tv-lw-pill--on' : 'tv-lw-pill'}
+              onClick={() => setShowObi((v) => !v)}
+              title="OBI — live bid/ask pressure + trade bubbles (Polygon WS · real-time · $199 plan)"
+            >
+              OBI
+            </button>
+          </div>
+          <div className="tv-lw-masters-seg tv-lw-masters-seg--heat">
+            <button
+              type="button"
+              className={showHeat ? 'tv-lw-pill tv-lw-pill--purple-on' : 'tv-lw-pill tv-lw-pill--purple-off'}
+              onClick={() => setShowHeat(v => !v)}
+              title="Heatseeker alpha score overlay"
+            >
+              HEAT
             </button>
           </div>
           <div className="tv-lw-masters-seg tv-lw-masters-seg--tail" role="group" aria-label="Layout · defence">
@@ -907,15 +983,32 @@ export default function TvLwChartsPage() {
       {err ? <p className="err">{err}</p> : null}
 
       <div className="chart-stage">
+        {/* Price overlay — top-left of chart */}
+        <div className="tv-lw-chart-overlay">
+          <span className="tv-lw-overlay-sym">{sym}</span>
+          {lastPrice !== null && <span className="tv-lw-overlay-price">{fmtPrice(lastPrice)}</span>}
+          {priceChgPct !== null && (
+            <span className={`tv-lw-overlay-chg ${priceChgPct >= 0 ? 'pos' : 'neg'}`}>
+              {priceChgPct >= 0 ? '+' : ''}{priceChgPct.toFixed(2)}%
+            </span>
+          )}
+          {heat && (
+            <span className={`tv-lw-overlay-heat tv-lw-overlay-heat--${heat.tier.toLowerCase()}`}
+              title={`${heat.regime} · α${heat.alphaScore} · ${heat.jediBull ? '▲ JEDI BULL' : heat.jediBear ? '▼ JEDI BEAR' : 'NEUTRAL'}`}>
+              {heat.tier} {heat.alphaScore} {heat.jediBull ? '▲' : heat.jediBear ? '▼' : '·'} {heat.regime.replace(' TREND', '')}
+            </span>
+          )}
+        </div>
         {loading ? <p className="muted">Loading…</p> : null}
         {!loading && bars.length > 0 && chartKey ? (
-          <BoomLwChart key={chartKey} bars={bars} controls={controls} />
+          <BoomLwChart key={chartKey} bars={bars} controls={controls}
+            symbol={sym}
+            heatTarget={(heat && (heat.tier === 'S' || heat.tier === 'A')) ? { price: heat.targetLevel, tier: heat.tier } : null} />
         ) : null}
       </div>
 
-      <p className="tv-lw-foot">
-        <code>#pulse</code> PULSE · <code>#warrior</code> COUNCIL · <code>#boom</code> BOOM
-      </p>
+      {showObi && <ObiLivePanel snap={obiSnap} />}
+
     </div>
   );
 }

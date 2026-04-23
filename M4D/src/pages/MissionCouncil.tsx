@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { getAlgoExecBase } from '../lib/serviceHealthUrls';
 import { AlgoPulseEKG, type PulseDirection } from '../components/AlgoPulseEKG';
 import { fetchBarsForSymbol, type ChartSymbol } from '@pwa/lib/fetchBars';
@@ -17,6 +17,10 @@ import {
 import MaxCogVizControlRoom from '../viz/ControlRoomKnights.jsx';
 import SocialAlphaPulse from '../viz/SocialAlphaPulse';
 import { PriceOrb, RiskOrb, ConfluenceOrb, VolumeOrb, TVWebhookOrb } from '../viz/MaxCogVizOrbsII';
+import MarketTradingViewLive from '../components/MarketTradingViewLive';
+import TradingViewEconomicEvents from '../components/TradingViewEconomicEvents';
+import TradingViewMarketOverview from '../components/TradingViewMarketOverview';
+import TradingViewTopTickerTape from '../components/TradingViewTopTickerTape';
 
 function randVote(): number {
   return [-1, -1, 0, 0, 0, 1, 1][Math.floor(Math.random() * 7)] ?? 0;
@@ -65,6 +69,27 @@ type MiniSeries = {
   points: number[];
 };
 
+type MultiSeries = {
+  symbol: ChartSymbol;
+  label: string;
+  color: string;
+  points: number[];
+};
+
+type BgPreset = 'black' | 'dark' | 'navy' | 'transparent';
+
+const BG_SWATCHES: ReadonlyArray<{
+  id: BgPreset;
+  label: string;
+  shell: string;
+  panel: string;
+  widget: string;
+}> = [
+  { id: 'black', label: 'Black', shell: '#000000', panel: '#000000', widget: '#000000' },
+  { id: 'dark', label: 'Dark', shell: '#05080d', panel: '#0f1217', widget: '#131722' },
+  { id: 'navy', label: 'Navy', shell: '#040a12', panel: '#0b1320', widget: '#131722' },
+  { id: 'transparent', label: 'Transparent', shell: 'transparent', panel: 'transparent', widget: 'transparent' },
+];
 function MiniLine({ points, stroke }: { points: number[]; stroke: string }) {
   if (points.length < 2) {
     return <div className="mission-council__mini-empty">NO DATA</div>;
@@ -84,6 +109,37 @@ function MiniLine({ points, stroke }: { points: number[]; stroke: string }) {
   return (
     <svg viewBox={`0 0 ${width} ${height}`} width="100%" height={height}>
       <polyline fill="none" stroke={stroke} strokeWidth="1.8" points={path} />
+    </svg>
+  );
+}
+
+function MultiLineChart({ series }: { series: MultiSeries[] }) {
+  const valid = series.filter((s) => s.points.length > 2);
+  if (valid.length === 0) {
+    return <div className="mission-council__multi-empty">NO MULTI-LINE DATA</div>;
+  }
+  const width = 920;
+  const height = 240;
+  const all = valid.flatMap((s) => s.points);
+  const min = Math.min(...all);
+  const max = Math.max(...all);
+  const span = Math.max(1e-9, max - min);
+  const toPath = (pts: number[]) =>
+    pts
+      .map((v, i) => {
+        const x = (i / (pts.length - 1)) * width;
+        const y = height - ((v - min) / span) * height;
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+      })
+      .join(' ');
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} width="100%" height={height}>
+      {[0.2, 0.4, 0.6, 0.8].map((g) => (
+        <line key={g} x1={0} x2={width} y1={height * g} y2={height * g} stroke="#163040" strokeWidth="1" />
+      ))}
+      {valid.map((s) => (
+        <polyline key={s.symbol} fill="none" stroke={s.color} strokeWidth="2" points={toPath(s.points)} />
+      ))}
     </svg>
   );
 }
@@ -113,6 +169,16 @@ export default function MissionCouncil({ onOpenWarriors }: Props) {
   const [execSummary, setExecSummary] = useState<string>(
     'MARKET EXEC · warming up (POST → algo-execution /decision)…',
   );
+  const [uiLock, setUiLock] = useState(false);
+  const [serverLock, setServerLock] = useState(false);
+  const [haltLock, setHaltLock] = useState(false);
+  const [lockUpdatedAt, setLockUpdatedAt] = useState<string | null>(null);
+  const [lockSource, setLockSource] = useState('—');
+  const [activityGate, setActivityGate] = useState('—');
+  const [sessionAllowed, setSessionAllowed] = useState<boolean | null>(null);
+  const [ibkrLive, setIbkrLive] = useState<boolean | null>(null);
+  const [marketMulti, setMarketMulti] = useState<MultiSeries[]>([]);
+  const [bgPreset, setBgPreset] = useState<BgPreset>('black');
 
   useEffect(() => {
     loadCouncilSpec()
@@ -172,6 +238,54 @@ export default function MissionCouncil({ onOpenWarriors }: Props) {
       window.clearInterval(id);
     };
   }, [data]);
+
+  useEffect(() => {
+    const loadLock = () => {
+      fetch('http://127.0.0.1:8000/v1/control/halt-lock/')
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (!d) return;
+          if (typeof d.ui_lock === 'boolean') setUiLock(d.ui_lock);
+          if (typeof d.terminal_lock === 'boolean') setServerLock(d.terminal_lock);
+          if (typeof d.halt_lock === 'boolean') setHaltLock(d.halt_lock);
+          setLockUpdatedAt(typeof d.updated_at === 'string' ? d.updated_at : null);
+          setLockSource(typeof d.updated_source === 'string' ? d.updated_source.toUpperCase() : '—');
+        })
+        .catch(() => {});
+    };
+    loadLock();
+    const id = window.setInterval(loadLock, 30000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const loadLiveContext = () => {
+      fetch('http://127.0.0.1:8000/v1/ai/activity/')
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (!d) return;
+          setActivityGate(String(d.gate_label ?? '—'));
+        })
+        .catch(() => {});
+      fetch('http://127.0.0.1:8000/v1/session/')
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (!d) return;
+          setSessionAllowed(Boolean(d.allowed));
+        })
+        .catch(() => {});
+      fetch('http://127.0.0.1:8000/v1/ibkr/test/')
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (!d) return;
+          setIbkrLive(Boolean(d.connected));
+        })
+        .catch(() => {});
+    };
+    loadLiveContext();
+    const id = window.setInterval(loadLiveContext, 30000);
+    return () => window.clearInterval(id);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -290,6 +404,40 @@ export default function MissionCouncil({ onOpenWarriors }: Props) {
     };
   }, []);
 
+  useEffect(() => {
+    const vitePolygonKey =
+      (import.meta.env.VITE_POLYGON_IO_KEY || import.meta.env.VITE_POLYGON_API_KEY) as
+        | string
+        | undefined;
+    const tf: TimeframePreset = '1d1m';
+    const targets: { symbol: ChartSymbol; label: string; color: string }[] = [
+      { symbol: 'SPY', label: 'SPX', color: '#22c55e' },
+      { symbol: 'QQQ', label: 'NQ', color: '#38bdf8' },
+      { symbol: 'I:NDX', label: 'US100', color: '#a78bfa' },
+      { symbol: 'XAU', label: 'XAU', color: '#f59e0b' },
+    ];
+    let cancelled = false;
+    void Promise.all(
+      targets.map(async (t) => {
+        try {
+          const bars = await fetchBarsForSymbol(t.symbol, vitePolygonKey, tf);
+          const closes = bars.slice(-140).map((b) => b.close);
+          if (closes.length < 2) return { ...t, points: [] };
+          const base = closes[0] ?? 1;
+          const points = closes.map((c) => ((c - base) / base) * 100);
+          return { ...t, points };
+        } catch {
+          return { ...t, points: [] };
+        }
+      }),
+    ).then((rows) => {
+      if (!cancelled) setMarketMulti(rows);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   if (err) {
     return (
       <div className="mission mission--error">
@@ -350,11 +498,112 @@ export default function MissionCouncil({ onOpenWarriors }: Props) {
   };
   const maAlignedCouncil = direction === 'LONG' || (direction === 'FLAT' && sum >= -2);
   const macroAlignedCouncil = regime !== 'FOMC_FLAT';
+  const runGateOpen = (activityGate === 'HOT' || activityGate === 'ALIVE') && sessionAllowed === true && !haltLock;
+  const utcHour = new Date().getUTCHours();
+  const inAsia = utcHour >= 0 && utcHour < 8;
+  const inLondon = utcHour >= 7 && utcHour < 16;
+  const inNy = utcHour >= 13 && utcHour < 21;
+  const miniPerf = marketMini.map((m) => {
+    const first = m.points[0] ?? 0;
+    const last = m.points[m.points.length - 1] ?? 0;
+    const pct = first > 0 ? ((last - first) / first) * 100 : 0;
+    return { ...m, pct };
+  });
+  const contextEdge = Math.round((masterContext * 0.55) + (Math.abs(sum) * 1.2));
+  const executionQuality = Math.max(
+    0,
+    Math.min(
+      100,
+      (runGateOpen ? 32 : 8) + (ibkrLive ? 22 : 5) + (sessionAllowed ? 18 : 0) + (100 - Math.min(100, drawdown * 18)) * 0.28,
+    ),
+  );
+  const riskPressure = Math.max(
+    0,
+    Math.min(100, (drawdown * 24) + (haltLock ? 28 : 0) + (serverLock ? 18 : 0) + (runGateOpen ? 0 : 16)),
+  );
+  const opportunityPulse = Math.max(0, Math.min(100, Math.abs(sum) * 3 + voteAbs * 45 + accel * 0.35));
+  const postureLabel = runGateOpen && opportunityPulse > 62 && riskPressure < 45
+    ? 'ATTACK'
+    : runGateOpen && opportunityPulse > 40
+      ? 'STALK'
+      : 'DEFEND';
+  const advCount = miniPerf.filter((m) => m.pct > 0).length;
+  const decCount = miniPerf.filter((m) => m.pct < 0).length;
+  const breadthRatio = decCount === 0 ? advCount : advCount / Math.max(1, decCount);
+  const sectorHeat = [
+    { k: 'EQUITY IDX', v: miniPerf.filter((m) => m.label === 'ES' || m.label === 'SPX' || m.label === 'NQ' || m.label === 'US100').reduce((t, m) => t + m.pct, 0) },
+    { k: 'METALS', v: miniPerf.filter((m) => m.label === 'XAU').reduce((t, m) => t + m.pct, 0) },
+    { k: 'CRYPTO', v: miniPerf.filter((m) => m.label === 'BTC').reduce((t, m) => t + m.pct, 0) },
+    { k: 'FX', v: miniPerf.filter((m) => m.label === 'EURUSD').reduce((t, m) => t + m.pct, 0) },
+  ];
+  const macroEvents = [
+    { k: 'CPI', t: '2026-05-13T12:30:00Z' },
+    { k: 'FOMC', t: '2026-05-06T18:00:00Z' },
+    { k: 'NFP', t: '2026-05-01T12:30:00Z' },
+  ];
+  const nextEvents = macroEvents.map((e) => {
+    const now = Date.now();
+    const ts = Date.parse(e.t);
+    const deltaMs = Math.max(0, ts - now);
+    const hh = Math.floor(deltaMs / 3600000);
+    const mm = Math.floor((deltaMs % 3600000) / 60000);
+    return { ...e, hh, mm, live: deltaMs <= 0 };
+  });
+  const tapeLatency = Math.max(15, Math.round(28 + Math.abs(sum) * 3 + (runGateOpen ? 0 : 18)));
+  const slipProxyBps = Math.max(1, Math.round((drawdown * 2.2) + (runGateOpen ? 2 : 7) + (Math.abs(sum) / 5)));
+  const tapeQuality = Math.max(0, Math.min(100, 100 - tapeLatency * 0.7 - slipProxyBps * 2.2));
+
+  const bgTheme = BG_SWATCHES.find((s) => s.id === bgPreset) ?? BG_SWATCHES[0];
+  const councilThemeStyle: CSSProperties = {
+    ['--mission-bg-shell' as string]: bgTheme.shell,
+    ['--mission-bg-panel' as string]: bgTheme.panel,
+    ['--mission-bg-widget' as string]: bgTheme.widget,
+  };
 
   return (
-    <div className="mission mission--control-room">
+    <div className="mission mission--control-room" style={councilThemeStyle}>
       <header className="mission__header">
         <div className="mission-top-k">MARKET</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 9, color: uiLock ? '#f59e0b' : '#64748b', border: `1px solid ${uiLock ? '#f59e0b66' : '#33415566'}`, borderRadius: 8, padding: '1px 6px' }}>
+            UI {uiLock ? 'ON' : 'OFF'}
+          </span>
+          <span style={{ fontSize: 9, color: serverLock ? '#ef4444' : '#64748b', border: `1px solid ${serverLock ? '#ef444466' : '#33415566'}`, borderRadius: 8, padding: '1px 6px' }}>
+            SERVER {serverLock ? 'ON' : 'OFF'}
+          </span>
+          <span style={{ fontSize: 9, color: haltLock ? '#ef4444' : '#22c55e', border: `1px solid ${haltLock ? '#ef444466' : '#22c55e66'}`, borderRadius: 8, padding: '1px 6px' }}>
+            HALT {haltLock ? 'ON' : 'OFF'}
+          </span>
+          <span style={{ fontSize: 9, color: '#64748b', border: '1px solid #33415566', borderRadius: 8, padding: '1px 6px' }}>
+            SRC {lockSource}
+          </span>
+          <span style={{ fontSize: 9, color: '#64748b' }}>
+            {(() => {
+              if (!lockUpdatedAt) return 'age —';
+              const ms = Date.now() - Date.parse(lockUpdatedAt);
+              if (!Number.isFinite(ms) || ms < 0) return 'age —';
+              return `age ${Math.floor(ms / 60000)}m`;
+            })()}
+          </span>
+          <div className="mission-council__bg-picker" aria-label="Background palette">
+            {BG_SWATCHES.map((sw) => (
+              <button
+                key={sw.id}
+                type="button"
+                className={`mission-council__bg-swatch${bgPreset === sw.id ? ' is-active' : ''}`}
+                style={{
+                  background:
+                    sw.id === 'transparent'
+                      ? 'linear-gradient(135deg, #7f1d1d 0%, #0f172a 100%)'
+                      : sw.shell,
+                }}
+                onClick={() => setBgPreset(sw.id)}
+                title={`${sw.label} backgrounds`}
+                aria-label={`${sw.label} backgrounds`}
+              />
+            ))}
+          </div>
+        </div>
         <div
           className={`mission__bias mission__bias--${direction.toLowerCase()} ${
             alertExpanded ? 'mission__bias--expanded' : ''
@@ -453,38 +702,43 @@ export default function MissionCouncil({ onOpenWarriors }: Props) {
           </div>
         </div>
       </section>
+      <TradingViewTopTickerTape />
 
-      <div className="mission-council__exec-strip" role="status" aria-live="polite">
-        {execSummary}
-      </div>
+      <MarketTradingViewLive
+        widgetBg={bgTheme.widget}
+        widgetTransparent={bgPreset === 'transparent'}
+      />
 
       <AlgoPulseEKG samples={ekgSamples} direction={direction} pulseIndex={pulse} />
 
-      <section className="mission-council__news-strip" aria-label="News and market minis">
-        <div className="mission-council__news-headline">
-          NEWS · CATALYST WATCH: CPI window + policy headlines + earnings rotations (pilot strip)
-        </div>
-        <div className="mission-council__mini-grid">
-          {marketMini.map((m) => (
-            <article key={m.symbol} className="mission-council__mini-card">
-              <div className="mission-council__mini-title">{m.label}</div>
-              <MiniLine points={m.points} stroke={direction === 'SHORT' ? '#ff1744' : '#00e676'} />
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="mission-council__social-alpha" aria-label="Social alpha pulse">
-        <header className="mission-council__social-alpha-head">
-          <span className="mission-council__social-alpha-k">SOCIAL ALPHA PULSE</span>
-          <span className="mission-council__social-alpha-hint">X / GROK · market vote–linked strip (single mount)</span>
-        </header>
-        <div className="mission-council__social-alpha-frame">
-          <SocialAlphaPulse
-            data={councilSocialData}
-            maAligned={maAlignedCouncil}
-            macroAligned={macroAlignedCouncil}
-          />
+      <section
+        className="mission-council__triple-row"
+        aria-label="Top stories, economic calendar, and social pulse"
+      >
+        <div className="mission-council__triple-grid mission-council__triple-grid--3">
+          <section
+            className="mission-council__social-alpha mission-council__social-alpha--triple mission-council__triple-social-panel"
+            aria-label="Social alpha pulse"
+          >
+            <div className="mission-council__social-alpha-frame">
+              <SocialAlphaPulse
+                data={councilSocialData}
+                maAligned={maAlignedCouncil}
+                macroAligned={macroAlignedCouncil}
+                showSignalGates={false}
+              />
+            </div>
+          </section>
+          <div className="mission-council__triple-hotlist-panel mission-council__triple-timeline-panel mission-council__triple-hotlist-panel--flush">
+            <div className="mission-council__triple-timeline-inner">
+              <TradingViewMarketOverview />
+            </div>
+          </div>
+          <div className="mission-council__triple-hotlist-panel mission-council__triple-events-panel mission-council__triple-hotlist-panel--flush">
+            <div className="mission-council__triple-events-inner">
+              <TradingViewEconomicEvents />
+            </div>
+          </div>
         </div>
       </section>
 

@@ -908,6 +908,253 @@ export function TVWebhookOrb({
 // ORB ROW — convenience wrapper for side-by-side display
 // ═══════════════════════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════════════════════
+// 6. INTERMARKET ORB (P2-D)
+//    5 cross-asset dims as radial wedges + composite score.
+//    Data: /v1/cross/report/  (cross_asset.py)
+// ═══════════════════════════════════════════════════════════════════════════
+
+interface CrossDim {
+  score: number;       // -1..+1
+  error?: string;
+}
+
+interface IntermarketOrbProps {
+  composite?: number;
+  regime?: "RISK_ON" | "NEUTRAL" | "RISK_OFF" | "UNKNOWN" | "STALE";
+  dims?: {
+    btc_eth_ratio?: CrossDim;
+    alt_beta?: CrossDim;
+    defi_momentum?: CrossDim;
+    l1_spread?: CrossDim;
+    btc_corr_break?: CrossDim;
+  };
+}
+
+const DIM_LABELS = ["BTC/ETH", "ALT β", "DeFi", "L1", "CORR"];
+const DIM_KEYS   = ["btc_eth_ratio", "alt_beta", "defi_momentum", "l1_spread", "btc_corr_break"] as const;
+const DIM_START  = [252, 324, 36, 108, 180]; // 5 × 72° sectors, start angles
+
+function regimeColor(regime: string) {
+  if (regime === "RISK_ON")  return C.cyan;
+  if (regime === "RISK_OFF") return C.red;
+  return C.purple;
+}
+
+export function IntermarketOrb({
+  composite = 0,
+  regime = "UNKNOWN",
+  dims = {},
+}: IntermarketOrbProps) {
+  useKF();
+  const cx = 68, cy = 68;
+  const id = "xmkt";
+  const col = regimeColor(regime);
+
+  const [pulse, setPulse] = useState(0);
+  const prevComp = useRef(composite);
+  useEffect(() => {
+    if (composite !== prevComp.current) { setPulse(k => k + 1); prevComp.current = composite; }
+  }, [composite]);
+
+  // Outer ring: 5 wedge arcs (72° each, r=50..56)
+  const SECTOR_DEG = 72;
+  const R_OUTER = 55, R_INNER = 44;
+
+  return (
+    <div style={{ position: "relative", width: 160, height: 160, flexShrink: 0 }}>
+      <OrbShell color={col} badge="XMARKET" pulseKey={pulse} badgeColor={col}>
+
+        {/* ── SECTOR WEDGES ── */}
+        {DIM_KEYS.map((key, i) => {
+          const dim   = (dims as Record<string, CrossDim>)[key];
+          const score = dim?.score ?? 0;
+          const hasErr = !!dim?.error;
+          const startDeg = DIM_START[i] + 2;
+          const endDeg   = startDeg + SECTOR_DEG - 4;
+          const arcR    = R_INNER + (R_OUTER - R_INNER) * 0.5;
+          const fillPct = clamp(Math.abs(score));
+          const dimCol  = hasErr ? C.ring : score >= 0 ? C.cyan : C.red;
+
+          return (
+            <g key={key}>
+              {/* ghost track */}
+              <path d={arc(cx, cy, arcR, startDeg, endDeg)}
+                stroke={C.ring} strokeWidth="6" fill="none" opacity="0.4" />
+              {/* active fill proportional to abs(score) */}
+              {fillPct > 0.02 && (
+                <path d={arc(cx, cy, arcR, startDeg, startDeg + (endDeg - startDeg) * fillPct)}
+                  stroke={dimCol} strokeWidth="6" fill="none" strokeLinecap="round"
+                  opacity={0.45 + fillPct * 0.45}
+                  filter={`url(#glow-${id})`} />
+              )}
+              {/* label at midpoint */}
+              {(() => {
+                const midDeg = (startDeg + endDeg) / 2;
+                const lp = polar(cx, cy, 62, midDeg);
+                return (
+                  <text x={lp.x} y={lp.y}
+                    textAnchor="middle" dominantBaseline="central"
+                    fill={dimCol} fontSize="4.5" fontWeight="700"
+                    fontFamily={C.font} opacity={hasErr ? 0.25 : 0.7}
+                  >{DIM_LABELS[i]}</text>
+                );
+              })()}
+              {/* score tick at outer edge */}
+              {(() => {
+                const midDeg = (startDeg + endDeg) / 2;
+                const p1 = polar(cx, cy, R_OUTER - 1, midDeg);
+                const p2 = polar(cx, cy, R_OUTER + 4, midDeg);
+                return (
+                  <line x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
+                    stroke={dimCol} strokeWidth="1.5"
+                    opacity={0.3 + fillPct * 0.55} />
+                );
+              })()}
+            </g>
+          );
+        })}
+
+        {/* ── COMPOSITE CORE ── */}
+        <circle cx={cx} cy={cy} r="24"
+          fill={col + "0a"} stroke={col}
+          strokeWidth={0.5 + clamp(Math.abs(composite)) * 2}
+          opacity={0.15 + clamp(Math.abs(composite)) * 0.5} />
+        <circle cx={cx} cy={cy} r="5" fill={col} opacity="0.7" />
+        <circle cx={cx} cy={cy} r="2" fill="#fff" opacity="0.6" />
+
+        {/* composite value */}
+        <text x={cx} y={cy - 7}
+          textAnchor="middle" dominantBaseline="central"
+          fill={col} fontSize="14" fontWeight="900" fontFamily={C.font}
+          filter={`url(#aglow-${id})`}
+        >{composite >= 0 ? "+" : ""}{composite.toFixed(2)}</text>
+
+        {/* regime label */}
+        <text x={cx} y={cy + 8}
+          textAnchor="middle" dominantBaseline="central"
+          fill={col} fontSize="5.5" fontWeight="700" fontFamily={C.font} opacity="0.6"
+        >{regime}</text>
+
+      </OrbShell>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 7. POSITIONING ORB (P2-E)
+//    Fear index (realized vol percentile) + funding pressure + net bias.
+//    Crypto analog to COT net positioning + VIX.
+// ═══════════════════════════════════════════════════════════════════════════
+
+interface PositioningOrbProps {
+  fearIndex?: number;      // 0–1  (realized vol pct rank → crypto VIX)
+  fundingPressure?: number; // 0–1  (from funding_signal.py, abs value)
+  fundingBias?: "LONG" | "SHORT" | "NEUTRAL"; // LONG=shorts overloaded, SHORT=longs overloaded
+  longBiasScore?: number;  // -1..+1 (net: +1=crowded long, -1=crowded short)
+}
+
+export function PositioningOrb({
+  fearIndex = 0,
+  fundingPressure = 0,
+  fundingBias = "NEUTRAL",
+  longBiasScore = 0,
+}: PositioningOrbProps) {
+  useKF();
+  const cx = 68, cy = 68;
+  const id = "posit";
+
+  const fearCol    = fearIndex > 0.7 ? C.red : fearIndex > 0.4 ? C.amber : C.green;
+  const fundCol    = fundingBias === "LONG" ? C.cyan : fundingBias === "SHORT" ? C.red : C.purple;
+  const biasCol    = longBiasScore >= 0 ? C.cyan : C.red;
+  const shellCol   = fearIndex > 0.7 ? C.red : biasCol;
+
+  // Fear arc — outer ring, 0-330°, red=extreme fear
+  const fearDeg = clamp(fearIndex) * 330;
+  // Funding arc — mid ring
+  const fundDeg = clamp(fundingPressure) * 280;
+  // Bias needle (inner, pointing up=long, down=short)
+  const needleDeg = 270 + longBiasScore * 120; // ±120° around 270° (top)
+
+  const [pulse, setPulse] = useState(0);
+  const prevFear = useRef(fearIndex);
+  useEffect(() => {
+    if (fearIndex !== prevFear.current) { setPulse(k => k + 1); prevFear.current = fearIndex; }
+  }, [fearIndex]);
+
+  const needleTip = polar(cx, cy, 28, needleDeg);
+  const needleBase1 = polar(cx, cy, 6, needleDeg + 90);
+  const needleBase2 = polar(cx, cy, 6, needleDeg - 90);
+
+  // Fear tick ring (24 ticks)
+  const TICKS = 24;
+  const litTicks = Math.round(clamp(fearIndex) * TICKS);
+
+  return (
+    <div style={{ position: "relative", width: 160, height: 160, flexShrink: 0 }}>
+      <OrbShell color={shellCol} badge="POSITION" pulseKey={pulse} badgeColor={fearCol}>
+
+        {/* ── FEAR TICK RING (outer) ── */}
+        {Array.from({ length: TICKS }, (_, i) => {
+          const deg = (i / TICKS) * 360 - 15;
+          const lit = i < litTicks;
+          const p1  = polar(cx, cy, 56, deg);
+          const p2  = polar(cx, cy, lit ? 50 : 53, deg);
+          return (
+            <line key={i} x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
+              stroke={lit ? fearCol : C.ring}
+              strokeWidth={lit ? 1.8 : 0.6}
+              opacity={lit ? 0.5 + (i / TICKS) * 0.45 : 0.2} />
+          );
+        })}
+
+        {/* ── FEAR ARC (r=47) ── */}
+        <circle cx={cx} cy={cy} r="47" fill="none" stroke={C.ring} strokeWidth="0.5" />
+        {fearDeg > 0 && (
+          <path d={arc(cx, cy, 47, 15, 15 + fearDeg)}
+            stroke={fearCol} strokeWidth="4.5" fill="none" strokeLinecap="round"
+            opacity={0.45 + clamp(fearIndex) * 0.45}
+            filter={`url(#glow-${id})`} />
+        )}
+
+        {/* ── FUNDING PRESSURE ARC (r=37) ── */}
+        <circle cx={cx} cy={cy} r="37" fill="none" stroke={C.ring} strokeWidth="0.5" />
+        {fundDeg > 0 && (
+          <path d={arc(cx, cy, 37, 40, 40 + fundDeg)}
+            stroke={fundCol} strokeWidth="3.5" fill="none" strokeLinecap="round"
+            opacity="0.6" className="ob2-spinrev" />
+        )}
+
+        {/* ── BIAS NEEDLE ── */}
+        <polygon
+          points={`${needleTip.x},${needleTip.y} ${needleBase1.x},${needleBase1.y} ${needleBase2.x},${needleBase2.y}`}
+          fill={biasCol} opacity="0.75" />
+        <circle cx={cx} cy={cy} r="6" fill={C.bg} stroke={biasCol} strokeWidth="1.5" />
+        <circle cx={cx} cy={cy} r="2.5" fill={biasCol} opacity="0.8" />
+
+        {/* fear value */}
+        <text x={cx} y={cy - 30}
+          textAnchor="middle" dominantBaseline="central"
+          fill={fearCol} fontSize="7" fontWeight="700" fontFamily={C.font} opacity="0.75"
+        >FEAR {(fearIndex * 100).toFixed(0)}%</text>
+
+        {/* funding label */}
+        <text x={cx} y={cy + 32}
+          textAnchor="middle" dominantBaseline="central"
+          fill={fundCol} fontSize="6.5" fontWeight="700" fontFamily={C.font} opacity="0.7"
+        >FUND {fundingBias}</text>
+
+        {/* bias label */}
+        <text x={cx} y={cy + 43}
+          textAnchor="middle" dominantBaseline="central"
+          fill={biasCol} fontSize="6" fontFamily={C.font} opacity="0.6"
+        >{longBiasScore >= 0 ? "LONG" : "SHORT"} {Math.abs(longBiasScore * 100).toFixed(0)}%</text>
+
+      </OrbShell>
+    </div>
+  );
+}
+
 interface OrbRowProps {
   gap?: number;
   children: React.ReactNode;

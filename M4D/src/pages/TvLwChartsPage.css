@@ -2,7 +2,7 @@
   --tv-bg: #000000;
   --tv-fg: #c8dae8;
   --tv-muted: #5a7a8a;
-  --tv-accent: #22d3ee;
+  --tv-accent: #38bdf8;
   --tv-warn: #f59e0b;
   flex: 1;
   display: flex;
@@ -11,6 +11,99 @@
   color: var(--tv-fg);
   background: radial-gradient(120% 120% at 50% 0%, #060a12 0%, #03050a 55%, #020307 100%);
   font-family: 'Share Tech Mono', 'Courier New', ui-monospace, monospace;
+}
+
+/* ── Price header (replaces tv-lw-head + toolbar in M6D) ── */
+.tv-lw-price-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  height: 28px;
+  flex-shrink: 0;
+  background: rgba(0,0,0,0.3);
+  border-bottom: 1px solid rgba(56,189,248,0.1);
+}
+.tv-lw-price-sym {
+  font-size: 13px;
+  font-weight: 700;
+  color: #dce6f0;
+  letter-spacing: 0.05em;
+}
+.tv-lw-price-val {
+  font-size: 13px;
+  font-weight: 600;
+  color: #38bdf8;
+}
+.tv-lw-price-chg {
+  font-size: 11px;
+  font-weight: 600;
+}
+.tv-lw-price-chg.pos { color: #4ade80; }
+.tv-lw-price-chg.neg { color: #f43f5e; }
+.tv-lw-price-loading { font-size: 10px; color: #415065; }
+.tv-lw-price-tf {
+  font-size: 9px;
+  color: #415065;
+  letter-spacing: 0.08em;
+  margin-left: 2px;
+}
+
+/* ── Chart canvas price overlay (top-left, non-blocking) ── */
+.tv-lw-chart-overlay {
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  z-index: 10;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  pointer-events: none;
+  user-select: none;
+}
+.tv-lw-overlay-sym {
+  font-size: 15px;
+  font-weight: 700;
+  color: rgba(220, 230, 240, 0.85);
+  letter-spacing: 0.06em;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+}
+.tv-lw-overlay-price {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(56, 189, 248, 0.9);
+  text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+}
+.tv-lw-overlay-chg {
+  font-size: 11px;
+  font-weight: 600;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+}
+.tv-lw-overlay-chg.pos { color: rgba(74, 222, 128, 0.9); }
+.tv-lw-overlay-chg.neg { color: rgba(244, 63, 94, 0.9); }
+
+.tv-lw-overlay-heat {
+  font-size: 11px;
+  font-weight: 700;
+  font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  letter-spacing: 0.06em;
+  padding: 1px 6px;
+  border-radius: 3px;
+  text-shadow: none;
+  pointer-events: auto;
+  cursor: default;
+}
+.tv-lw-overlay-heat--s { background: rgba(0,255,170,0.18); color: #00ffaa; border: 1px solid rgba(0,255,170,0.4); }
+.tv-lw-overlay-heat--a { background: rgba(255,238,0,0.15);  color: #ffee00; border: 1px solid rgba(255,238,0,0.35); }
+.tv-lw-overlay-heat--b { background: rgba(56,189,248,0.12); color: #38bdf8; border: 1px solid rgba(56,189,248,0.3); }
+.tv-lw-overlay-heat--c { background: rgba(100,116,139,0.15);color: #64748b; border: 1px solid rgba(100,116,139,0.3); }
+
+.tv-lw-masters-seg--heat {
+  display: flex;
+  align-items: center;
+  padding-right: 4px;
+  margin-right: 2px;
+  border-right: 1px solid rgba(167,139,250,0.2);
 }
 
 .tv-lw-head {
@@ -251,35 +344,39 @@
 
 .tv-lw-control-strip {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 12px;
-  padding: 5px 12px 8px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
   border-top: 1px solid #0d1520;
   border-bottom: 1px solid #0d1f2e;
   flex-shrink: 0;
-  background: rgba(3, 9, 14, 0.85);
+  background: rgba(3, 9, 14, 0.92);
   overflow: visible;
 }
 
 .tv-lw-toolbar {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: space-between;
-  gap: 8px 12px;
+  gap: 4px 8px;
   flex: 1 1 100%;
   width: 100%;
   min-width: 0;
+  height: 30px;
+  padding: 0 8px;
+  overflow: hidden;
 }
 
 .tv-lw-toolbar__primary {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 6px 8px;
+  gap: 3px 5px;
   flex: 1 1 auto;
   min-width: 0;
+  overflow: hidden;
 }
 
 .tv-lw-toolbar__actions {
@@ -306,20 +403,22 @@
   position: relative;
   display: inline-flex;
   align-items: center;
+  overflow: visible;
 }
 
 .tv-lw-ticker-input {
-  width: 84px;
-  height: 30px;
-  font-family: inherit;
-  font-size: 0.64rem;
-  letter-spacing: 0.08em;
+  width: 80px;
+  height: 26px;
+  font-family: 'Barlow Condensed', 'Arial Narrow', ui-sans-serif, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  padding: 6px 8px;
+  padding: 0 8px;
   border-radius: 2px;
   border: 1px solid #1e3a4a;
   background: #050810;
-  color: #9dc4d6;
+  color: #dce6f0;
   outline: none;
 }
 
@@ -344,11 +443,12 @@
 }
 
 .tv-lw-ticker-dd-item {
-  font-family: inherit;
-  font-size: 0.6rem;
-  letter-spacing: 0.07em;
+  font-family: 'Barlow Condensed', 'Arial Narrow', ui-sans-serif, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
   text-align: left;
-  padding: 5px 7px;
+  padding: 5px 9px;
   border: 1px solid transparent;
   border-radius: 2px;
   background: #0a111a;
@@ -363,14 +463,16 @@
 
 .tv-lw-group button {
   font-family: inherit;
-  font-size: 0.64rem;
+  font-size: 0.52rem;
   letter-spacing: 0.07em;
-  padding: 6px 10px;
+  padding: 2px 6px;
+  height: 20px;
   border-radius: 2px;
   border: 1px solid #1e3a4a;
   background: #050810;
   color: var(--tv-muted);
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .tv-lw-group button.active {
@@ -388,8 +490,8 @@
 
 .tv-lw-time-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
+  flex-wrap: nowrap;
+  gap: 2px;
   width: auto;
   justify-content: flex-start;
   margin-left: 2px;
@@ -397,14 +499,16 @@
 
 .tv-lw-time-row button {
   font-family: inherit;
-  font-size: 0.64rem;
+  font-size: 0.52rem;
   letter-spacing: 0.07em;
-  padding: 5px 9px;
+  padding: 2px 6px;
+  height: 20px;
   border-radius: 2px;
   border: 1px solid #1e3a4a;
   background: #050810;
   color: var(--tv-muted);
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .tv-lw-time-row button.active {
@@ -415,10 +519,10 @@
 
 .tv-lw-reload {
   margin-left: 0;
-  font-size: 0.72rem;
+  font-size: 0.65rem;
   line-height: 1;
-  width: 30px;
-  height: 30px;
+  width: 22px;
+  height: 22px;
   padding: 0;
   border: 1px solid #1e3a4a;
   border-radius: 2px;
@@ -434,35 +538,61 @@
 
 .tv-lw-masters-row {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 6px 10px;
+  gap: 2px 3px;
   flex: 1 1 100%;
   min-width: 0;
+  height: 34px;
+  padding: 0 8px;
+  overflow: visible;
+  border-top: 1px solid rgba(13, 31, 46, 0.9);
+  background: rgba(5, 9, 16, 0.5);
+  font-family: 'Barlow Condensed', 'Arial Narrow', ui-sans-serif, sans-serif;
+  position: relative;
 }
 
 .tv-lw-masters-seg {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 5px 6px;
+  gap: 2px 3px;
+}
+
+.tv-lw-masters-seg--sym {
+  display: flex;
+  align-items: center;
+  padding-right: 4px;
+  margin-right: 2px;
+  border-right: 1px solid rgba(56,120,220,0.18);
+}
+
+.tv-lw-masters-seg--tf {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: 6px;
+  margin-right: 2px;
+  border-right: 1px solid rgba(56,120,220,0.18);
 }
 
 .tv-lw-masters-seg--ict-master {
-  padding-right: 8px;
+  padding-right: 6px;
   margin-right: 2px;
-  border-right: 1px solid rgba(30, 58, 74, 0.9);
+  border-right: 1px solid rgba(30, 58, 74, 0.7);
 }
 
 .tv-lw-masters-seg--ict {
-  padding-right: 8px;
+  padding-right: 6px;
   margin-right: 2px;
-  border-right: 1px solid rgba(30, 58, 74, 0.9);
+  border-right: 1px solid rgba(30, 58, 74, 0.7);
 }
 
 .tv-lw-masters-seg--vol {
-  flex: 1 1 auto;
-  min-width: 0;
+  flex: 0 0 auto;
+  padding-right: 6px;
+  margin-right: 2px;
+  border-right: 1px solid rgba(30, 58, 74, 0.7);
 }
 
 .tv-lw-masters-seg--tail {
@@ -481,17 +611,22 @@
 }
 
 .tv-lw-pill {
-  font-family: inherit;
-  font-size: 0.56rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
+  font-family: 'Barlow Condensed', 'Arial Narrow', ui-sans-serif, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  padding: 4px 8px;
+  padding: 0 7px;
+  height: 22px;
   border-radius: 2px;
   border: 1px solid #1a3444;
   background: #060b11;
   color: var(--tv-muted);
   cursor: pointer;
+  white-space: nowrap;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
 }
 
 .tv-lw-pill--on {
@@ -625,6 +760,7 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
+  position: relative;
   padding: 0 8px 8px;
 }
 
@@ -635,8 +771,6 @@
   flex-direction: column;
   flex: 1;
   min-height: 260px;
-  border: 1px solid #21262d;
-  border-radius: 8px;
   overflow: hidden;
   background: var(--tv-bg);
   isolation: isolate;

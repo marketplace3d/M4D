@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# M4D stack launcher (repo root).
+# M1D stack launcher (repo root).
 #
 # Single entry point: use ./go.sh only. gou.sh / god.sh exist for go.sh to exec — do not run them directly.
 #
@@ -15,7 +15,7 @@
 #   ./go.sh django            → m4d-ds only (:8050) — rarely needed; prefer ./go.sh all
 #   ./go.sh crypto            → crypto_worker only — rarely needed; prefer ./go.sh all
 #
-# React UI source: M4D/src/   (Vite app; MaxCogViz bundles in src/viz/)
+# React UI source: M1D/src/   (Vite app; MaxCogViz bundles in src/viz/)
 # Build / clean: ./gob.sh   (Rust + MISSION + PWA)  ·  ./gob.sh clean  ·  ./gob.sh embed
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
@@ -31,12 +31,12 @@ if [[ "$CMD" == "help" || "$CMD" == "-h" || "$CMD" == "--help" ]]; then
 fi
 
 run_mission_only() {
-  cd "$ROOT/M4D"
+  cd "$ROOT/M1D"
   echo "  (Crypto Lab / BOOM need Django :8050 — run ./go.sh all for full stack)"
   if [[ "${1:-}" == "server" ]]; then
     exec npm run dev
   fi
-  echo "MISSION (React) → http://127.0.0.1:5550/  ·  not :8880 — sources: M4D/src/"
+  echo "MISSION (React) → http://127.0.0.1:5550/  ·  not :8880 — sources: M1D/src/"
   echo "  Routes use #hash — Crypto Lab: http://127.0.0.1:5550/#crypto"
   exec npm run dev:open
 }
@@ -145,7 +145,7 @@ run_all() {
   PIDS+=($!)
 
   echo "Starting MISSION :5550 …"
-  (cd "$ROOT/M4D" && exec npm run dev) &
+  (cd "$ROOT/M1D" && exec npm run dev) &
   PIDS+=($!)
 
   sleep 2

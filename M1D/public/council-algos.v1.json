@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "updated": "2026-03-26",
+  "source_files": [
+    "spec-kit/M4D_ALGOSX3_MaxCogViz_XYFlow.jsx",
+    "spec-kit/M4D_FullSystemVizDoc.jsx",
+    "spec-kit/M4D_STRATEGY_ALGOS_V0.6.md",
+    "spec-kit/M4D_SYSTEM_BOOTLOAD_V0.6.md"
+  ],
+  "note": "27 Warrior/Legend algos in 3×9 grid + Jedi master. V0.6 prose may use display names (e.g. O'NEIL CAN SLIM); canonical ids match this file.",
+
+  "jedi": {
+    "id": "jedi",
+    "label": "JEDI MASTER",
+    "sub": "Multi-Timeframe Alignment",
+    "desc": "Daily/Weekly/Quarterly Bias · Liquidity Draw · Structure Gate",
+    "tier": "JEDI",
+    "color": "#f59e0b",
+    "signals": ["MTF Bias", "Quarterly Draw", "Structure Break", "Liquidity Pool"]
+  },
+
+  "councils": [
+    {
+      "id": "cA",
+      "label": "BOOM STRENGTH",
+      "sub": "Bank A · 9 Algos",
+      "desc": "Entry Precision · Real-time Execution Signals",
+      "color": "#22d3ee",
+      "tier": "A"
+    },
+    {
+      "id": "cB",
+      "label": "ALGO STRATEGIES",
+      "sub": "Bank B · 9 Algos",
+      "desc": "Structural Alignment · Session Positioning",
+      "color": "#818cf8",
+      "tier": "B"
+    },
+    {
+      "id": "cC",
+      "label": "YT LEGEND SURFACE",
+      "sub": "Bank C · 9 Algos",
+      "desc": "1–3–6 Month Trade Surfacing · Alignment Required",
+      "color": "#4ade80",
+      "tier": "C"
+    }
+  ],
+
+  "algorithms": [
+    {"id": "NS", "tier": "A", "name": "NIALL SPIKE", "sub": "Vol Delta Explosion", "color": "#22d3ee", "method": "Ask-delta σ spike on 1m/5m. Institutional absorption."},
+    {"id": "CI", "tier": "A", "name": "CYBER-ICT", "sub": "OB Heatseeker", "color": "#a78bfa", "method": "Auto-detect OB/FVG/Breaker on 15m+1H. Return entry."},
+    {"id": "BQ", "tier": "A", "name": "BANSHEE SQUEEZE", "sub": "TTM Momentum Release", "color": "#f43f5e", "method": "BB inside KC = squeeze. First expansion bar fires."},
+    {"id": "CC", "tier": "A", "name": "CELTIC CROSS", "sub": "EMA Ribbon Alignment", "color": "#4ade80", "method": "8/21/34/55/89 full bullish stack. Partial = fractional."},
+    {"id": "WH", "tier": "A", "name": "WOLFHOUND", "sub": "Scalp Velocity", "color": "#fb923c", "method": "3 consecutive accel bars + expanding range."},
+    {"id": "SA", "tier": "A", "name": "STONE ANCHOR", "sub": "Volume Profile VP/VPOC", "color": "#94a3b8", "method": "VPOC slope + HVN/LVN proximity scoring."},
+    {"id": "HK", "tier": "A", "name": "HIGH KING", "sub": "Opening Range Bias", "color": "#fbbf24", "method": "ORB 5/30min. PDH/PDL macro filter."},
+    {"id": "GO", "tier": "A", "name": "GALLOWGLASS OB", "sub": "Aggressive OB Retest", "color": "#c084fc", "method": "3× vol displacement. 50% OB retrace entry."},
+    {"id": "EF", "tier": "A", "name": "EMERALD FLOW", "sub": "Money Flow MFI", "color": "#34d399", "method": "MFI(14) cross 50. Divergence = reversal flag."},
+
+    {"id": "8E", "tier": "B", "name": "8-EMA RIBBON", "sub": "Trend Momentum Gate", "color": "#67e8f9", "method": "Price vs 8EMA. Ribbon width = momentum score 0-10."},
+    {"id": "VT", "tier": "B", "name": "VEGA TRAP", "sub": "Options Gamma Squeeze", "color": "#818cf8", "method": "Max pain, gamma walls, dealer hedging flow."},
+    {"id": "MS", "tier": "B", "name": "MARKET SHIFT", "sub": "CHoCH / BOS Detector", "color": "#f97316", "method": "Structure change on 15m/1H with volume confirm."},
+    {"id": "DP", "tier": "B", "name": "DARK POOL", "sub": "Institutional Prints", "color": "#e879f9", "method": "DP ratio anomaly >2× avg at key technical levels."},
+    {"id": "WS", "tier": "B", "name": "WYCKOFF SPRING", "sub": "Accum Phase Detector", "color": "#fde68a", "method": "SC/AR/ST/Spring/LPS/LPSY phase confidence scoring."},
+    {"id": "RV", "tier": "B", "name": "RENKO VAULT", "sub": "Noise-Filtered Trend", "color": "#86efac", "method": "1×ATR bricks. 3 consecutive bullish = long signal."},
+    {"id": "HL", "tier": "B", "name": "HARMONIC LENS", "sub": "Gartley/Bat/Butterfly PRZ", "color": "#f0abfc", "method": "PRZ completion ±0.5% + RSI divergence confirm."},
+    {"id": "AI", "tier": "B", "name": "ALPHA IMBALANCE", "sub": "FVG Fill Probability", "color": "#a5f3fc", "method": "FVG catalog by age+proximity+vol. 70th pct threshold."},
+    {"id": "VK", "tier": "B", "name": "VOLKOV KELTNER", "sub": "Keltner Breakout", "color": "#60a5fa", "method": "KC breakout with vol surge. ATR trail management."},
+
+    {"id": "SE", "tier": "C", "name": "STOCKBEE EP", "sub": "Episodic Pivot 3×Vol", "color": "#4ade80", "method": "Gap-up 3×avg vol + catalyst. 20-30% target 1-3M.", "horizon": "1-3M"},
+    {"id": "IC", "tier": "C", "name": "ICT WEEKLY FVG", "sub": "Virgin FVG Displacement", "color": "#a78bfa", "method": "Weekly virgin FVG never touched. Monthly draw align.", "horizon": "1-3M"},
+    {"id": "WN", "tier": "C", "name": "WEINSTEIN STAGE", "sub": "Stage 2 Base Breakout", "color": "#fbbf24", "method": "6-month base + vol expansion above 30W MA.", "horizon": "3-6M"},
+    {"id": "CA", "tier": "C", "name": "CASPER IFVG", "sub": "Inverse FVG Deep Draw", "color": "#f9a8d4", "method": "Quarterly IFVG as price target. Void depth scoring.", "horizon": "3-6M"},
+    {"id": "TF", "tier": "C", "name": "TTRADES FRACTAL", "sub": "MTF Fractal Swing", "color": "#fb923c", "method": "HH/HL daily+weekly+monthly alignment. Fib targets.", "horizon": "1-6M"},
+    {"id": "RT", "tier": "C", "name": "RAYNER TREND", "sub": "200MA Pullback Entry", "color": "#34d399", "method": "200MA up-slope + 50EMA pullback. Min 1:3 RR.", "horizon": "1-3M"},
+    {"id": "MM", "tier": "C", "name": "MINERVINI VCP", "sub": "Volatility Contraction", "color": "#67e8f9", "method": "Progressive tighter bases 33% each. Pivot breakout.", "horizon": "3-6M"},
+    {"id": "OR", "tier": "C", "name": "O'NEIL BREAKOUT", "sub": "CAN SLIM Cup & Handle", "color": "#e879f9", "method": "EPS accel + RS>80 + 40% vol pivot breakout.", "horizon": "3-6M"},
+    {"id": "DV", "tier": "C", "name": "DRAGONFLY VOL", "sub": "Sector Rotation RS", "color": "#fde68a", "method": "RS line 52W high + institutional sector accumulation.", "horizon": "1-6M"}
+  ]
+}

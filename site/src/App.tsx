@@ -14,6 +14,7 @@ import TradeI from './pages/TradeI'
 import MRTMonitor from './pages/MRTMonitor'
 import CryptoBot from './pages/CryptoBot'
 import Obi from './pages/Obi'
+import AlphaWorkstation from '../../APP-DOC/ALPHASEEK/AlphaWorkstation'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -22,6 +23,8 @@ const queryClient = new QueryClient({
 })
 
 const NAV_ITEMS = [
+  { path: '/auto',      label: 'AutoTrader'},
+  { path: '/trader',    label: 'Trader'    },
   { path: '/',          label: 'Dashboard' },
   { path: '/obi',       label: 'OBI'       },
   { path: '/cryptobot', label: 'CryptoBot' },
@@ -31,8 +34,7 @@ const NAV_ITEMS = [
   { path: '/rank',      label: 'Rank'      },
   { path: '/sharpe',    label: 'Sharpe'    },
   { path: '/hedge',     label: 'Hedge'     },
-  { path: '/trader',    label: 'Trader'    },
-  { path: '/auto',      label: 'AutoTrader'},
+  { path: '/alphaseek', label: 'ALPHASEEK' },
   { path: '/backtest',  label: 'Backtest'  },
   { path: '/legends',   label: 'Legends'   },
   { path: '/tradei',    label: 'TradeI'    },
@@ -53,6 +55,7 @@ const NAV_ICON: Record<string, string> = {
   '/weights':   '⚖',
   '/tradei':    'Ι',
   '/cryptobot': '₿',
+  '/alphaseek': '⟡',
 }
 
 function TopNav() {
@@ -114,6 +117,7 @@ export default function App() {
             <Route path="/rentech"  element={<MRTMonitor />} />
             <Route path="/trader"   element={<Trader />} />
             <Route path="/auto"     element={<AutoTrader />} />
+            <Route path="/alphaseek" element={<AlphaWorkstation />} />
             <Route path="/backtest" element={<Backtest />} />
             <Route path="/legends"  element={<LegendScanner />} />
             <Route path="/rank"     element={<Rank />} />

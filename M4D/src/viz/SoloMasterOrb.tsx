@@ -86,11 +86,9 @@ export function SoloMasterOrb({
   rvolRatio = 0,
   rvolSaturation = 2.5,
   density = 'rich',
-  xaiSentiment: _xaiSentiment = null,
-  jediAlign: _jediAlign = null,
+  xaiSentiment = null,
+  jediAlign = null,
 }: SoloMasterOrbProps): ReactElement {
-  void _xaiSentiment;
-  void _jediAlign;
 
   const isLong = direction === 'LONG';
   const isShort = direction === 'SHORT';
@@ -235,6 +233,42 @@ export function SoloMasterOrb({
           />
         ) : null}
         {rich ? <circle cx={cx} cy={cy} r="36" fill="none" stroke="#1a1208" strokeWidth="0.5" /> : null}
+
+        {/* ── XAI SENTIMENT arc (r=28, Grok sentiment -1..+1) ── */}
+        {xaiSentiment !== null && rich ? (() => {
+          const s    = Math.max(-1, Math.min(1, xaiSentiment));
+          const deg  = Math.abs(s) * 140;
+          const col  = s >= 0 ? '#22d3ee' : '#f43f5e';
+          const startD = s >= 0 ? 250 : 250 - deg;
+          return deg > 2 ? (
+            <path d={describeArc(cx, cy, 28, startD, startD + deg)}
+              stroke={col} strokeWidth="3" fill="none" strokeLinecap="round"
+              opacity={0.35 + Math.abs(s) * 0.45} />
+          ) : null;
+        })() : null}
+
+        {/* ── JEDI ALIGN indicator (3 dots, dim/bright by council agreement) ── */}
+        {jediAlign !== null && rich ? (() => {
+          const ja   = Math.max(-1, Math.min(1, jediAlign));
+          const agrees = (direction === 'LONG' && ja > 0.25) ||
+                         (direction === 'SHORT' && ja < -0.25);
+          const dotCol = agrees ? color : '#f59e0b';
+          const lit    = Math.abs(ja);
+          return (
+            <g>
+              {[-1, 0, 1].map(i => {
+                const dotX = cx - 10 + i * 10;
+                const litI = lit >= (i + 1) / 3;
+                return (
+                  <circle key={i} cx={dotX} cy={cy - 28} r="2.2"
+                    fill={litI ? dotCol : '#1a2535'}
+                    opacity={litI ? 0.8 : 0.25}
+                    stroke={litI ? dotCol : 'none'} strokeWidth="0.5" />
+                );
+              })}
+            </g>
+          );
+        })() : null}
 
         <g transform={trendArrowWrap} filter="url(#soloJmArrow)" className="solo-orb-arrow-pulse">
           <path

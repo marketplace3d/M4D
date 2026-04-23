@@ -11,11 +11,14 @@ export function getRustHealthUrl(): string {
   return '/m4d-api/health';
 }
 
-/** Django `m4d-ds` forwards `/health` to Rust; default local dev. */
+/** Django `m4d-ds` health check.
+ *  Only pings if VITE_M4D_DS_URL is explicitly set — avoids CORS on direct :8050 fetch.
+ *  Set VITE_M4D_DS_URL=/crypto to route through Vite proxy, or to a full URL for prod.
+ */
 export function getDjangoHealthUrl(): string {
   const raw = (import.meta.env.VITE_M4D_DS_URL as string | undefined)?.trim() ?? '';
-  if (raw === '0' || raw.toLowerCase() === 'off') return '';
-  const base = (raw || 'http://127.0.0.1:8050').replace(/\/$/, '');
+  if (!raw || raw === '0' || raw.toLowerCase() === 'off') return '';
+  const base = raw.replace(/\/$/, '');
   return `${base}/health`;
 }
 

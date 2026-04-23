@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useContext } from "react";
+import { useObiStream } from "../hooks/useObiStream";
 import { WarriorMobileSyncContext } from "../WarriorMobileSyncContext";
 import { ALGO_BUILD_SPECS } from "../data/algoBuildSpecs";
 import {
@@ -12,7 +13,7 @@ import {
   GO_SCORE_ABS_MIN,
 } from "../constants/jediAlignment";
 import { XSentinelOrb, CouncilOrb, JediMasterOrb } from "./MaxCogVizOrbs";
-import { PriceOrb, RiskOrb, ConfluenceOrb, VolumeOrb, TVWebhookOrb } from "./MaxCogVizOrbsII";
+import { PriceOrb, RiskOrb, ConfluenceOrb, VolumeOrb, TVWebhookOrb, IntermarketOrb, PositioningOrb } from "./MaxCogVizOrbsII";
 import SocialAlphaPulse from "./SocialAlphaPulse";
 
 // ═══════════════════════════════════════════════════════════════
@@ -226,7 +227,7 @@ function ChevronTower({ dir, litCount, color }) {
   );
 }
 
-function PulseHero({ score, direction, votes, strengths, isNarrow, isWide }) {
+function PulseHero({ score, direction, votes, strengths, isNarrow, isWide, activityData, paperStatus }) {
   const totalLong = ALL_PANELS.filter(p => (votes[p.id] ?? 0) === 1).length;
   const totalShort = ALL_PANELS.filter(p => (votes[p.id] ?? 0) === -1).length;
   const conviction = Math.round(((totalLong + totalShort) / 27) * 100);
@@ -387,13 +388,18 @@ function PulseHero({ score, direction, votes, strengths, isNarrow, isWide }) {
         {!isNarrow && (
           <XSentinelOrb
             data={{
-              energy: Math.round(xEnergyScore * 100),
-              direction: direction === "LONG" ? "bullish" : direction === "SHORT" ? "bearish" : "neutral",
-              velocity: xEnergyScore,
-              confidence: Math.abs(score) / 27,
+              energy: Math.round((activityData?.current?.activity_score ?? xEnergyScore) * 100),
+              direction: (() => {
+                const tl = activityData?.trend?.trend_label;
+                if (tl === "BUILDING" || tl === "BULLISH") return "bullish";
+                if (tl === "FADING"   || tl === "BEARISH") return "bearish";
+                return direction === "LONG" ? "bullish" : direction === "SHORT" ? "bearish" : "neutral";
+              })(),
+              velocity: activityData?.current?.tick_score ?? xEnergyScore,
+              confidence: activityData?.current?.grok_score ?? Math.abs(score) / 27,
               noiseBlocked: 0,
-              sentiment: xEnergyScore,
-              influence: xEnergyScore * 0.8,
+              sentiment: activityData?.current?.activity_score ?? xEnergyScore,
+              influence: (activityData?.current?.activity_score ?? xEnergyScore) * 0.8,
             }}
             direction={direction}
           />
@@ -418,11 +424,11 @@ function PulseHero({ score, direction, votes, strengths, isNarrow, isWide }) {
             <PriceOrb direction={direction} />
             <RiskOrb
               direction={direction}
-              pnl={Math.round(score * 18)}
-              pnlMax={600}
+              pnl={paperStatus?.account?.unrealized_pl != null ? Number(paperStatus.account.unrealized_pl) : Math.round(score * 18)}
+              pnlMax={paperStatus?.account?.equity != null ? Number(paperStatus.account.equity) * 0.05 : 600}
               drawdown={Math.max(0, (7 - Math.abs(score)) / 14)}
               maxDrawdown={0.62}
-              positionSize={Math.min(1, conviction / 100)}
+              positionSize={paperStatus?.positions?.length > 0 ? Math.min(1, paperStatus.positions.length / 5) : Math.min(1, conviction / 100)}
             />
             <ConfluenceOrb
               direction={direction}
@@ -468,6 +474,80 @@ export default function MaxCogVizControlRoom({ useShellSync = false } = {}) {
   const [countdown, setCountdown] = useState(0);
   const pollInterval = POLL_OPTIONS[pollIdx].ms;
   const countdownRef = useRef(null);
+
+  // VolumeOrb — live OBI stream
+  const obiSymbol = algoDay?.symbol ?? "ES";
+  const obi = useObiStream(obiSymbol, import.meta.env.VITE_POLYGON_IO_KEY);
+
+  // XSentinelOrb — live activity gate from DS quant :8000
+  const [activityData, setActivityData] = useState(null);
+  useEffect(() => {
+    const load = () =>
+      fetch("http://127.0.0.1:8000/v1/ai/activity/")
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d) setActivityData(d); })
+        .catch(() => {});
+    load();
+    const id = setInterval(load, 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // IntermarketOrb — cross-asset regime from DS quant :8000
+  const [crossData, setCrossData] = useState(null);
+  useEffect(() => {
+    const load = () =>
+      fetch("http://127.0.0.1:8000/v1/cross/report/")
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d?.ok) setCrossData(d); })
+        .catch(() => {});
+    load();
+    const id = setInterval(load, 300_000); // refresh every 5m
+    return () => clearInterval(id);
+  }, []);
+
+  // PositioningOrb — funding signal from DS quant :8000
+  const [fundingData, setFundingData] = useState(null);
+  useEffect(() => {
+    const load = () =>
+      fetch("http://127.0.0.1:8000/v1/funding/signals/")
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d) setFundingData(d); })
+        .catch(() => {});
+    load();
+    const id = setInterval(load, 240_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // INTEL strip — Fear&Greed, OI signals, Liquidations
+  const [fngIntel, setFngIntel] = useState(null);
+  const [oiIntel, setOiIntel]   = useState(null);
+  const [liqIntel, setLiqIntel] = useState(null);
+  useEffect(() => {
+    const load = () => {
+      fetch("http://127.0.0.1:8000/v1/fng/")
+        .then(r => r.ok ? r.json() : null).then(d => { if (d?.ok) setFngIntel(d); }).catch(() => {});
+      fetch("http://127.0.0.1:8000/v1/oi/")
+        .then(r => r.ok ? r.json() : null).then(d => { if (d) setOiIntel(d); }).catch(() => {});
+      fetch("http://127.0.0.1:8000/v1/liq/")
+        .then(r => r.ok ? r.json() : null).then(d => { if (d?.ok) setLiqIntel(d); }).catch(() => {});
+    };
+    load();
+    const id = setInterval(load, 300_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // RiskOrb — live Alpaca paper P&L
+  const [paperStatus, setPaperStatus] = useState(null);
+  useEffect(() => {
+    const load = () =>
+      fetch("http://127.0.0.1:8000/v1/paper/status/")
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d) setPaperStatus(d); })
+        .catch(() => {});
+    load();
+    const id = setInterval(load, 30_000); // 30s refresh
+    return () => clearInterval(id);
+  }, []);
 
   const [activeBank, setActiveBank] = useState("ALL");
   const [hoveredPanel, setHoveredPanel] = useState(null);
@@ -583,14 +663,29 @@ export default function MaxCogVizControlRoom({ useShellSync = false } = {}) {
   const totalShortKn = ALL_PANELS.filter(p => (votes[p.id] ?? 0) === -1).length;
   const totalFlatKn = 27 - totalLongKn - totalShortKn;
   const convictionKn = Math.round(((totalLongKn + totalShortKn) / 27) * 100);
+  // Real activity gate values — fall back to council-derived proxy if DS unavailable
+  const actScore   = activityData?.current?.activity_score ?? xEnergyScoreKn;
+  const grokScore  = activityData?.current?.grok_score ?? null;
+  const tickScore  = activityData?.current?.tick_score ?? xEnergyScoreKn;
+  const actGate    = activityData?.current?.gate ?? null;
+  const actNote    = activityData?.current?.note ?? "";
+  // Sentiment direction from DS trend label
+  const sentTrendLabel = activityData?.trend?.trend_label ?? null;
+  const xSentDir =
+    sentTrendLabel === "BUILDING" || sentTrendLabel === "BULLISH" ? "bullish" :
+    sentTrendLabel === "FADING"   || sentTrendLabel === "BEARISH" ? "bearish" :
+    direction === "LONG" ? "bullish" : direction === "SHORT" ? "bearish" : "neutral";
+
   const knightsSocialData = {
-    direction: direction === "LONG" ? "bullish" : direction === "SHORT" ? "bearish" : "neutral",
-    energy: Math.round(xEnergyScoreKn * 100),
-    velocity: Math.max(0, Math.min(1, Math.abs(score) / 27)),
+    direction: xSentDir,
+    energy: Math.round(actScore * 100),
+    velocity: tickScore,
     velocityAccel: 0,
-    confidence: Math.max(0.05, Math.min(1, Math.abs(score) / 27)),
-    sentimentStrength: xEnergyScoreKn,
+    confidence: grokScore ?? Math.max(0.05, Math.min(1, Math.abs(score) / 27)),
+    sentiment: actScore,
+    sentimentStrength: actScore,
     influenceScore: convictionKn / 100,
+    influence: actScore * 0.8,
     noiseBlocked: Math.min(18, totalFlatKn),
     noiseTypes: totalFlatKn > 12 ? ["LOWINFO"] : [],
     rawSignalCount: 27,
@@ -600,10 +695,12 @@ export default function MaxCogVizControlRoom({ useShellSync = false } = {}) {
     symbol: symbol === "---" ? "SPY" : String(symbol),
     alphaItems: [
       {
-        text: `Knights council ${totalLongKn}L / ${totalShortKn}S / ${totalFlatKn}F · Jedi ${score > 0 ? "+" : ""}${score}. Banks A${bankANetKn > 0 ? "+" : ""}${bankANetKn} B${bankBNetKn > 0 ? "+" : ""}${bankBNetKn} C${bankCNetKn > 0 ? "+" : ""}${bankCNetKn}. Wire Grok for live X narratives.`,
-        strength: Math.max(0.35, Math.min(0.95, xEnergyScoreKn)),
-        verified: false,
-        tag: "TECH",
+        text: actNote
+          ? `GATE: ${actGate ?? "—"} · ${actNote} · Council ${totalLongKn}L/${totalShortKn}S`
+          : `Council ${totalLongKn}L / ${totalShortKn}S / ${totalFlatKn}F · Jedi ${score > 0 ? "+" : ""}${score}`,
+        strength: Math.max(0.35, Math.min(0.95, actScore)),
+        verified: grokScore != null,
+        tag: grokScore != null ? "GROK" : "TECH",
       },
     ],
   };
@@ -624,7 +721,7 @@ export default function MaxCogVizControlRoom({ useShellSync = false } = {}) {
       display: "flex",
       flexDirection: "column",
       position: "relative",
-      overflow: "hidden",
+      overflow: "auto",
     }}>
       <style>{`
         @keyframes m4dPulse { 0%,100% { opacity: 0.6; } 50% { opacity: 1; } }
@@ -768,11 +865,11 @@ export default function MaxCogVizControlRoom({ useShellSync = false } = {}) {
               direction={direction}
             />
             <RiskOrb
-              pnl={Math.round(score * 20)}
-              pnlMax={900}
+              pnl={paperStatus?.account?.unrealized_pl != null ? Number(paperStatus.account.unrealized_pl) : Math.round(score * 20)}
+              pnlMax={paperStatus?.account?.equity != null ? Number(paperStatus.account.equity) * 0.05 : 900}
               drawdown={Math.max(0, Math.min(1, (1 - xEnergyScoreKn) * 0.85))}
               maxDrawdown={0.45}
-              positionSize={Math.max(0.08, Math.min(1, convictionKn / 100))}
+              positionSize={paperStatus?.positions?.length > 0 ? Math.min(1, paperStatus.positions.length / 5) : Math.max(0.08, Math.min(1, convictionKn / 100))}
               direction={direction}
             />
             <ConfluenceOrb
@@ -783,9 +880,9 @@ export default function MaxCogVizControlRoom({ useShellSync = false } = {}) {
               direction={direction}
             />
             <VolumeOrb
-              delta={Math.max(-1, Math.min(1, score / 27))}
-              cumDelta={Math.max(-1, Math.min(1, (score + (bankANetKn - bankCNetKn) * 0.35) / 27))}
-              absorption={Math.max(0.05, Math.min(1, xEnergyScoreKn))}
+              delta={obi.status === "live" ? (obi.obiSmooth - 0.5) * 2 : Math.max(-1, Math.min(1, score / 27))}
+              cumDelta={obi.status === "live" ? (obi.obiRatio - 0.5) * 2 : Math.max(-1, Math.min(1, (score + (bankANetKn - bankCNetKn) * 0.35) / 27))}
+              absorption={obi.status === "live" ? Math.max(0.05, Math.min(1, Math.abs(obi.obiSmooth - 0.5) * 2.5)) : Math.max(0.05, Math.min(1, xEnergyScoreKn))}
               tapeSpeed={Math.max(0.2, Math.min(1, 0.4 + convictionKn / 100))}
               direction={direction}
             />
@@ -795,6 +892,33 @@ export default function MaxCogVizControlRoom({ useShellSync = false } = {}) {
               latencyMs={Math.max(22, Math.min(320, Math.round(lastFetchMs)))}
               action={direction === "LONG" ? "BUY" : direction === "SHORT" ? "SELL" : "IDLE"}
               fireCount={fetchCount}
+            />
+            <IntermarketOrb
+              composite={crossData?.composite ?? 0}
+              regime={crossData?.regime ?? "UNKNOWN"}
+              dims={crossData?.dimensions ?? {}}
+            />
+            <PositioningOrb
+              fearIndex={(() => {
+                // fear proxy: rvol rank from activity gate
+                const rvol = activityData?.current?.rvol_rank ?? 0.5;
+                return Math.max(0, Math.min(1, rvol));
+              })()}
+              fundingPressure={(() => {
+                const sigs = fundingData?.signals ?? {};
+                const pressures = Object.values(sigs).map(s => Math.abs(s?.pressure_score ?? 0));
+                return pressures.length ? pressures.reduce((a, b) => a + b, 0) / pressures.length : 0;
+              })()}
+              fundingBias={(() => {
+                const sigs = fundingData?.signals ?? {};
+                const votes = Object.values(sigs).map(s => s?.signal ?? "NEUTRAL");
+                const longs  = votes.filter(v => v === "LONG").length;
+                const shorts = votes.filter(v => v === "SHORT").length;
+                if (longs > shorts) return "LONG";
+                if (shorts > longs) return "SHORT";
+                return "NEUTRAL";
+              })()}
+              longBiasScore={Math.max(-1, Math.min(1, (bankANetKn + bankBNetKn + bankCNetKn) / 27))}
             />
           </div>
         </section>
@@ -810,6 +934,81 @@ export default function MaxCogVizControlRoom({ useShellSync = false } = {}) {
             transition: "width 0.1s linear",
             boxShadow: "0 0 6px #22d3ee66",
           }} />
+        </div>
+      )}
+
+      {/* ── INTEL STRIP — Fear&Greed · OI · Liquidations ── */}
+      {(fngIntel || oiIntel || liqIntel) && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 16, padding: "5px 16px",
+          background: "#040810", borderBottom: "1px solid #0d1f2e",
+          flexShrink: 0, flexWrap: "wrap", minHeight: 32,
+        }}>
+          {/* Fear & Greed */}
+          {fngIntel && (() => {
+            const v = fngIntel.value;
+            const col = v <= 24 ? "#22c55e" : v <= 44 ? "#86efac" : v <= 55 ? "#8899aa" : v <= 74 ? "#fb923c" : "#ef4444";
+            return (
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 8, color: "#445566", letterSpacing: 1 }}>F&G</span>
+                <span style={{ fontSize: 13, fontWeight: 900, color: col, fontFamily: "Barlow Condensed, sans-serif" }}>{v}</span>
+                <span style={{ fontSize: 8, color: col }}>{String(fngIntel.label ?? "").replace("_", " ")}</span>
+                <span style={{ fontSize: 8, color: "#334455" }}>{fngIntel.mult}×</span>
+                <div style={{ width: 40, height: 3, background: "#0d1f2e", borderRadius: 2, overflow: "hidden" }}>
+                  <div style={{ width: `${v}%`, height: "100%", background: col }} />
+                </div>
+              </div>
+            );
+          })()}
+
+          <div style={{ width: 1, height: 16, background: "#0d1f2e" }} />
+
+          {/* OI signals */}
+          {oiIntel?.signals && (() => {
+            const sigs = Object.values(oiIntel.signals).slice(0, 4);
+            return (
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 8, color: "#445566", letterSpacing: 1 }}>OI</span>
+                {sigs.map(s => {
+                  const col = s.signal === "TREND_CONFIRM" ? "#22c55e" : s.signal === "EXHAUSTION" ? "#fb923c" : s.signal === "CAPITULATION" ? "#ef4444" : "#8899aa";
+                  return (
+                    <div key={s.symbol} style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                      <span style={{ fontSize: 8, color: "#8899aa", fontFamily: "monospace" }}>{String(s.symbol).replace("USDT", "")}</span>
+                      <span style={{ fontSize: 7, color: col }}>{s.mult?.toFixed(2)}×</span>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
+          <div style={{ width: 1, height: 16, background: "#0d1f2e" }} />
+
+          {/* Liquidations */}
+          {liqIntel && (() => {
+            const top = (liqIntel.top_symbols ?? []).slice(0, 3);
+            return (
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 8, color: "#445566", letterSpacing: 1 }}>LIQ</span>
+                {top.length > 0 ? top.map(s => {
+                  const ratio = s.bullish_ratio ?? 0.5;
+                  const col = ratio > 0.65 ? "#22c55e" : ratio < 0.35 ? "#ef4444" : "#8899aa";
+                  return (
+                    <div key={s.symbol} style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                      <span style={{ fontSize: 8, color: "#8899aa", fontFamily: "monospace" }}>{String(s.symbol).replace("USDT", "")}</span>
+                      <div style={{ width: 24, height: 3, background: "#0d1f2e", borderRadius: 1, overflow: "hidden" }}>
+                        <div style={{ width: `${ratio * 100}%`, height: "100%", background: col }} />
+                      </div>
+                    </div>
+                  );
+                }) : <span style={{ fontSize: 8, color: "#334455" }}>no daemon</span>}
+              </div>
+            );
+          })()}
+
+          <div style={{ marginLeft: "auto", fontSize: 8, color: "#223344" }}>
+            {crossData?.regime && <span style={{ color: crossData.regime === "RISK_ON" ? "#22c55e" : crossData.regime === "RISK_OFF" ? "#ef4444" : "#8899aa", fontWeight: 700 }}>{crossData.regime}</span>}
+          </div>
         </div>
       )}
 
@@ -843,6 +1042,8 @@ export default function MaxCogVizControlRoom({ useShellSync = false } = {}) {
         strengths={strengths}
         isNarrow={isNarrow}
         isWide={isWide}
+        activityData={activityData}
+        paperStatus={paperStatus}
       />
 
       {/* Social Alpha: full #warriors only — COUNCIL page already mounts it above this embed (`useShellSync`). */}
@@ -860,8 +1061,7 @@ export default function MaxCogVizControlRoom({ useShellSync = false } = {}) {
 
       {/* ── MAIN GRID ── */}
       <div style={{
-        flex: 1, overflow: "auto", padding: isNarrow ? 6 : 8,
-        WebkitOverflowScrolling: "touch",
+        padding: isNarrow ? 6 : 8,
         display: "grid",
         gridTemplateColumns: activeBank === "ALL"
           ? (isNarrow ? "repeat(3, minmax(0, 1fr))" : "repeat(9, minmax(0, 1fr))")

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # MASTER LAUNCHER — runs from repo root
 #
-#   ./go.sh          → ALL: M3D :5500 · M2D :5555 · M4D :5550 · M6D :5650 + backends
-#   ./go.sh paper    → PAPER TRADING: DS :8000 + M6D :5650 (TWS must be open on :7497)
+#   ./go.sh          → ALL: M3D :5500 · M2D :5565 · M1D :5550 · M4D :5555 + backends
+#   ./go.sh paper    → PAPER TRADING: DS :8000 + M4D :5555 (TWS must be open on :7497)
 #   ./go.sh m3d      → M3D stack only  (site :5500 · API :3300 · DS :8800 · engine)
-#   ./go.sh m2d      → M2D only  :5555
-#   ./go.sh m4d      → M4D only  (site :5550 · api :3330 · ds :8050)
-#   ./go.sh m6d      → M6D :5650 + quant DS :8000
+#   ./go.sh m2d      → M2D only  :5565
+#   ./go.sh m1d      → M1D only  (site :5550 · api :3330 · ds :8050)
+#   ./go.sh m4d      → M4D :5555 + quant DS :8000
 #   ./go.sh ds       → quant DS only  :8000  (star-ray, signal-log, PCA, ensemble)
 #   ./go.sh site     → M3D site only
 #   ./go.sh api      → M3D api only
@@ -17,11 +17,11 @@
 #   M3D site :5500   React + Blueprint  (dashboard / · RenTech /mrt)
 #   M3D api  :3300   Rust Axum
 #   M3D ds   :8800   Django DS (M3D)
-#   M2D      :5555   Svelte lean alpha machine
-#   M4D site :5550   React MISSION
-#   M4D api  :3330   Rust m4d-api
-#   M4D ds   :8050   Python m4d-ds (crypto worker)
-#   M6D      :5650   M4D combined interface shell
+#   M2D      :5565   Svelte lean alpha machine
+#   M1D site :5550   React MISSION (legacy)
+#   M1D api  :3330   Rust m4d-api
+#   M1D ds   :8050   Python m4d-ds (crypto worker)
+#   M4D      :5555   Main combined interface shell
 #   DS quant :8000   Django quant DS (signal_log · star-ray · PCA · ensemble · xaigrok)
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
@@ -54,13 +54,13 @@ reclaim_all_ports() {
   _kill_port 8800 "M3D DS"
   _kill_port 3340 "mrt-api"
   # M2D
-  _kill_port 5555 "M2D"
-  # M4D
-  _kill_port 5550 "M4D site"
-  _kill_port 3330 "M4D api"
-  _kill_port 8050 "M4D DS"
-  # M6D + quant DS
-  _kill_port 5650 "M6D"
+  _kill_port 5565 "M2D"
+  # M1D
+  _kill_port 5550 "M1D site"
+  _kill_port 3330 "M1D api"
+  _kill_port 8050 "M1D DS"
+  # M4D + quant DS
+  _kill_port 5555 "M4D"
   _kill_port 8000 "DS quant"
   sleep 0.5
 }
@@ -80,9 +80,9 @@ run_m2d() {
   PIDS+=($!)
 }
 
-run_m4d() {
-  log "M4D starting..."
-  ("$ROOT/go4d.sh" all 2>&1 | sed "s/^/${G}[M4D]${NC} /") &
+run_m1d() {
+  log "M1D starting..."
+  ("$ROOT/go4d.sh" all 2>&1 | sed "s/^/${G}[M1D]${NC} /") &
   PIDS+=($!)
 }
 
@@ -103,11 +103,11 @@ run_ds_quant() {
   PIDS+=($!)
 }
 
-run_m6d() {
-  log "M6D starting..."
-  local M6D="$ROOT/M6D"
-  [ ! -d "$M6D/node_modules" ] && { echo -e "${Y}Installing M6D deps...${NC}"; (cd "$M6D" && npm install --silent); }
-  (cd "$M6D" && npm run dev 2>&1 | sed "s/^/${B}[M6D]${NC} /") &
+run_m4d() {
+  log "M4D starting..."
+  local M4D="$ROOT/M4D"
+  [ ! -d "$M4D/node_modules" ] && { echo -e "${Y}Installing M4D deps...${NC}"; (cd "$M4D" && npm install --silent); }
+  (cd "$M4D" && npm run dev 2>&1 | sed "s/^/${B}[M4D]${NC} /") &
   PIDS+=($!)
 }
 
@@ -128,10 +128,10 @@ print_urls() {
   echo ""
   echo -e "──────────────────────────────────────────────────────"
   echo -e "  ${Y}M3D${NC}      http://127.0.0.1:5500/   (after Rust compile)"
-  echo -e "  ${C}M2D${NC}      http://localhost:5555/"
-  echo -e "  ${G}M4D${NC}      http://127.0.0.1:5550/"
+  echo -e "  ${C}M2D${NC}      http://localhost:5565/"
+  echo -e "  ${G}M1D${NC}      http://127.0.0.1:5550/"
   echo -e "  ${G}m4d-ds${NC}   http://127.0.0.1:8050/  (crypto worker)"
-  echo -e "  ${B}M6D${NC}      http://127.0.0.1:5650/  ← main interface"
+  echo -e "  ${B}M4D${NC}      http://127.0.0.1:5555/  ← main interface"
   echo -e "  ${G}DS quant${NC} http://127.0.0.1:8000/  ← star-ray · PCA · signals"
   echo -e "──────────────────────────────────────────────────────"
   echo -e "  Browsers open automatically when each server is ready"
@@ -146,39 +146,39 @@ case "$CMD" in
   reclaim_all_ports
   run_m3d
   run_m2d
+  run_m1d
   run_m4d
   run_ds_quant
-  run_m6d
   print_urls
   open_when_ready "http://127.0.0.1:5500/" 180
-  open_when_ready "http://localhost:5555/"   90
+  open_when_ready "http://localhost:5565/"   90
   open_when_ready "http://127.0.0.1:8050/" 120
   open_when_ready "http://127.0.0.1:5550/" 120
   open_when_ready "http://127.0.0.1:8000/health/" 30
-  open_when_ready "http://127.0.0.1:5650/"  90
+  open_when_ready "http://127.0.0.1:5555/"  90
   wait || true
   ;;
 
 m3d)  exec "$ROOT/go3d.sh" "${2:-all}" ;;
-m2d)  run_m2d; open_when_ready "http://localhost:5555/" 30; wait || true ;;
-m4d)  run_m4d; open_when_ready "http://127.0.0.1:8050/" 120; open_when_ready "http://127.0.0.1:5550/" 120; wait || true ;;
-m6d)
-  _kill_port 8000 "DS quant"; _kill_port 5650 "M6D"
+m2d)  run_m2d; open_when_ready "http://localhost:5565/" 30; wait || true ;;
+m1d)  run_m1d; open_when_ready "http://127.0.0.1:8050/" 120; open_when_ready "http://127.0.0.1:5550/" 120; wait || true ;;
+m4d)
+  _kill_port 8000 "DS quant"; _kill_port 5555 "M4D"
   run_ds_quant
-  run_m6d
+  run_m4d
   open_when_ready "http://127.0.0.1:8000/health/" 30
-  open_when_ready "http://127.0.0.1:5650/" 60
+  open_when_ready "http://127.0.0.1:5555/" 60
   wait || true
   ;;
 paper)
-  _kill_port 8000 "DS quant"; _kill_port 5650 "M6D"
+  _kill_port 8000 "DS quant"; _kill_port 5555 "M4D"
   run_ds_quant
-  run_m6d
+  run_m4d
   echo ""
   echo -e "  ${G}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
   echo -e "  ${Y}PAPER TRADING MODE${NC}  (TWS must be open on :7497)"
   echo -e "  ${G}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-  echo -e "  ${C}M6D UI${NC}      http://127.0.0.1:5650/"
+  echo -e "  ${C}M4D UI${NC}      http://127.0.0.1:5555/"
   echo -e "  ${G}DS API${NC}      http://127.0.0.1:8000/"
   echo ""
   echo -e "  ${Y}TEST TWS:${NC}   curl http://localhost:8000/v1/ibkr/test/"
@@ -188,7 +188,7 @@ paper)
   echo -e "  ${Y}HUNT:${NC}       ./daily_hunt.sh --quick"
   echo ""
   open_when_ready "http://127.0.0.1:8000/health/" 30
-  open_when_ready "http://127.0.0.1:5650/" 60
+  open_when_ready "http://127.0.0.1:5555/" 60
   # Test TWS connection once DS is ready
   (
     for _ in $(seq 1 30); do
