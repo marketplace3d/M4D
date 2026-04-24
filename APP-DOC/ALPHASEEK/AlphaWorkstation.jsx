@@ -62,38 +62,19 @@ const PCA_FACTORS = [
   { name: "Vol regime δ", explained: 9.8, top: ["ATR Stack", "BB Width", "VIX proxy"] },
 ];
 
-// ── Claude API call ───────────────────────────────────────────────────────────
+// ── Claude API call (proxied through DS to keep key server-side) ─────────────
+const DS = "http://127.0.0.1:8000";
 async function callClaude(systemPrompt, userMessage, onChunk) {
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
+  const resp = await fetch(`${DS}/v1/ai/claude/`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1000,
-      stream: true,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userMessage }],
-    }),
+    body: JSON.stringify({ system: systemPrompt, message: userMessage }),
   });
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop();
-    for (const line of lines) {
-      if (line.startsWith("data: ")) {
-        try {
-          const data = JSON.parse(line.slice(6));
-          if (data.type === "content_block_delta" && data.delta?.text) {
-            onChunk(data.delta.text);
-          }
-        } catch {}
-      }
-    }
+  const data = await resp.json();
+  if (data.ok && data.text) {
+    onChunk(data.text);
+  } else {
+    throw new Error(data.error || "Claude proxy error");
   }
 }
 

@@ -26,6 +26,8 @@
   --w-rail-sm:   42px;
   --w-rail-lg:   260px;
   --w-right-lg:  240px;
+  --ui-scale:    1;
+  --ui-glow:     0.5;
 }
 
 /* ── Reset ──────────────────────────────────────────────────────────────────── */
@@ -37,8 +39,56 @@ html, body, #root {
   background: var(--bg);
   color: var(--text);
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-scale));
   overflow: hidden;
+}
+
+:root[data-ui-theme='dark-hc'] {
+  --bg:          #000000;
+  --bg-panel:    #03080f;
+  --bg-strip:    #060c18;
+  --bg-row:      #091422;
+  --bg-hover:    #102030;
+  --border:      rgba(0, 210, 255, 0.42);
+  --border-hi:   rgba(0, 210, 255, 0.72);
+
+  --gold:        #FFD700;
+  --gold-dim:    rgba(255, 215, 0, 0.16);
+  --blue:        #00d2ff;
+  --blue-dim:    rgba(0, 210, 255, 0.15);
+  --green:       #00ff88;
+  --red:         #ff2050;
+  --purple:      #c07aff;
+
+  --text:        #e4f0ff;
+  --text-hi:     #ffffff;
+  --muted:       #6a90b8;
+}
+
+:root[data-ui-theme='navy-subtle'] {
+  --bg: #060b16;
+  --bg-panel: #0b1220;
+  --bg-strip: #0d1525;
+  --bg-row: #111c2e;
+  --bg-hover: #162035;
+  --border: rgba(56, 120, 220, 0.13);
+  --border-hi: rgba(56, 120, 220, 0.28);
+  --text: #b0bccc;
+  --text-hi: #dce6f0;
+  --muted: #415065;
+}
+
+:root[data-ui-theme='warm'] {
+  --bg: #0d0a08;
+  --bg-panel: #17110d;
+  --bg-strip: #1d1510;
+  --bg-row: #241a13;
+  --bg-hover: #2a2017;
+  --border: rgba(186, 146, 98, 0.25);
+  --border-hi: rgba(224, 171, 110, 0.38);
+  --text: #d0c0ae;
+  --text-hi: #f0e0ce;
+  --muted: #8b7661;
 }
 
 /* ── Shell ──────────────────────────────────────────────────────────────────── */
@@ -166,6 +216,32 @@ html, body, #root {
 }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
+.m6d-uictl {
+  min-width: 28px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 9px;
+  letter-spacing: 0.4px;
+  cursor: pointer;
+}
+.m6d-uictl:hover { color: var(--text-hi); background: var(--bg-hover); }
+.m6d-uictl.on {
+  color: var(--blue);
+  border-color: var(--blue);
+  background: var(--blue-dim);
+  box-shadow: 0 0 calc(10px * var(--ui-glow)) rgba(56, 189, 248, 0.35);
+}
+.m6d-uictl.lock {
+  color: var(--gold);
+  border-color: var(--gold);
+  background: var(--gold-dim);
+}
+
 /* ── Microbar ─────────────────────────────────────────────────────────────────── */
 .m6d-microbar {
   height: var(--h-microbar);
@@ -249,6 +325,30 @@ html, body, #root {
   min-height: 0;
   overflow: hidden;
   position: relative;
+}
+
+.m6d-right-dock-toggle {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 30;
+  width: 18px;
+  height: 72px;
+  border: 1px solid var(--border-hi);
+  border-right: none;
+  border-radius: 5px 0 0 5px;
+  background: var(--bg-strip);
+  color: var(--text-hi);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.m6d-right-dock-toggle:hover {
+  color: var(--blue);
+  border-color: var(--blue);
+  background: var(--bg-hover);
 }
 
 /* ── Left Rail ─────────────────────────────────────────────────────────────── */
@@ -578,9 +678,10 @@ html, body, #root {
 
 /* ── Responsive ──────────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
+  :root { --ui-scale: 0.95; }
   .m6d-primary-nav { display: none; }
   .m6d-right { display: none; }
 }
 @media (min-width: 2560px) {
-  :root { --w-rail-lg: 300px; --w-right-lg: 300px; --h-topbar: 42px; }
+  :root { --ui-scale: 1.2; --w-rail-lg: 300px; --w-right-lg: 300px; --h-topbar: 42px; }
 }

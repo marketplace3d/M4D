@@ -137,4 +137,11 @@ urlpatterns = [
     path("v1/ibkr/run/",                views.ibkr_run,           name="ibkr-run"),
     path("v1/ibkr/flatten/",            views.ibkr_flatten,       name="ibkr-flatten"),
     path("v1/ibkr/score/",              views.ibkr_score,         name="ibkr-score"),
+
+    path("v1/regime/",                  views.regime_snapshot,     name="regime-snapshot"),
+    path("v1/regime/series/",          views.regime_series,       name="regime-series"),
+    path("v1/futures/wf/",             views.futures_wf_report,   name="futures-wf-report"),
+    path("v1/futures/wf/run/",         views.futures_wf_run,      name="futures-wf-run"),
+
+    path("v1/ai/claude/",               views.claude_proxy,        name="claude-proxy"),
 ]

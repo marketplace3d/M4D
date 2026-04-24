@@ -833,11 +833,18 @@
   grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
   gap: 10px;
   align-items: stretch;
+  grid-auto-rows: 1fr;
+}
+
+.mission-council__triple-grid > * {
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .mission-council__triple-grid--3 {
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  min-width: 1140px;
+  min-width: 0;
 }
 
 .mission-council__triple-hotlist-panel {
@@ -863,6 +870,7 @@
 .mission-council__triple-events-panel,
 .mission-council__triple-timeline-panel {
   min-height: clamp(440px, 62vh, 720px);
+  height: clamp(440px, 62vh, 720px);
 }
 
 .mission-council__triple-ta-inner,
@@ -910,7 +918,8 @@
 
 .mission-council__triple-social-panel {
   min-height: clamp(440px, 62vh, 720px);
-  min-width: 360px;
+  height: clamp(440px, 62vh, 720px);
+  min-width: 0;
 }
 
 .mission-council__triple-social-panel .mission-council__social-alpha-frame {
@@ -1485,6 +1494,12 @@ iframe {
   background: #050a12;
   isolation: isolate;
   box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.12), 0 8px 32px rgba(0, 0, 0, 0.35);
+}
+
+/* Keep SOCIAL panel aligned with peer cards in triple rows. */
+.mission-council__social-alpha--triple.mission-council__triple-social-panel {
+  margin: 0;
+  align-self: stretch;
 }
 
 .mission-council__social-alpha-head {
@@ -2247,6 +2262,36 @@ iframe {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
+}
+
+/* HC temporary: brighten dense body text without changing size */
+:root[data-ui-theme='dark-hc'] .mission,
+:root[data-ui-theme='dark-hc'] .mission--control-room,
+:root[data-ui-theme='dark-hc'] .mission-council__social-alpha,
+:root[data-ui-theme='dark-hc'] .mission-council__news-strip,
+:root[data-ui-theme='dark-hc'] .mission-council__ticker,
+:root[data-ui-theme='dark-hc'] .mission-council__cr27,
+:root[data-ui-theme='dark-hc'] .mission-council__mini-card,
+:root[data-ui-theme='dark-hc'] .mission-council__tv-panel {
+  color: #e9f3ff;
+}
+
+:root[data-ui-theme='dark-hc'] .muted,
+:root[data-ui-theme='dark-hc'] .mission-council__social-alpha-hint,
+:root[data-ui-theme='dark-hc'] .mission-council__headline-row,
+:root[data-ui-theme='dark-hc'] .mission-council__cr27-note,
+:root[data-ui-theme='dark-hc'] .mission-council__ticker-k,
+:root[data-ui-theme='dark-hc'] .mission-council__mini-title,
+:root[data-ui-theme='dark-hc'] .mission-council__tv-panel-k,
+:root[data-ui-theme='dark-hc'] .ctx-label {
+  color: #c9dcf2 !important;
+}
+
+:root[data-ui-theme='dark-hc'] .ctx-val,
+:root[data-ui-theme='dark-hc'] .mission-council__social-alpha-k,
+:root[data-ui-theme='dark-hc'] .mission-council__cr27-title,
+:root[data-ui-theme='dark-hc'] .mission-council__headline-fade {
+  color: #f3f9ff !important;
 }
 
 .mission__bias--long strong {

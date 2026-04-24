@@ -51,7 +51,7 @@ from ds_app.delta_ops import (                                # noqa: E402
     PADAWAN, NORMAL, EUPHORIA, MAX, ModeConfig, compute_cis, _accel_state,
 )
 from ds_app.halo_mode import halo_entry, halo_exit, HaloConfig, HALO  # noqa: E402
-from ds_app.sharpe_ensemble import SOFT_REGIME_MULT  # noqa: E402
+from ds_app.sharpe_ensemble import SOFT_REGIME_MULT, get_regime_mult  # noqa: E402
 
 log = logging.getLogger("alpaca_paper")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
@@ -604,41 +604,9 @@ def _mrt_size_mult(vol_label: str, direction_regime: str) -> float:
     return 1.0       # mid_vol = baseline
 
 
-def _live_regime(df: pd.DataFrame, votes: dict) -> str:
-    cl  = df["Close"].values
-    n   = len(cl)
-    hi  = df["High"].values
-    lo  = df["Low"].values
-    prev_c = np.concatenate([[cl[0]], cl[:-1]])
-    tr  = np.maximum(hi - lo, np.maximum(np.abs(hi - prev_c), np.abs(lo - prev_c)))
-    atr14 = np.zeros(n)
-    alpha = 2.0 / 15.0
-    atr14[0] = tr[0]
-    for i in range(1, n):
-        atr14[i] = alpha * tr[i] + (1 - alpha) * atr14[i - 1]
-    atr_pct = atr14 / np.where(cl > 0, cl, 1.0)
-
-    sup_v = int(votes.get("SUPERTREND", {}).get("vote", 0) == 1)
-    adx_v = int(votes.get("ADX_TREND",  {}).get("vote", 0) == 1)
-    atr_v = int(votes.get("ATR_EXP",    {}).get("vote", 0) == 1)
-    sqz_v = int(votes.get("SQZPOP",     {}).get("vote", 0) == 0)  # 0 = squeeze off = potential pop
-
-    atr_75   = np.percentile(atr_pct[atr_pct > 0], 75) if (atr_pct > 0).any() else 1.0
-    mom12    = (cl[-1] - cl[-13]) / cl[-13] if n > 13 and cl[-13] != 0 else 0.0
-
-    ema200 = cl[0]
-    alpha2 = 2.0 / 201.0
-    for v in cl:
-        ema200 = alpha2 * v + (1 - alpha2) * ema200
-
-    risk_off = (atr_pct[-1] > atr_75) and (mom12 < -0.015)
-    breakout = atr_v == 1
-    trending = (cl[-1] > ema200) and (sup_v == 1) and (adx_v == 1)
-
-    if risk_off:   return "RISK-OFF"
-    if breakout:   return "BREAKOUT"
-    if trending:   return "TRENDING"
-    return "RANGING"
+def _live_regime(df: pd.DataFrame, votes: dict) -> str:  # votes kept for signature compat
+    from ds_app.regime_engine import classify_live
+    return classify_live(df)
 
 
 def score_symbol(df: pd.DataFrame) -> dict:
@@ -660,7 +628,7 @@ def score_symbol(df: pd.DataFrame) -> dict:
         if vote <= 0:
             continue
         sharpe_w = regime_weights.get(sig_id, 0.0)
-        soft_m   = SOFT_REGIME_MULT.get(sig_id, {}).get(regime, 1.0)
+        soft_m   = get_regime_mult(sig_id, regime)
         w = sharpe_w * soft_m
         weighted_num += w * vote
         weighted_den += w
@@ -716,6 +684,8 @@ def check_gates(sc: dict, mode: ModeConfig, symbol: str = "") -> tuple[bool, lis
         killed.append("SQUEEZE_LOCK")
     if sc["atr_rank"] < 0.30:
         killed.append("ATR_RANK_LOW")
+    if sc.get("regime") == "TRENDING_WEAK":
+        killed.append("TRENDING_WEAK_KILL")
     if sc.get("mrt_force_padawan") and mode.kelly_mult > PADAWAN.kelly_mult:
         killed.append("MRT_HIGH_VOL_RISK_OFF")
     if not is_market_open(symbol or ""):

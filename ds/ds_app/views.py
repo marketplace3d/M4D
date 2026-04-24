@@ -2155,6 +2155,65 @@ def ai_advice(request):
         return JsonResponse({"ok": False, "advice": "", "sentiment_score": None, "error": str(exc)})
 
 
+def claude_proxy(request):
+    """POST /v1/ai/claude/ — sync Claude proxy (avoids exposing API key in browser)
+    Body: { system: str, message: str, model?: str, max_tokens?: int }
+    Returns: { ok, text }
+    """
+    import urllib.request, urllib.error
+
+    if request.method == "OPTIONS":
+        r = JsonResponse({})
+        r["Access-Control-Allow-Origin"] = "*"
+        r["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        r["Access-Control-Allow-Headers"] = "Content-Type"
+        return r
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "error": "POST only"}, status=405)
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        return JsonResponse({"ok": False, "error": "ANTHROPIC_API_KEY not set"}, status=500)
+
+    try:
+        body = json.loads(request.body)
+    except Exception:
+        return JsonResponse({"ok": False, "error": "invalid JSON"}, status=400)
+
+    payload = json.dumps({
+        "model": body.get("model", "claude-sonnet-4-6"),
+        "max_tokens": body.get("max_tokens", 1024),
+        "stream": False,
+        "system": body.get("system", ""),
+        "messages": [{"role": "user", "content": body.get("message", "")}],
+    }).encode()
+
+    req = urllib.request.Request(
+        "https://api.anthropic.com/v1/messages",
+        data=payload,
+        headers={
+            "Content-Type": "application/json",
+            "x-api-key": api_key,
+            "anthropic-version": "2023-06-01",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            result = json.loads(resp.read())
+        text = result.get("content", [{}])[0].get("text", "")
+        r = JsonResponse({"ok": True, "text": text})
+        r["Access-Control-Allow-Origin"] = "*"
+        return r
+    except urllib.error.HTTPError as e:
+        err = e.read().decode()
+        r = JsonResponse({"ok": False, "error": f"HTTP {e.code}", "detail": err}, status=502)
+        r["Access-Control-Allow-Origin"] = "*"
+        return r
+    except Exception as exc:
+        return JsonResponse({"ok": False, "error": str(exc)}, status=500)
+
+
 # ── Trade-Ideas Scanner ───────────────────────────────────────────────────────
 
 @require_GET
@@ -2510,6 +2569,43 @@ def walkforward_run(request):
         return JsonResponse({"ok": False, "error": str(exc)}, status=500)
 
 
+# ── Futures Walk-Forward ───────────────────────────────────────────────────────
+
+_FUT_WF_REPORT = pathlib.Path(__file__).parent.parent / "data" / "futures_walkforward_report.json"
+
+
+@require_GET
+def futures_wf_report(request):
+    """GET /v1/futures/wf/ — cached futures walk-forward report"""
+    if not _FUT_WF_REPORT.exists():
+        return JsonResponse({"ok": False, "error": "No report. POST /v1/futures/wf/run/ first"}, status=404)
+    try:
+        data = json.loads(_FUT_WF_REPORT.read_text())
+        resp = JsonResponse(data)
+        resp["Access-Control-Allow-Origin"] = "*"
+        return resp
+    except Exception as exc:
+        return JsonResponse({"ok": False, "error": str(exc)}, status=500)
+
+
+def futures_wf_run(request):
+    """POST /v1/futures/wf/run/?sym=ES&years=3 — launch futures WF async (~3min)"""
+    import subprocess, sys
+    sym   = request.GET.get("sym", "ES").upper()
+    years = request.GET.get("years", "3")
+    script = pathlib.Path(__file__).parent / "futures_walkforward.py"
+    try:
+        subprocess.Popen(
+            [sys.executable, str(script), "--sym", sym, "--years", years],
+            cwd=str(script.parent.parent),
+        )
+        resp = JsonResponse({"ok": True, "message": f"futures_walkforward.py launched (sym={sym} years={years} ~3min)"})
+        resp["Access-Control-Allow-Origin"] = "*"
+        return resp
+    except Exception as exc:
+        return JsonResponse({"ok": False, "error": str(exc)}, status=500)
+
+
 # ── Trade Quality Gate ────────────────────────────────────────────────────────
 
 _GATE_REPORT = pathlib.Path(__file__).parent.parent / "data" / "gate_report.json"
@@ -2562,16 +2658,23 @@ def delta_ops_report(request):
 
 
 def delta_ops_run(request):
-    """POST /v1/delta/run/?mode=PADAWAN|NORMAL|EUPHORIA"""
+    """POST /v1/delta/run/?mode=PADAWAN|NORMAL|EUPHORIA&days=365"""
     import subprocess, sys
     mode = request.GET.get("mode", "PADAWAN").upper()
     if mode not in ("PADAWAN", "NORMAL", "EUPHORIA", "MAX"):
-        return JsonResponse({"ok": False, "error": "mode must be PADAWAN|NORMAL|EUPHORIA"}, status=400)
-    script = pathlib.Path(__file__).parent / "delta_ops.py"
+        return JsonResponse({"ok": False, "error": "mode must be PADAWAN|NORMAL|EUPHORIA|MAX"}, status=400)
     try:
-        subprocess.Popen([sys.executable, str(script), "--mode", mode],
-                         cwd=str(script.parent.parent))
-        resp = JsonResponse({"ok": True, "message": f"delta_ops.py launched mode={mode} (~5min)"})
+        days = int(request.GET.get("days", 0))
+    except ValueError:
+        days = 0
+    script = pathlib.Path(__file__).parent / "delta_ops.py"
+    cmd = [sys.executable, str(script), "--mode", mode]
+    if days > 0:
+        cmd += ["--days", str(days)]
+    label = f"last {days}d" if days > 0 else "all data"
+    try:
+        subprocess.Popen(cmd, cwd=str(script.parent.parent))
+        resp = JsonResponse({"ok": True, "message": f"mode={mode} {label} launched (~{2 if days>0 else 5}min)"})
         resp["Access-Control-Allow-Origin"] = "*"
         return resp
     except Exception as exc:
@@ -2876,15 +2979,15 @@ def ibkr_flatten(request):
 
 @require_GET
 def ibkr_score(request):
-    """GET /v1/ibkr/score/?symbol=BTC — live score (no order placed)"""
-    symbol = request.GET.get("symbol", "BTC").upper()
+    """GET /v1/ibkr/score/?symbol=ES — live futures score from futures.db (no order placed)"""
+    symbol = request.GET.get("symbol", "ES").upper()
     try:
-        from ds_app.alpaca_paper import load_bars, score_symbol, check_gates
+        from ds_app.alpaca_paper import _load_futures_bars, score_symbol, check_gates, BARS_NEEDED
         from ds_app.delta_ops import PADAWAN
         from ds_app.obi_signal import get_obi
-        df = load_bars(symbol)
+        df = _load_futures_bars(symbol, BARS_NEEDED)
         if df is None:
-            return JsonResponse({"ok": False, "error": f"No bars for {symbol}"}, status=404)
+            return JsonResponse({"ok": False, "error": f"No futures bars for {symbol} — check futures.db"}, status=404)
         sc = score_symbol(df)
         gates_pass, killed = check_gates(sc, PADAWAN)
         sc["gates_pass"]   = gates_pass
@@ -2895,6 +2998,52 @@ def ibkr_score(request):
         except Exception:
             pass
         resp = JsonResponse({"symbol": symbol, **sc})
+        resp["Access-Control-Allow-Origin"] = "*"
+        return resp
+    except Exception as exc:
+        return JsonResponse({"ok": False, "error": str(exc)}, status=500)
+
+
+# ── Regime Engine ─────────────────────────────────────────────────────────────
+
+@require_GET
+def regime_snapshot(request):
+    """GET /v1/regime/?symbol=ES  — 7-regime live classification with diagnostics."""
+    symbol = request.GET.get("symbol", "ES").upper()
+    try:
+        from ds_app.alpaca_paper import _load_futures_bars, BARS_NEEDED
+        from ds_app.regime_engine import get_snapshot
+        df = _load_futures_bars(symbol, BARS_NEEDED)
+        if df is None:
+            return JsonResponse({"ok": False, "error": f"No bars for {symbol}"}, status=404)
+        snap = get_snapshot(df)
+        resp = JsonResponse({"ok": True, "symbol": symbol, **snap})
+        resp["Access-Control-Allow-Origin"] = "*"
+        return resp
+    except Exception as exc:
+        return JsonResponse({"ok": False, "error": str(exc)}, status=500)
+
+
+@require_GET
+def regime_series(request):
+    """GET /v1/regime/series/?symbol=ES&n=500  — last N bars with regime labels."""
+    symbol = request.GET.get("symbol", "ES").upper()
+    n_bars = min(int(request.GET.get("n", 200)), 2000)
+    try:
+        from ds_app.alpaca_paper import _load_futures_bars, BARS_NEEDED
+        from ds_app.regime_engine import classify_series
+        df = _load_futures_bars(symbol, max(BARS_NEEDED, n_bars + 50))
+        if df is None:
+            return JsonResponse({"ok": False, "error": f"No bars for {symbol}"}, status=404)
+        labels = classify_series(df).tail(n_bars)
+        from collections import Counter
+        dist = dict(Counter(labels.values))
+        resp = JsonResponse({
+            "ok": True, "symbol": symbol,
+            "labels": labels.tolist(),
+            "distribution": dist,
+            "n": len(labels),
+        })
         resp["Access-Control-Allow-Origin"] = "*"
         return resp
     except Exception as exc:

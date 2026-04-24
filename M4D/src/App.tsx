@@ -31,11 +31,22 @@ import SurgePulseTradePage     from './pages/SurgePulseTradePage'
 import GhostPage               from './pages/GhostPage'
 import PulsePage               from './pages/PulsePage'
 import AlphaSeekPage           from './pages/AlphaSeekPage'
+import DeltaOpsFlowPage        from './pages/DeltaOpsFlowPage'
+import MedallionPage           from './pages/MedallionPage'
 
 // ── M4D support ───────────────────────────────────────────────────────────────
 import { WarriorMobileSyncProvider } from './WarriorMobileSyncContext'
 import ServiceOpsDash   from './components/ServiceOpsDash'
 import { useServiceHealth } from './hooks/useServiceHealth'
+import {
+  computeUiGlow,
+  computeUiScale,
+  loadUiPrefs,
+  saveUiPrefs,
+  type UiGlow,
+  type UiSize,
+  type UiTheme,
+} from './lib/uiState'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -44,7 +55,7 @@ type PageId =
   | 'crypto' | 'warrior' | 'missionviz' | 'launchpad' | 'footplate'
   | 'boom' | 'trader' | 'chartslive' | 'algos' | 'flowmaps'
   | 'testlab' | 'tradesafe' | 'codev' | 'sysarch' | 'oracle' | 'mmbrain'
-  | 'star'
+  | 'star' | 'deltaops' | 'medallion'
 
 type ModeId = 'm4d' | 'algo'
 type Regime = 'BULL' | 'BEAR' | 'NEUTRAL'
@@ -52,53 +63,65 @@ type Regime = 'BULL' | 'BEAR' | 'NEUTRAL'
 // ── Nav config ────────────────────────────────────────────────────────────────
 // Icons: picked for maximum cognitive legibility at 11–13px
 
-const M4D_TABS: { id: PageId; label: string; icon: string; color?: string }[] = [
-  { id: 'council',    label: 'MARKET',   icon: '⚔',  color: '#38bdf8' },
-  { id: 'tradebot',   label: 'TRADE',    icon: '🔥'                   },
-  { id: 'pulse',      label: 'PULSE',    icon: '◉'                    },
-  { id: 'alphaseek',  label: 'ALPHASEEK', icon: '⟡', color: '#22c55e' },
-  { id: 'star',       label: 'STAR',     icon: '★',  color: '#f0c030' },
-  { id: 'ghost',      label: 'GHOST',    icon: '👻',  color: '#a78bfa' },
-  { id: 'trader',     label: 'TRADER',   icon: '◎',  color: '#22c55e' },
-  { id: 'warriors',   label: 'ENERGY',   icon: '◉'                    },
-  { id: 'obi',        label: 'OBI',      icon: '◉',  color: '#a78bfa' },
-  { id: 'spx',        label: 'SPX',      icon: '▲'                    },
-  { id: 'fx',         label: 'FX',       icon: '€',  color: '#38bdf8' },
-  { id: 'ict',        label: 'ICT',      icon: '◈',  color: '#a78bfa' },
-  { id: 'crypto',     label: 'BTC',      icon: '₿',  color: '#f59e0b' },
-  { id: 'warrior',    label: 'COUNCIL',  icon: '⬡'                    },
-  { id: 'boom',       label: 'BOOM',     icon: '✦'                    },
+const M4D_TABS: { id: PageId; label: string; icon: string; color?: string; note?: string }[] = [
+  // ── LIVE TRADING CORE ────────────────────────────────────────────
+  { id: 'council',    label: 'MARKET',    icon: '⚔',  color: '#38bdf8', note: 'Regime + 27-algo council snapshot' },
+  { id: 'tradebot',   label: 'TRADE',     icon: '🔥',                    note: 'Surge-pulse execution + paper blotter' },
+  { id: 'pulse',      label: 'PULSE',     icon: '◉',                     note: 'Kelly sizing + gate syscontrols' },
+  { id: 'ghost',      label: 'GHOST',     icon: '👻',  color: '#a78bfa',  note: 'Ghost protocol — adaptive auto-trade' },
+  { id: 'obi',        label: 'OBI',       icon: '◉',  color: '#a78bfa',  note: 'Order book imbalance co-trader' },
+  // ── RESEARCH & OPTIMISATION ──────────────────────────────────────
+  { id: 'alphaseek',  label: 'ALPHASEEK', icon: '⟡',  color: '#22c55e',  note: 'Alpha discovery — IC, regime, walk-forward on 27 algos' },
+  { id: 'medallion',  label: 'MEDALLION', icon: '✦',  color: '#ffcc3a',  note: 'Simons gold tier — signal civilisation research + Medallion run' },
+  { id: 'star',       label: 'STAR',      icon: '★',  color: '#f0c030',  note: 'Full optimisation lab — lot-sizing, ensemble, PCA, WF, paper' },
+  { id: 'deltaops',   label: 'DELTA',     icon: '⟁',  color: '#22c55e',  note: 'Delta Ops sim — IOPT, CIS gates, pipeline flow' },
+  // ── CHARTS ───────────────────────────────────────────────────────
+  { id: 'spx',        label: 'SPX',       icon: '▲'                    },
+  { id: 'fx',         label: 'FX',        icon: '€',  color: '#38bdf8' },
+  { id: 'ict',        label: 'ICT',       icon: '◈',  color: '#a78bfa' },
+  { id: 'crypto',     label: 'BTC',       icon: '₿',  color: '#f59e0b' },
+  { id: 'trader',     label: 'TRADER',    icon: '◎',  color: '#22c55e',  note: '4K trader canvas — live levels + OBI' },
+  { id: 'warriors',   label: 'ENERGY',    icon: '◉',                     note: 'ControlRoom — INTEL strip + energy viz' },
+  // ── MISC ─────────────────────────────────────────────────────────
+  { id: 'warrior',    label: 'COUNCIL',   icon: '⬡'                    },
+  { id: 'boom',       label: 'BOOM',      icon: '✦'                    },
 ]
 
 const RAIL_ITEMS: { id: PageId; icon: string; label: string }[] = [
-  { id: 'hub',        icon: '⌂',  label: 'HOME'       },
-  { id: 'council',    icon: '⚔',  label: 'MARKET'     },
-  { id: 'tradebot',   icon: '🔥', label: 'TRADE'      },
-  { id: 'pulse',      icon: '◉',  label: 'PULSE'      },
-  { id: 'alphaseek',  icon: '⟡',  label: 'ALPHASEEK'  },
-  { id: 'star',       icon: '★',  label: 'STAR'       },
-  { id: 'ghost',      icon: '👻',  label: 'GHOST' },
-  { id: 'trader',     icon: '◎',  label: 'TRADER 4K'  },
-  { id: 'warriors',   icon: '◉',  label: 'ENERGY'     },
-  { id: 'obi',        icon: '◉',  label: 'OBI CO-TRADER' },
-  { id: 'spx',        icon: '▲',  label: 'SPX CHART'  },
-  { id: 'fx',         icon: '€',  label: 'FX CHARTS'  },
-  { id: 'ict',        icon: '◈',  label: 'ICT CHARTS' },
-  { id: 'crypto',     icon: '₿',  label: 'BTC CRYPTO' },
-  { id: 'missionviz', icon: '🛡', label: 'CONTROL'    },
-  { id: 'launchpad',  icon: '⚡', label: 'OPT PAD'    },
-  { id: 'footplate',  icon: '⚙',  label: 'ENGINE'     },
-  { id: 'algos',      icon: '⊞',  label: 'ALGO TABLE' },
-  { id: 'flowmaps',   icon: '⊹',  label: 'FLOW MAPS'  },
-  { id: 'chartslive', icon: '⟳',  label: 'LIVE WS'    },
-  { id: 'tradesafe',  icon: '⛨',  label: 'RISK GATE'  },
-  { id: 'testlab',    icon: '⚗',  label: 'TEST LAB'   },
-  { id: 'codev',      icon: '⊛',  label: 'CO-DEV MAP'  },
-  { id: 'sysarch',   icon: '⬡',  label: 'SYS ARCH'   },
-  { id: 'oracle',    icon: '◎',  label: 'ORACLE PLAN' },
-  { id: 'mmbrain',   icon: '⟁',  label: 'MM BRAIN'    },
-  { id: 'warrior',    icon: '⬡',  label: 'COUNCIL VIZ'},
-  { id: 'boom',       icon: '✦',  label: 'BOOM SCAN'  },
+  // ── LIVE TRADING ──────────────────────────────────────
+  { id: 'hub',        icon: '⌂',  label: 'HOME'              },
+  { id: 'council',    icon: '⚔',  label: 'MARKET · regime'   },
+  { id: 'tradebot',   icon: '🔥', label: 'TRADE · execution' },
+  { id: 'pulse',      icon: '◉',  label: 'PULSE · kelly+gates'},
+  { id: 'ghost',      icon: '👻',  label: 'GHOST · auto-trade'},
+  { id: 'obi',        icon: '◉',  label: 'OBI · order book'  },
+  // ── RESEARCH ──────────────────────────────────────────
+  { id: 'alphaseek',  icon: '⟡',  label: 'ALPHASEEK · IC+WF' },
+  { id: 'medallion',  icon: '✦',  label: 'MEDALLION · Simons'},
+  { id: 'star',       icon: '★',  label: 'STAR · opts lab'   },
+  { id: 'deltaops',   icon: '⟁',  label: 'DELTA · sim+IOPT'  },
+  // ── CHARTS ────────────────────────────────────────────
+  { id: 'spx',        icon: '▲',  label: 'SPX CHART'         },
+  { id: 'fx',         icon: '€',  label: 'FX CHARTS'         },
+  { id: 'ict',        icon: '◈',  label: 'ICT CHARTS'        },
+  { id: 'crypto',     icon: '₿',  label: 'BTC CRYPTO'        },
+  { id: 'trader',     icon: '◎',  label: 'TRADER · 4K canvas'},
+  { id: 'warriors',   icon: '◉',  label: 'ENERGY · ControlRm'},
+  // ── UTILITY ───────────────────────────────────────────
+  { id: 'missionviz', icon: '🛡', label: 'CONTROL'           },
+  { id: 'launchpad',  icon: '⚡', label: 'OPT PAD'           },
+  { id: 'footplate',  icon: '⚙',  label: 'ENGINE'            },
+  { id: 'algos',      icon: '⊞',  label: 'ALGO TABLE'        },
+  { id: 'flowmaps',   icon: '⊹',  label: 'FLOW MAPS'         },
+  { id: 'chartslive', icon: '⟳',  label: 'LIVE WS'           },
+  { id: 'tradesafe',  icon: '⛨',  label: 'RISK GATE'         },
+  { id: 'testlab',    icon: '⚗',  label: 'TEST LAB'          },
+  { id: 'codev',      icon: '⊛',  label: 'CO-DEV MAP'        },
+  { id: 'sysarch',    icon: '⬡',  label: 'SYS ARCH'          },
+  { id: 'oracle',     icon: '◎',  label: 'ORACLE PLAN'       },
+  { id: 'mmbrain',    icon: '⟁',  label: 'MM BRAIN'          },
+  { id: 'warrior',    icon: '⬡',  label: 'COUNCIL VIZ'       },
+  { id: 'boom',       icon: '✦',  label: 'BOOM SCAN'         },
 ]
 
 // Use real M4D presets for chart pages
@@ -139,6 +162,8 @@ const HASH_MAP: Record<string, PageId> = {
   flowmaps: 'flowmaps', maps: 'flowmaps',
   testlab: 'testlab', test: 'testlab', lab: 'testlab',
   tradesafe: 'tradesafe',
+  deltaops: 'deltaops', delta: 'deltaops', dops: 'deltaops',
+  medallion: 'medallion', medal: 'medallion', m: 'medallion',
 }
 
 function readHash(): PageId {
@@ -161,8 +186,38 @@ function Orb({ score, regime }: { score: number; regime: Regime }) {
 
 // ── Right panel section ───────────────────────────────────────────────────────
 
-function RSection({ title, children, open: defaultOpen = true }: { title: string; children: React.ReactNode; open?: boolean }) {
-  const [open, setOpen] = useState(defaultOpen)
+function RSection({
+  title,
+  children,
+  open: defaultOpen = true,
+  persistKey,
+}: {
+  title: string
+  children: React.ReactNode
+  open?: boolean
+  persistKey?: string
+}) {
+  const [open, setOpen] = useState<boolean>(() => {
+    if (!persistKey) return defaultOpen
+    try {
+      const raw = localStorage.getItem(`m4d.ui.section.${persistKey}`)
+      if (raw === '1') return true
+      if (raw === '0') return false
+    } catch {
+      // ignore storage errors
+    }
+    return defaultOpen
+  })
+
+  useEffect(() => {
+    if (!persistKey) return
+    try {
+      localStorage.setItem(`m4d.ui.section.${persistKey}`, open ? '1' : '0')
+    } catch {
+      // ignore storage errors
+    }
+  }, [open, persistKey])
+
   return (
     <div className="m6d-right-section">
       <div className="m6d-right-head" onClick={() => setOpen(v => !v)}>
@@ -181,15 +236,62 @@ const IOPT_MASTER_PATH = '/Volumes/AI/AI-4D/M4D/AGENT/I-OPT-OOO/I-OPT-OOO-MASTER
 // ── App ───────────────────────────────────────────────────────────────────────
 
 export default function App() {
+  const readBool = (key: string, fallback: boolean) => {
+    try {
+      const raw = localStorage.getItem(key)
+      if (raw === '1') return true
+      if (raw === '0') return false
+    } catch {
+      // ignore storage errors
+    }
+    return fallback
+  }
+  const initialPrefs = loadUiPrefs()
+  const [uiTheme, setUiTheme] = useState<UiTheme>(initialPrefs.theme)
+  const [uiGlow, setUiGlow] = useState<UiGlow>(initialPrefs.glow)
+  const [uiSize, setUiSize] = useState<UiSize>(initialPrefs.size)
+  const [uiVibrantLock, setUiVibrantLock] = useState(initialPrefs.vibrantLock)
+  const [uiAudioOn, setUiAudioOn] = useState(initialPrefs.audioOn)
+  const [uiLocked, setUiLocked] = useState(initialPrefs.locked)
   const [page,       setPage]       = useState<PageId>(readHash)
   const [mode,       setMode]       = useState<ModeId>('m4d')
-  const [railOpen,   setRailOpen]   = useState(false)
-  const [rightOpen,  setRightOpen]  = useState(false)
+  const [railOpen,   setRailOpen]   = useState<boolean>(false)
+  const [rightOpen,  setRightOpen]  = useState<boolean>(() => readBool('m4d.ui.rightOpen', true))
   const [mobileOpen, setMobileOpen] = useState(false)
   const [algoPage] = useState('dashboard')
   const regime: Regime = 'BULL'
   const jedi = 12
   const { services } = useServiceHealth(10_000)
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('m4d.ui.rightOpen', rightOpen ? '1' : '0')
+    } catch {
+      // ignore storage errors
+    }
+  }, [rightOpen])
+
+  const withUiLock = (fn: () => void) => {
+    if (uiLocked) return
+    fn()
+  }
+
+  useEffect(() => {
+    const root = document.documentElement
+    root.dataset.uiTheme = uiTheme
+    root.dataset.uiVibrantLock = uiVibrantLock ? 'on' : 'off'
+    root.style.setProperty('--ui-glow', String(computeUiGlow(uiGlow)))
+    root.style.setProperty('--ui-scale', String(computeUiScale(uiSize, '1080')))
+    saveUiPrefs({
+      theme: uiTheme,
+      size: uiSize,
+      profile: '1080',
+      glow: uiGlow,
+      vibrantLock: uiVibrantLock,
+      audioOn: uiAudioOn,
+      locked: uiLocked,
+    })
+  }, [uiAudioOn, uiGlow, uiLocked, uiSize, uiTheme, uiVibrantLock])
 
   const go = (p: PageId) => {
     setPage(p)
@@ -214,7 +316,7 @@ export default function App() {
       trader:'M4D — TRADER', chartslive:'M4D — LIVE WS', algos:'M4D — ALGOS',
       flowmaps:'M4D — MAPS', testlab:'M4D — LAB', tradesafe:'M4D — RISK',
       codev:'M4D — CO-DEV', sysarch:'M4D — SYS', oracle:'M4D — ORACLE',
-      mmbrain:'M4D — MM', star:'M4D — STAR',
+      mmbrain:'M4D — MM', star:'M4D — STAR', deltaops:'M4D — DELTA OPS', medallion:'M4D — MEDALLION',
     }
     document.title = titles[page] ?? 'M4D'
   }, [page])
@@ -263,6 +365,8 @@ export default function App() {
       case 'oracle':     return <OraclePlanPage />
       case 'mmbrain':    return <MMBrainPage />
       case 'star':       return <StarOptimizerPage />
+      case 'deltaops':   return <DeltaOpsFlowPage />
+      case 'medallion':  return <MedallionPage />
       default:           return <MissionHub onCouncil={() => go('council')} onLaunchPad={() => go('launchpad')} onFootplate={() => go('footplate')} onWarriors={() => go('warriors')} onTradeBot={() => go('tradebot')} onBoom={() => go('boom')} onSpx={() => go('spx')} onFx={() => go('fx')} onCrypto={() => go('crypto')} onWarrior={() => go('warrior')} onMissionViz={() => go('missionviz')} />
     }
   }
@@ -283,6 +387,7 @@ export default function App() {
               key={t.id}
               className={`m6d-tab${page === t.id ? ' active' : ''}`}
               style={{ color: page === t.id ? (t.color ?? 'var(--blue)') : undefined }}
+              title={t.note}
               onClick={() => go(t.id)}
             >
               <span className="tab-icon">{t.icon}</span>
@@ -309,6 +414,13 @@ export default function App() {
 
       {/* ── Body ────────────────────────────────────────────────────────── */}
       <div className="m6d-body">
+        <button
+          className="m6d-right-dock-toggle"
+          onClick={() => setRightOpen(v => !v)}
+          title={rightOpen ? 'Collapse right panel' : 'Expand right panel'}
+        >
+          {rightOpen ? '>' : '<'}
+        </button>
 
         {/* Left Rail — icon strip → expand with context orbs */}
         <div className={`m6d-rail${railOpen ? ' open' : ''}`} style={{ position:'relative' }}>
@@ -318,8 +430,8 @@ export default function App() {
             onClick={() => setRailOpen(v => !v)}
             title={railOpen ? 'Collapse' : 'Expand'}
           >
-            <span>{railOpen ? '◀' : '▶'}</span>
-            <span>{railOpen ? '◀' : '▶'}</span>
+            <span>{railOpen ? '<' : '>'}</span>
+            <span>{railOpen ? '<' : '>'}</span>
           </button>
 
           {RAIL_ITEMS.map(r => (
@@ -397,25 +509,39 @@ export default function App() {
 
         {/* Center — full M4D page content */}
         <div className="m6d-center">
-          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', minHeight: 0, zoom: computeUiScale(uiSize, '1080') }}>
             {renderPage()}
           </div>
         </div>
 
         {/* Right panel */}
         <div className={`m6d-right${rightOpen ? '' : ' closed'}`} style={{ position:'relative' }}>
-          {/* Collapse/expand handle */}
-          <button
-            className="m6d-panel-handle m6d-panel-handle--right"
-            onClick={() => setRightOpen(v => !v)}
-            title={rightOpen ? 'Collapse' : 'Expand'}
-          >
-            <span>{rightOpen ? '▶' : '◀'}</span>
-            <span>{rightOpen ? '▶' : '◀'}</span>
-          </button>
           <RSection title="⊞  Live Ops Context">
             <div style={{ padding:'4px 2px', color:'var(--muted)', fontSize:10, lineHeight:1.5 }}>
               {LIVE_HINT}
+            </div>
+          </RSection>
+          <RSection title="◼  UI CONTROL" open={true} persistKey="ui-control">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+              <button className={`m6d-uictl ${uiTheme === 'dark-hc' ? 'on' : ''}`} onClick={() => withUiLock(() => setUiTheme('dark-hc'))}>HC</button>
+              <button className={`m6d-uictl ${uiTheme === 'navy-subtle' ? 'on' : ''}`} onClick={() => withUiLock(() => setUiTheme('navy-subtle'))}>NAVY</button>
+              <button className={`m6d-uictl ${uiTheme === 'warm' ? 'on' : ''}`} onClick={() => withUiLock(() => setUiTheme('warm'))}>WARM</button>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+              {(['s', 'm', 'l', 'x'] as const).map(sz => (
+                <button key={sz} className={`m6d-uictl ${uiSize === sz ? 'on' : ''}`} onClick={() => withUiLock(() => setUiSize(sz))} title={sz === 's' ? '0.92×' : sz === 'm' ? '1.0× (default)' : sz === 'l' ? '1.12×' : '1.28×'}>
+                  {sz.toUpperCase()}
+                </button>
+              ))}
+              <span style={{ fontSize: 9, color: 'var(--muted)', alignSelf: 'center', marginLeft: 2 }}>TEXT</span>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+              <button className={`m6d-uictl ${uiVibrantLock ? 'on' : ''}`} onClick={() => withUiLock(() => setUiVibrantLock(v => !v))}>V</button>
+              {(['off', 'low', 'med', 'high'] as const).map((g, i) => (
+                <button key={g} className={`m6d-uictl ${uiGlow === g ? 'on' : ''}`} onClick={() => withUiLock(() => setUiGlow(g))}>{`G${i}`}</button>
+              ))}
+              <button className={`m6d-uictl ${uiAudioOn ? 'on' : ''}`} onClick={() => withUiLock(() => setUiAudioOn(v => !v))}>{uiAudioOn ? '🔊' : '🔇'}</button>
+              <button className={`m6d-uictl ${uiLocked ? 'lock' : ''}`} onClick={() => setUiLocked(v => !v)}>{uiLocked ? '🔒' : '🔓'}</button>
             </div>
           </RSection>
 

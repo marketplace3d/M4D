@@ -651,6 +651,50 @@ def feat_CMF_POS(df: pd.DataFrame, params: dict) -> pd.DataFrame:
     return out
 
 
+# ── Discovery signals (ES 3yr WF validated, 2026-04-24) ──────────────────────
+
+def feat_RANGE_POS(df: pd.DataFrame, params: dict) -> pd.DataFrame:
+    """Close in top portion of 48-bar high/low range — range momentum."""
+    out = df.copy()
+    c, h, lo = out["Close"], out["High"], out["Low"]
+    n   = int(params.get("n", 48))
+    thr = float(params.get("thr", 0.65))
+    hi_n = h.rolling(n).max()
+    lo_n = lo.rolling(n).min()
+    rng  = (hi_n - lo_n).replace(0, np.nan)
+    pos  = (c - lo_n) / rng
+    out["entry"]    = (pos > thr).fillna(False)
+    out["exit_sig"] = (pos < (1.0 - thr)).fillna(False)
+    return out
+
+
+def feat_EMA_DIST(df: pd.DataFrame, params: dict) -> pd.DataFrame:
+    """Close > 0.5 ATR above 48-bar EMA — ATR-normalized trend extension."""
+    out = df.copy()
+    c, h, lo = out["Close"], out["High"], out["Low"]
+    span = int(params.get("span", 48))
+    mult = float(params.get("mult", 0.5))
+    ema  = _ema(c, span)
+    atr  = _atr(h, lo, c, 14)
+    out["entry"]    = (c > ema + mult * atr).fillna(False)
+    out["exit_sig"] = (c < ema).fillna(False)
+    return out
+
+
+def feat_VWAP_DEV(df: pd.DataFrame, params: dict) -> pd.DataFrame:
+    """Close above 48-bar VWAP by > 0.25 ATR — institutional flow confirmation."""
+    out = df.copy()
+    c, h, lo, v = out["Close"], out["High"], out["Low"], out["Volume"]
+    n    = int(params.get("n", 48))
+    mult = float(params.get("mult", 0.25))
+    dv   = c * v
+    vwap = (dv.rolling(n).sum() / v.rolling(n).sum().replace(0, np.nan)).fillna(c)
+    atr  = _atr(h, lo, c, 14)
+    out["entry"]    = (c > vwap + mult * atr).fillna(False)
+    out["exit_sig"] = (c < vwap).fillna(False)
+    return out
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # REGISTRY
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -686,6 +730,10 @@ ALGO_REGISTRY: dict[str, dict] = {
     "STOCH_CROSS":{"fn":feat_STOCH_CROSS,"bank":"C","name": "Stochastic Cross",        "hold_bars": 12, "stop_pct": 5.0, "exit_mode": "sig"},
     "MFI_CROSS": {"fn": feat_MFI_CROSS, "bank": "C", "name": "MFI 50 Cross",           "hold_bars": 15, "stop_pct": 5.0, "exit_mode": "sig"},
     "CMF_POS":   {"fn": feat_CMF_POS,   "bank": "C", "name": "CMF Positive",           "hold_bars": 15, "stop_pct": 5.0, "exit_mode": "sig"},
+    # Bank D — Discovery (ES WF validated 2026-04-24, IC 0.030-0.043 at 1h horizon)
+    "RANGE_POS": {"fn": feat_RANGE_POS, "bank": "D", "name": "48-bar Range Position",   "hold_bars": 12, "stop_pct": 4.0, "exit_mode": "sig"},
+    "EMA_DIST":  {"fn": feat_EMA_DIST,  "bank": "D", "name": "EMA ATR Distance",        "hold_bars": 12, "stop_pct": 4.0, "exit_mode": "sig"},
+    "VWAP_DEV":  {"fn": feat_VWAP_DEV,  "bank": "D", "name": "VWAP ATR Deviation",      "hold_bars": 12, "stop_pct": 4.0, "exit_mode": "sig"},
 }
 
 ALL_ALGO_IDS = list(ALGO_REGISTRY.keys())

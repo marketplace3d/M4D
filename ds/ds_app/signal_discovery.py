@@ -56,24 +56,48 @@ MIN_OBS        = 100     # minimum observations per IC computation
 # Discovery priority: futures first (deepest liquid signal), BTC last
 DISCOVERY_SYMBOLS = ["ES", "NQ", "RTY", "CL", "6E", "ZN", "ZB", "GC", "SI", "BTC"]
 TARGET_SYMBOL  = "ES"   # default single-symbol run
+# Symbols stored in bars_1m (Databento futures) vs bars_5m (Binance crypto)
+_FUTURES_1M = {"ES", "NQ", "RTY", "CL", "GC", "SI", "6E", "ZN", "ZB"}
 
 
 # ── Bar loader ─────────────────────────────────────────────────────────────────
 
 def load_bars(symbol: str, n: int) -> pd.DataFrame | None:
+    sym = symbol.upper()
     conn = sqlite3.connect(FUTURES_DB)
-    rows = conn.execute(
-        "SELECT ts, open, high, low, close, volume FROM bars_5m "
-        "WHERE symbol=? ORDER BY ts DESC LIMIT ?",
-        (symbol, n + WARMUP_BARS),
-    ).fetchall()
-    conn.close()
-    if len(rows) < MIN_OBS:
-        return None
-    rows.sort(key=lambda r: r[0])
-    df = pd.DataFrame(rows, columns=["ts", "Open", "High", "Low", "Close", "Volume"])
-    df["ts"] = pd.to_datetime(df["ts"], unit="s", utc=True)
-    return df.set_index("ts").astype(float)
+    if sym in _FUTURES_1M:
+        # bars_1m → resample to 5m (5× more 1m bars needed)
+        want = (n + WARMUP_BARS) * 5
+        rows = conn.execute(
+            "SELECT ts, open, high, low, close, volume FROM bars_1m "
+            "WHERE symbol=? ORDER BY ts DESC LIMIT ?",
+            (sym, want),
+        ).fetchall()
+        conn.close()
+        if len(rows) < MIN_OBS * 5:
+            return None
+        rows.sort(key=lambda r: r[0])
+        df = pd.DataFrame(rows, columns=["ts", "Open", "High", "Low", "Close", "Volume"])
+        df["ts"] = pd.to_datetime(df["ts"], unit="s", utc=True)
+        df = df.set_index("ts").astype(float)
+        df = df.resample("5min").agg(
+            {"Open": "first", "High": "max", "Low": "min",
+             "Close": "last", "Volume": "sum"}
+        ).dropna(subset=["Close"])
+        return df
+    else:
+        rows = conn.execute(
+            "SELECT ts, open, high, low, close, volume FROM bars_5m "
+            "WHERE symbol=? ORDER BY ts DESC LIMIT ?",
+            (sym, n + WARMUP_BARS),
+        ).fetchall()
+        conn.close()
+        if len(rows) < MIN_OBS:
+            return None
+        rows.sort(key=lambda r: r[0])
+        df = pd.DataFrame(rows, columns=["ts", "Open", "High", "Low", "Close", "Volume"])
+        df["ts"] = pd.to_datetime(df["ts"], unit="s", utc=True)
+        return df.set_index("ts").astype(float)
 
 
 # ── Primitive features ─────────────────────────────────────────────────────────

@@ -1,12 +1,18 @@
 {
   "ok": true,
-  "ts": 1776940101,
+  "ts": 1777058807,
   "cached": false,
-  "value": 46,
-  "label": "NEUTRAL",
-  "mult": 1.0,
-  "trend": "GREED_BUILDING",
+  "value": 39,
+  "label": "FEAR",
+  "mult": 1.1,
+  "trend": "FEAR_BUILDING",
   "history": [
+    {
+      "ts": 1776988800,
+      "value": 39,
+      "label": "FEAR",
+      "date": "Fear"
+    },
     {
       "ts": 1776902400,
       "value": 46,
@@ -16,12 +22,6 @@
     {
       "ts": 1776816000,
       "value": 32,
-      "label": "FEAR",
-      "date": "Fear"
-    },
-    {
-      "ts": 1776729600,
-      "value": 33,
       "label": "FEAR",
       "date": "Fear"
     }

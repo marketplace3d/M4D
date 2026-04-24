@@ -1,142 +1,27 @@
 # ══════════════════════════════════════════════════════════════════════════════
-# M3D MONO-REPO — .gitignore
-# Covers: M3D site · M2D · M4D React/PWA · m4d-api · m4d-ds · m4d-engine
-#         api (Rust) · engine (Rust) · ds (Django) · go.sh launchers
-#
-# Rule: keep source, config, docs, lock files. Drop everything generated.
+# M4D MONO-REPO — .gitignore
+# Rule: source + config + lock files only. Everything generated stays local.
 # ══════════════════════════════════════════════════════════════════════════════
 
 
-# ── SECRETS — NEVER commit ────────────────────────────────────────────────────
+# ── SECRETS ───────────────────────────────────────────────────────────────────
 .env
 .env.*
 !.env.example
-.env*
+*.env.local
 .env copy.local
-M3D/.env.local
 **/secrets.json
 **/credentials.json
 *.pem
 *.key
 
 
-# ── LOCAL / REFERENCE FOLDERS ─────────────────────────────────────────────────
-M4D-REF-TEMP/
-M4D-main.zip
-O/
-
-# ── LARGE BINARY DOCS (keep .md only) ─────────────────────────────────────────
-APP-DOC/**/*.rtf
-APP-DOC/**/*.odt
-APP-DOC/**/*.docx
-APP-DOC/**/*.pdf
-
-# ── RUNTIME DATA FILES ────────────────────────────────────────────────────────
-**/public/m4d-latest/votes.jsonl
-
-
-# ── RUST BUILD ARTIFACTS ──────────────────────────────────────────────────────
-target/
-m4d-engine/target/
-**/*.rs.bk
-**/*.pdb
-
-
-# ── NODE / VITE (all JS/TS frontends) ─────────────────────────────────────────
-# M3D site
-site/node_modules/
-site/dist/
-site/.vite/
-site/.cache/
-
-# M2D (Svelte lean trader)
-M2D/node_modules/
-M2D/dist/
-M2D/.vite/
-
-# M4D React MISSION
-M4D/node_modules/
-M4D/dist/
-M4D/build/
-M4D/.vite/
-
-# M4D Svelte PWA (if present)
-pwa/node_modules/
-pwa/dist/
-pwa/build/
-pwa/.vite/
-pwa/.svelte-kit/
-
-# W3D React
-W3D/node_modules/
-W3D/dist/
-W3D/build/
-W3D/.vite/
-
-# W4D React
-W4D/site/node_modules/
-W4D/dist/
-W4D/build/
-W4D/.vite/
-
-# Generic npm noise
-**/.npm/
-*.tsbuildinfo
-**/.parcel-cache/
-
-
-# ── PYTHON (ds + m4d-ds) ──────────────────────────────────────────────────────
-ds/.venv/
-m4d-ds/.venv/
-**/__pycache__/
-**/*.py[cod]
-**/*.pyo
-**/.pytest_cache/
-**/.mypy_cache/
-**/.ruff_cache/
-*.egg-info/
-# Django generated statics
-ds/staticfiles/
-ds/media/
-m4d-ds/staticfiles/
-m4d-ds/media/
-local_settings.py
-
-
-# ── DATABASE FILES ────────────────────────────────────────────────────────────
-**/*.db
-**/*.db-shm
-**/*.db-wal
-**/*.sqlite
-**/*.sqlite3
-
-
-# ── RUNTIME DATA (regenerated on run) ─────────────────────────────────────────
-# M3D engine scan output
-engine/data/
-!engine/data/.gitkeep
-
-# M4D engine output
-m4d-engine/out/
-!m4d-engine/out/.gitkeep
-
-# DS rolling AI output
-ds/data/pulse_latest.json
-ds/data/pulse_history.json
-ds/data/maxcogviz_history.json
-ds/data/xsocial_latest.json
-ds/data/ds.db
-!ds/data/.gitkeep
-
-# M4D DS data
-m4d-ds/db.sqlite3
-m4d-ds/data/
-
-
 # ── OS NOISE ──────────────────────────────────────────────────────────────────
 .DS_Store
 .DS_Store?
+**/.DS_Store
 ._*
+**/.DS_Store
 .Spotlight-V100
 .Trashes
 ehthumbs.db
@@ -156,16 +41,118 @@ desktop.ini
 *~
 
 
-# ── LOGS ──────────────────────────────────────────────────────────────────────
+# ── CLAUDE AI SESSION DATA ────────────────────────────────────────────────────
+.claude/
+
+
+# ── LARGE REFERENCE / ARCHIVE FOLDERS ────────────────────────────────────────
+M4D-REF-TEMP/
+AGENT1/
+O/
+
+# Legacy tracked versions — to untrack: git rm -r --cached <dir> && git commit
+# M1D/   W3D/   W4D/   pwa/   site/   MRT/
+
+
+# ── RUST BUILD ARTIFACTS ──────────────────────────────────────────────────────
+target/
+**/target/
+**/*.rs.bk
+**/*.pdb
+
+
+# ── NODE / VITE — ALL FRONTENDS ───────────────────────────────────────────────
+# Generic (covers any new frontend dir automatically)
+**/node_modules/
+**/dist/
+**/.vite/
+**/.cache/
+**/.svelte-kit/
+**/.parcel-cache/
+**/.next/
+*.tsbuildinfo
+**/.npm/
+
+# m5d explicit (63K node_modules — critical to exclude)
+m5d/node_modules/
+m5d/dist/
+m5d/.vite/
+
+# M4D explicit
+M4D/node_modules/
+M4D/dist/
+M4D/build/
+M4D/.vite/
+
+# Legacy frontends
+site/node_modules/
+site/dist/
+pwa/node_modules/
+pwa/dist/
+pwa/build/
+W3D/node_modules/
+W3D/dist/
+W4D/site/node_modules/
+W4D/dist/
+
+
+# ── PYTHON ────────────────────────────────────────────────────────────────────
+**/.venv/
+**/venv/
+**/__pycache__/
+**/*.py[cod]
+**/*.pyo
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+*.egg-info/
+ds/staticfiles/
+ds/media/
+m4d-ds/staticfiles/
+m4d-ds/media/
+local_settings.py
+
+
+# ── DATABASES ─────────────────────────────────────────────────────────────────
+**/*.db
+**/*.db-shm
+**/*.db-wal
+**/*.sqlite
+**/*.sqlite3
+
+
+# ── DS RUNTIME DATA (regenerated — do not commit live output) ─────────────────
+ds/data/futures_walkforward_report.json
+ds/data/holdout_report.json
+ds/data/iopt_euphoria.json
+ds/data/iopt_max.json
+ds/data/pulse_latest.json
+ds/data/pulse_history.json
+ds/data/maxcogviz_history.json
+ds/data/xsocial_latest.json
+
+engine/data/
+!engine/data/.gitkeep
+m4d-engine/out/
+!m4d-engine/out/.gitkeep
+m4d-ds/data/
+
+
+# ── LARGE BINARY DOCS ─────────────────────────────────────────────────────────
+APP-DOC/**/*.rtf
+APP-DOC/**/*.odt
+APP-DOC/**/*.docx
+APP-DOC/**/*.pdf
+APP-DOC/RENTECH/*.html
+
+
+# ── LOGS + TEMP ───────────────────────────────────────────────────────────────
 *.log
 logs/
 npm-debug.log*
 yarn-debug.log*
 coverage/
 .nyc_output/
-
-
-# ── TEMP / GENERATED ──────────────────────────────────────────────────────────
 *.tmp
 *.bak
 *.orig
@@ -180,49 +167,31 @@ go\ copy.sh
 # WHAT IS COMMITTED (source of truth)
 # ══════════════════════════════════════════════════════════════════════════════
 #
-# M3D STACK
-#   site/src/**                React + Blueprint source
-#   site/public/**             Static assets
-#   site/index.html
-#   site/package.json
-#   site/package-lock.json
-#   site/vite.config.ts
-#   site/tsconfig.json
-#   site/src/theme.scss
+# ACTIVE STACK
+#   m5d/src/**             M5D co-trader (React 18 + Vite + TS)
+#   m5d/package.json       m5d/tsconfig.json  m5d/vite.config.ts
+#   m5d/index.html
 #
-#   api/src/**                 Rust Axum API source
-#   engine/src/**              Rust 500-asset engine source
-#   Cargo.toml                 Rust workspace manifest
-#   Cargo.lock
+#   api/src/**             Rust Axum :3030
+#   engine/src/**          Rust 500-asset engine
+#   Cargo.toml / Cargo.lock
 #
-#   ds/ds_app/**               Django app (views, algos, backtest, signals, xsocial)
-#   ds/ds_project/**           Django settings
-#   ds/manage.py
+#   ds/ds_app/**           Django signals, backtest, IOPT, regime
+#   ds/ds_project/**       Django settings
+#   ds/data/*.json         Live signal snapshots (30 files, tracked intentionally)
 #   ds/requirements.txt
-#   ds/grok_pulse.py
 #
-# M2D STACK (inside M3D repo)
-#   M2D/src/**                 Svelte lean alpha machine
-#   M2D/package.json
-#   M2D/vite.config.js
-#   M2D/tailwind.config.js
-#   M2D/CLAUDE.md
+#   M4D/src/**             M4D React MISSION
+#   m4d-api/src/**         Rust m4d-api
+#   m4d-engine/src/**      Rust m4d-engine
+#   m4d-ds/ds_app/**       Django m4d-DS
 #
-# M4D STACK
-#   M4D/src/**                 React MISSION source
-#   M4D/package.json
-#   M4D/vite.config.ts
-#   m4d-api/src/**             Rust Axum m4d-api source
-#   m4d-engine/src/**          Rust m4d-engine source
-#   m4d-engine/Cargo.toml
-#   m4d-ds/ds_app/**           Django m4d DS
-#   m4d-ds/manage.py
-#   m4d-ds/requirements.txt
-#   m4d-ds/crypto_worker.py
-#
-# DOCS + CONFIG
-#   DOCS/**                    Architecture docs, session state, chat logs
+# DOCS + AGENT
+#   AGENT/**               Distilled specs (SPEC-PP, OOO, DISTILL-LIST)
+#   DOCS/**                Architecture, session state
 #   CLAUDE.md
-#   go3d.sh
-#   go4d.sh
-#   .gitignore
+#
+# LAUNCHERS
+#   go.sh  go4d.sh  go5d.sh  go500.sh  go5000.sh
+#   ibkr.sh  ibkr_loop.sh  daily_hunt.sh  PAPER.command
+# ══════════════════════════════════════════════════════════════════════════════

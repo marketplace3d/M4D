@@ -72,37 +72,16 @@ def _oos_ts(conn: sqlite3.Connection, tf: str = "5m", train_frac: float = 0.70) 
 
 # ── regime labeling ───────────────────────────────────────────────────────────
 def assign_regimes(df: pd.DataFrame) -> pd.Series:
-    n     = len(df)
-    close = df["close"].values
-    atr   = df["atr_pct"].fillna(0).values
-    sqz   = df["squeeze"].fillna(0).astype(int).values
-    sup   = df["v_SUPERTREND"].fillna(0).astype(int).values
-    adx   = df["v_ADX_TREND"].fillna(0).astype(int).values
-    atr_e = df["v_ATR_EXP"].fillna(0).astype(int).values
-
-    mom12 = np.zeros(n)
-    for i in range(12, n):
-        if close[i - 12] != 0:
-            mom12[i] = (close[i] - close[i - 12]) / close[i - 12]
-
-    atr_75   = np.percentile(atr[atr > 0], 75) if (atr > 0).any() else 1.0
-    risk_off = (atr > atr_75) & (mom12 < -0.015)
-
-    sqz_prev = np.concatenate([[0], sqz[:-1]])
-    breakout = ((sqz_prev == 1) & (sqz == 0)) | (atr_e == 1)
-
-    alpha  = 2.0 / 201.0
-    ema200 = np.zeros(n)
-    ema200[0] = close[0]
-    for i in range(1, n):
-        ema200[i] = alpha * close[i] + (1 - alpha) * ema200[i - 1]
-    trending = (close > ema200) & (sup == 1) & (adx == 1)
-
-    regime = np.full(n, "RANGING", dtype=object)
-    regime[trending] = "TRENDING"
-    regime[breakout] = "BREAKOUT"
-    regime[risk_off] = "RISK-OFF"
-    return pd.Series(regime, index=df.index)
+    """7-regime bar labeling via regime_engine. Replaces 4-state heuristic."""
+    from ds_app.regime_engine import classify_series
+    # regime_engine expects Close/High/Low/Volume (capital or lower)
+    # signal_log uses lowercase — remap if needed
+    rename = {}
+    for old, new in [("close","Close"),("high","High"),("low","Low"),("volume","Volume")]:
+        if old in df.columns and new not in df.columns:
+            rename[old] = new
+    work = df.rename(columns=rename) if rename else df
+    return classify_series(work)
 
 
 # ── load regime routing weights ───────────────────────────────────────────────
@@ -369,38 +348,68 @@ SIGNAL_ROUTING = {
 # 1.5 = specialist boost · 1.0 = neutral · 0.3 = soft suppress · 0.05 = near-zero (wrong regime)
 # Derived from regime-conditional IC analysis (walkforward.py 41-fold run 2026-04-19).
 # NEVER change without re-running walkforward.py to verify delta flips positive.
-_R = "RANGING"
-_T = "TRENDING"
-_B = "BREAKOUT"
-_O = "RISK-OFF"
+_R  = "RANGING"
+_T  = "TRENDING"          # legacy key — kept for signal_log compat
+_TS = "TRENDING_STRONG"
+_TW = "TRENDING_WEAK"
+_B  = "BREAKOUT"
+_SQ = "SQUEEZE"
+_EX = "EXHAUSTION"
+_O  = "RISK-OFF"
 
+# fmt: off
 SOFT_REGIME_MULT: dict[str, dict[str, float]] = {
-    # TRENDING specialists — boost in T, suppress hard in B (regime IC = 0 in BREAKOUT)
-    # Exception: SUPERTREND, TREND_SMA, EMA_STACK confirmed +IC in BREAKOUT regime
-    "SUPERTREND":  {_T: 1.5, _B: 1.5, _R: 0.05, _O: 0.05},  # +0.025 BREAKOUT IC ✓
-    "EMA_CROSS":   {_T: 1.5, _B: 0.05, _R: 0.05, _O: 0.05},  # TRENDING-only
-    "EMA_STACK":   {_T: 1.5, _B: 1.5,  _R: 0.05, _O: 0.20},  # +0.012 BREAKOUT IC ✓
-    "MACD_CROSS":  {_T: 1.5, _B: 0.05, _R: 0.05, _O: 0.10},  # TRENDING-only
-    "GOLDEN":      {_T: 1.2, _B: 0.05, _R: 0.30, _O: 1.5},   # RISK-OFF specialist
-    "TREND_SMA":   {_T: 1.5, _B: 1.5,  _R: 0.05, _O: 0.10},  # +0.012 BREAKOUT IC ✓
-    "PSAR":        {_T: 1.5, _B: 0.05, _R: 0.05, _O: 0.10},  # TRENDING-only
-    "ADX_TREND":   {_T: 1.5, _B: 0.05, _R: 0.30, _O: 0.30},  # TRENDING-only
-    "PULLBACK":    {_T: 1.5, _B: 0.05, _R: 0.10, _O: 0.10},  # TRENDING-only
-    # Mean-reversion oscillators — suppress in trending/breakout
-    "RSI_STRONG":  {_T: 0.10, _B: 0.10, _R: 1.5, _O: 1.5},
-    "STOCH_CROSS": {_T: 0.10, _B: 0.10, _R: 1.5, _O: 1.5},
-    "MFI_CROSS":   {_T: 0.10, _B: 0.10, _R: 1.5, _O: 1.5},
-    "CMF_POS":     {_T: 0.80, _B: 0.10, _R: 1.2, _O: 1.2},  # suppress in B
-    "OBV_TREND":   {_T: 1.0,  _B: 0.10, _R: 1.0, _O: 1.0},  # suppress in B
-    # BREAKOUT specialists — confirmed positive regime IC (walkforward 2026-04-19)
-    "VOL_BO":      {_T: 1.2, _B: 1.5, _R: 0.10, _O: 0.10},  # +0.031 ✓
-    "BB_BREAK":    {_T: 0.3, _B: 1.5, _R: 0.30, _O: 0.10},  # +0.001 WATCH
-    "SQZPOP":      {_T: 0.3, _B: 1.5, _R: 0.05, _O: 0.10},  # +0.033 ✓ top BREAKOUT
-    "ATR_EXP":     {_T: 1.2, _B: 1.5, _R: 0.20, _O: 0.10},  # +0.001 WATCH
-    # RISK-OFF specialists — suppress in BREAKOUT
-    "CONSEC_BULL": {_T: 1.2, _B: 0.10, _R: 0.10, _O: 0.10},
-    "CONSOL_BO":   {_T: 0.3, _B: 1.5,  _R: 0.10, _O: 0.10},
+    # ── Trend-following / momentum — best in TRENDING_STRONG, good in BREAKOUT ──
+    # SUPERTREND: regime IC BREAKOUT +0.025 (walkforward 2026-04-19); revived from false-retire
+    # _TW=0.05 across ALL signals: ES 3yr WF shows TRENDING_WEAK OOS Sharpe -6.21 (41% pct+)
+    "SUPERTREND":  {_T:1.5, _TS:1.7, _TW:0.05, _B:1.6, _R:0.05, _SQ:0.0, _EX:0.0, _O:0.05},
+    "EMA_CROSS":   {_T:1.5, _TS:1.6, _TW:0.05, _B:0.1, _R:0.05, _SQ:0.0, _EX:0.0, _O:0.05},
+    "EMA_STACK":   {_T:1.5, _TS:1.6, _TW:0.05, _B:1.5, _R:0.05, _SQ:0.0, _EX:0.0, _O:0.20},
+    "MACD_CROSS":  {_T:1.5, _TS:1.7, _TW:0.05, _B:0.1, _R:0.05, _SQ:0.0, _EX:0.0, _O:0.10},
+    "TREND_SMA":   {_T:1.5, _TS:1.6, _TW:0.05, _B:1.5, _R:0.05, _SQ:0.0, _EX:0.0, _O:0.10},
+    "PSAR":        {_T:1.5, _TS:1.6, _TW:0.05, _B:0.1, _R:0.05, _SQ:0.0, _EX:0.0, _O:0.10},
+    "ADX_TREND":   {_T:1.5, _TS:1.6, _TW:0.05, _B:0.1, _R:0.30, _SQ:0.0, _EX:0.0, _O:0.30},
+    "PULLBACK":    {_T:1.5, _TS:1.6, _TW:0.05, _B:0.1, _R:0.10, _SQ:0.0, _EX:0.0, _O:0.10},
+    # ── BREAKOUT specialists ──────────────────────────────────────────────────
+    "VOL_BO":      {_T:1.2, _TS:1.2, _TW:0.05, _B:1.8, _R:0.10, _SQ:0.3, _EX:0.0, _O:0.10},
+    "BB_BREAK":    {_T:0.3, _TS:0.3, _TW:0.05, _B:1.6, _R:0.30, _SQ:0.3, _EX:0.0, _O:0.10},
+    "SQZPOP":      {_T:0.3, _TS:0.3, _TW:0.05, _B:1.8, _R:0.05, _SQ:0.5, _EX:0.0, _O:0.10},
+    "ATR_EXP":     {_T:1.2, _TS:1.2, _TW:0.05, _B:1.6, _R:0.20, _SQ:0.3, _EX:0.0, _O:0.10},
+    "CONSOL_BO":   {_T:0.3, _TS:0.3, _TW:0.05, _B:1.6, _R:0.10, _SQ:0.3, _EX:0.0, _O:0.10},
+    # ── Mean-reversion oscillators — ranging only ─────────────────────────────
+    "RSI_STRONG":  {_T:0.10, _TS:0.05, _TW:0.05, _B:0.10, _R:1.5, _SQ:1.0, _EX:1.2, _O:1.5},
+    "STOCH_CROSS": {_T:0.10, _TS:0.05, _TW:0.05, _B:0.10, _R:1.5, _SQ:1.0, _EX:1.2, _O:1.5},
+    "MFI_CROSS":   {_T:0.10, _TS:0.05, _TW:0.05, _B:0.10, _R:1.5, _SQ:1.0, _EX:1.2, _O:1.5},
+    "CMF_POS":     {_T:0.80, _TS:0.6,  _TW:0.05, _B:0.10, _R:1.2, _SQ:0.8, _EX:0.8, _O:1.2},
+    "OBV_TREND":   {_T:1.0,  _TS:1.0,  _TW:0.05, _B:0.10, _R:1.0, _SQ:0.5, _EX:0.0, _O:1.0},
+    # ── RISK-OFF / defensive specialists ──────────────────────────────────────
+    "GOLDEN":      {_T:1.2, _TS:1.1, _TW:0.05, _B:0.05, _R:0.30, _SQ:0.2, _EX:0.3, _O:1.8},
+    "CONSEC_BULL": {_T:1.2, _TS:1.2, _TW:0.05, _B:0.10, _R:0.10, _SQ:0.0, _EX:0.0, _O:0.10},
+    # ── Discovery signals (ES 3yr WF validated, 2026-04-24) ──────────────────
+    "RANGE_POS":   {_T:1.2, _TS:1.4, _TW:0.05, _B:1.5, _R:0.20, _SQ:0.0, _EX:0.0, _O:0.05},
+    "EMA_DIST":    {_T:1.2, _TS:1.4, _TW:0.05, _B:1.3, _R:0.10, _SQ:0.0, _EX:0.0, _O:0.05},
+    "VWAP_DEV":    {_T:1.0, _TS:1.2, _TW:0.05, _B:1.3, _R:0.30, _SQ:0.0, _EX:0.0, _O:0.05},
 }
+# fmt: on
+
+# Fallback: if a signal has no entry for a 7-regime label, try the legacy 4-regime key
+_REGIME_FALLBACK: dict[str, str] = {
+    "TRENDING_STRONG": "TRENDING",
+    "TRENDING_WEAK":   "TRENDING",
+    "SQUEEZE":         "RANGING",
+    "EXHAUSTION":      "RISK-OFF",
+}
+
+
+def get_regime_mult(signal_id: str, regime: str) -> float:
+    """Lookup multiplier with 7-regime + legacy fallback."""
+    m = SOFT_REGIME_MULT.get(signal_id, {})
+    if regime in m:
+        return m[regime]
+    fallback = _REGIME_FALLBACK.get(regime)
+    if fallback and fallback in m:
+        return m[fallback]
+    return 1.0
 
 ROUTED_OUT = _DS_ROOT / "data" / "routed_ensemble_report.json"
 

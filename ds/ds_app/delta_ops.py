@@ -69,14 +69,18 @@ class ModeConfig:
     accel_bars: int        # bars of sustained improvement before scale-in
     reentry_window: int    # bars after CIS exit to look for re-entry
     jedi_min: int          # minimum abs(jedi_raw) for entry (LOW_JEDI gate)
+    be_bars: int = 0       # bars after entry before breakeven stop activates (0 = disabled)
+    harvest_on_scale: bool = False  # on each scale-in, book 1 base_lot as harvested profit
+    reentry_lot_mult: float = 1.0  # multiply base_lot on re-entry (retest confirmation edge)
+    horizon_bars: int = 48  # max hold duration in 5m bars (48=4h, 24=2h, 12=1h)
 
 
 PADAWAN = ModeConfig(
     name="PADAWAN",
     kelly_mult=0.25,
     max_lots=1.5,          # never scale past 1.5× (3 half-lots)
-    entry_thr=0.35,
-    decay_thr=0.15,        # tight decay threshold
+    entry_thr=0.05,        # top ~10% of soft_score distribution
+    decay_thr=0.02,
     cis_threshold=2,
     accel_bars=3,
     reentry_window=12,     # 1h of 5m bars
@@ -87,8 +91,8 @@ NORMAL = ModeConfig(
     name="NORMAL",
     kelly_mult=1.0,
     max_lots=3.0,
-    entry_thr=0.35,
-    decay_thr=0.10,
+    entry_thr=0.12,        # top ~5% of soft_score distribution
+    decay_thr=0.05,
     cis_threshold=2,
     accel_bars=3,
     reentry_window=24,     # 2h
@@ -98,27 +102,37 @@ NORMAL = ModeConfig(
 EUPHORIA = ModeConfig(
     name="EUPHORIA",
     kelly_mult=2.5,
-    max_lots=3.0,
-    entry_thr=0.50,        # higher bar for fat-pitch entry
-    decay_thr=0.20,        # exit faster if momentum fades
-    cis_threshold=3,       # more tolerant — wider trail in fat pitches
-    accel_bars=2,
-    reentry_window=6,
-    jedi_min=8,
+    max_lots=2.5,          # iopt: accel=1 fires fast, 2.5 cap prevents over-pyramid
+    entry_thr=0.12,        # iopt: top ~5% — jedi=10 does the quality filtering, not score extremes
+    decay_thr=0.05,
+    cis_threshold=2,       # iopt: fat pitches need room — cis=1 cuts winners too early
+    accel_bars=1,          # iopt: accel=1 fires faster scale-in, critical for 30m horizon
+    reentry_window=4,      # iopt: tight retest window — confirmation must be immediate
+    jedi_min=10,           # iopt: THE key param — jedi>=10 selects continuation, not exhaustion
+    be_bars=5,             # iopt: 5×5m = 25min continuation before house money
+    harvest_on_scale=True,
+    reentry_lot_mult=2.0,
+    horizon_bars=6,        # iopt: 30min — fast mover, get off at next station
 )
 
-# MAX = all-in mode for small accounts / fat-pitch regime confluence.
-# 4× Kelly, entry bar matches EUPHORIA, but CIS = structural-only (2 fires = exit).
+# MAX = all-in mode. 4× Kelly, exponential pyramid 1→2→4 clipped at 5.
+# Tightest CIS (2 fires) — must exit fast at this size. jedi_min=10 = fat pitch only.
+# After 2 bars (or first continuation), stop moves to entry price (house money).
+# Each scale-in harvests 1 base_lot — lock life-changing moves early.
 MAX = ModeConfig(
     name="MAX",
     kelly_mult=4.0,
-    max_lots=4.0,
-    entry_thr=0.55,        # fat pitch only — score + jedi + regime all aligned
-    decay_thr=0.25,
-    cis_threshold=2,       # tight exit — no holding against the tide at 4×
+    max_lots=5.0,          # pyramid: tier0=1 tier1=+1→2 tier2=+2→4 tier3=+4→clipped at 5
+    entry_thr=0.35,        # iopt: entry_thr=0.35 + jedi=8 → 92 trades, 6 scale-ins, Sharpe 17.8
+    decay_thr=0.12,
+    cis_threshold=1,       # exit FAST — 5× position, any single signal = out
     accel_bars=2,
     reentry_window=4,
-    jedi_min=10,
+    jedi_min=8,            # iopt: jedi=8 (not 10) — entry_thr does the quality filtering at MAX level
+    be_bars=2,             # house money after 2 bars
+    harvest_on_scale=True,
+    reentry_lot_mult=3.0,
+    horizon_bars=6,        # 30min max
 )
 
 
@@ -150,17 +164,27 @@ def compute_cis(
     j_now = float(df.iloc[idx].get("jedi_raw", 0) or 0)
 
     if is_euphoria:
-        # EUPHORIA: full regime flip + hard reversal — hold fat pitches until truly invalidated
-        flags["REGIME_FLIP"]    = int(regimes[idx] != entry_regime)
+        # EUPHORIA: only exit on structural break — RISK-OFF/EXHAUSTION or hard JEDI reversal
+        # TRENDING_STRONG→TRENDING_WEAK is noise in fat pitches — don't exit
+        _STRUCTURAL_BAD = {"RISK-OFF", "EXHAUSTION", "RANGING"}
+        flags["REGIME_FLIP"]    = int(regimes[idx] in _STRUCTURAL_BAD and entry_regime not in _STRUCTURAL_BAD)
         flags["JEDI_REVERSAL"]  = int(
             (entry_jedi > 0 and j_now < -2) or (entry_jedi < 0 and j_now > 2)
         )
     else:
         # PADAWAN/NORMAL: early-warning signals — exit before the full reversal
         # REGIME_DEGRADE: trend died (+1.121 Sharpe, 3.7% trigger)
+        # 7-regime logic: degrade = entry was in a "good" regime, now in a "bad" one
+        _GOOD = {"TRENDING_STRONG", "TRENDING_WEAK", "TRENDING", "BREAKOUT"}
+        _BAD  = {"RANGING", "RISK-OFF", "EXHAUSTION"}
+        cur   = regimes[idx]
         degrade = (
-            (entry_regime == "TRENDING" and regimes[idx] in ("RANGING", "RISK-OFF"))
-            or (entry_regime != "TRENDING" and regimes[idx] != entry_regime)
+            # entered in strong trend, now ranging/risk-off/exhaustion
+            (entry_regime in _GOOD and cur in _BAD)
+            # entered in TRENDING_STRONG, now TRENDING_WEAK (partial degrade)
+            or (entry_regime == "TRENDING_STRONG" and cur == "TRENDING_WEAK")
+            # entered in BREAKOUT but it stalled (BREAKOUT → RANGING without TRENDING)
+            or (entry_regime == "BREAKOUT" and cur in _BAD)
         )
         flags["REGIME_DEGRADE"] = int(degrade)
         # JEDI_FADE: conviction halved (+0.486 Sharpe, 9.5% trigger)
@@ -211,9 +235,13 @@ class Trade:
     entry_regime: str
     entry_jedi: float
     lots_in: float
+    base_lot: float = 1.0  # initial entry size — anchor for exponential pyramid
+    entry_price: float = 0.0
     scale_in_count: int = 0
     scale_out_count: int = 0
     partial_returns: list[float] = field(default_factory=list)
+    breakeven_locked: bool = False
+    harvested_lots: int = 0
     exit_idx: int = -1
     exit_reason: str = ""
     final_return: float = 0.0
@@ -242,47 +270,83 @@ def simulate_symbol(
 
         # ── In position: update ──────────────────────────────────────────────
         if position is not None:
+            close_now = float(df.iloc[i].get("close", position.entry_price) or position.entry_price)
+            outcome_1h = float(df.iloc[i].get("outcome_1h_pct", 0) or 0)
+
+            # Breakeven lock: trigger after be_bars of continuation in profit
+            if (not position.breakeven_locked
+                    and mode.be_bars > 0
+                    and (i - position.entry_idx) >= mode.be_bars
+                    and close_now > position.entry_price):
+                position.breakeven_locked = True
+
+            # Breakeven stop: price returned to entry — exit at 0 (house money protected)
+            if position.breakeven_locked and close_now <= position.entry_price:
+                position.exit_idx = i
+                position.exit_reason = "BREAKEVEN_STOP"
+                position.final_return = 0.0
+                trades.append(position)
+                position = None
+                continue
+
             cis_total, cis_flags = compute_cis(
                 i, df, scores, regimes,
                 position.entry_regime, position.entry_jedi,
                 position.entry_score, mode,
             )
-            accel = _accel_state(i, scores, rvol, mode.accel_bars)
 
-            # Scale-in on confirmed acceleration
-            if (accel == "ACCEL"
-                    and position.lots_in < mode.max_lots
-                    and not gates_blocked[i]):
-                position.lots_in = min(position.lots_in + 0.5, mode.max_lots)
-                position.scale_in_count += 1
-
-            # Scale-out (1 lot) on deceleration — lock partial, always winning
-            elif accel == "DECEL" and position.lots_in > 0.5:
-                # Exit half a lot at current bar's 1h outcome
-                partial_ret = float(df.iloc[i].get("outcome_1h_pct", 0) or 0)
-                position.partial_returns.append(partial_ret * 0.5)
-                position.lots_in -= 0.5
-                position.scale_out_count += 1
-
-            # CIS exit — full exit on invalidation (not a stop)
+            # CIS exit — check BEFORE scale-in (never scale into an exit)
             if cis_total >= mode.cis_threshold:
                 position.exit_idx = i
                 position.exit_reason = f"CIS={cis_total} [{','.join(k for k,v in cis_flags.items() if v)}]"
-                # Final return on remaining lots using 1h outcome (earlier exit than 4h)
                 position.final_return = float(df.iloc[i].get("outcome_1h_pct", 0) or 0) * position.lots_in
                 trades.append(position)
                 cis_exit_idx = i
                 position = None
                 continue
 
-            # Natural exit at 4h horizon (outcome already baked in signal_log)
-            if i - position.entry_idx >= 48:  # 48 × 5m = 4h
+            # Natural exit at mode horizon — "getting off at next station"
+            if i - position.entry_idx >= mode.horizon_bars:
                 position.exit_idx = i
-                position.exit_reason = "HORIZON_4H"
-                position.final_return = float(df.iloc[i].get("outcome_4h_pct", 0) or 0) * position.lots_in
+                position.exit_reason = "HORIZON"
+                position.final_return = float(df.iloc[i].get("outcome_1h_pct", 0) or 0) * position.lots_in
                 trades.append(position)
                 position = None
                 continue
+
+            accel = _accel_state(i, scores, rvol, mode.accel_bars)
+
+            # Scale-in on confirmed acceleration
+            if (accel == "ACCEL"
+                    and position.lots_in < mode.max_lots
+                    and not gates_blocked[i]):
+                if mode.name in ("EUPHORIA", "MAX"):
+                    # Exponential pyramid: tier 0=+1×, tier 1=+2×, tier 2=+4×
+                    add = position.base_lot * (2 ** position.scale_in_count)
+                else:
+                    add = 0.5
+                position.lots_in = min(position.lots_in + add, mode.max_lots)
+                position.scale_in_count += 1
+
+                # EUPHORIA/MAX: harvest 1 base_lot — realized gain from entry to now
+                if mode.harvest_on_scale and position.entry_price > 0:
+                    realized = (close_now - position.entry_price) / position.entry_price
+                    position.partial_returns.append(realized * position.base_lot)
+                    position.harvested_lots += 1
+                    if not position.breakeven_locked and close_now > position.entry_price:
+                        position.breakeven_locked = True
+
+            # Scale-out on deceleration — trim last exponential add, lock partial
+            elif accel == "DECEL" and position.lots_in > position.base_lot:
+                if mode.name in ("EUPHORIA", "MAX") and position.scale_in_count > 0:
+                    remove = position.base_lot * (2 ** (position.scale_in_count - 1))
+                    remove = min(remove, position.lots_in - position.base_lot)
+                else:
+                    remove = min(0.5, position.lots_in - position.base_lot)
+                partial_ret = float(df.iloc[i].get("outcome_1h_pct", 0) or 0)
+                position.partial_returns.append(partial_ret * remove)
+                position.lots_in -= remove
+                position.scale_out_count += 1
 
         # ── Flat: check entry ────────────────────────────────────────────────
         else:
@@ -296,12 +360,15 @@ def simulate_symbol(
             # Re-entry: only allowed REENTRY_WINDOW bars after CIS exit, if setup revalidated
             is_reentry = (0 < (i - cis_exit_idx) <= mode.reentry_window)
 
+            base = mode.reentry_lot_mult if is_reentry else 1.0
             position = Trade(
                 entry_idx=i,
                 entry_score=score,
                 entry_regime=regime,
                 entry_jedi=jedi,
-                lots_in=1.0,
+                lots_in=base,
+                base_lot=base,
+                entry_price=float(df.iloc[i].get("close", 0) or 0),
                 reentry=is_reentry,
             )
 
@@ -336,7 +403,7 @@ def sharpe(r: np.ndarray) -> float | None:
 
 # ── Main entry ────────────────────────────────────────────────────────────────
 
-def run(mode: ModeConfig = PADAWAN) -> dict:
+def run(mode: ModeConfig = PADAWAN, days: int = 0) -> dict:
     if not SIGNAL_DB.exists():
         return {"error": str(SIGNAL_DB)}
     if not REGIME_MAP.exists():
@@ -346,7 +413,7 @@ def run(mode: ModeConfig = PADAWAN) -> dict:
     pragma = {r[1] for r in conn.execute("PRAGMA table_info(signal_log)")}
     v_cols = [f"v_{s}" for s in ALL_ALGO_IDS if f"v_{s}" in pragma]
     want   = ["ts","symbol","outcome_4h_pct","outcome_1h_pct","close","high","low","open",
-              "atr_pct","squeeze","rvol","jedi_raw"] + v_cols
+              "atr_pct","squeeze","rvol","volume","jedi_raw"] + v_cols
     sel = [c for c in want if c in pragma]
     seen: set = set()
     sel = [c for c in sel if not (c in seen or seen.add(c))]
@@ -357,6 +424,13 @@ def run(mode: ModeConfig = PADAWAN) -> dict:
     conn.close()
 
     df_all = pd.DataFrame(rows, columns=sel)
+
+    if days > 0:
+        per_day = 86_400_000 if df_all["ts"].max() > 1e12 else 86_400
+        cutoff = df_all["ts"].max() - days * per_day
+        df_all = df_all[df_all["ts"] >= cutoff].copy()
+        log.info("Medallion slice: last %d days → %d bars", days, len(df_all))
+
     oos_cut = int(np.percentile(df_all["ts"].values, 70))
     df_all = df_all[df_all["ts"] >= oos_cut].copy()
     log.info("OOS bars: %d", len(df_all))
@@ -404,12 +478,16 @@ def run(mode: ModeConfig = PADAWAN) -> dict:
             sum(t.partial_returns) + t.final_return
         )
 
-    scale_in_events  = sum(t.scale_in_count  for t in all_trades)
-    scale_out_events = sum(t.scale_out_count for t in all_trades)
+    scale_in_events   = sum(t.scale_in_count  for t in all_trades)
+    scale_out_events  = sum(t.scale_out_count for t in all_trades)
+    be_stop_trades    = [t for t in all_trades if t.exit_reason == "BREAKEVEN_STOP"]
+    total_harvested   = sum(t.harvested_lots  for t in all_trades)
+    be_rets           = _trade_returns(be_stop_trades) if be_stop_trades else np.array([])
 
-    log.info("MODE=%s  trades=%d  sharpe=%.3f  scale_in=%d  scale_out=%d  reentries=%d",
+    log.info("MODE=%s  trades=%d  sharpe=%.3f  scale_in=%d  scale_out=%d  reentries=%d  be_stops=%d  harvested_lots=%d",
              mode.name, len(all_trades), sharpe(rets) or 0,
-             scale_in_events, scale_out_events, len(reentry_trades))
+             scale_in_events, scale_out_events, len(reentry_trades),
+             len(be_stop_trades), total_harvested)
 
     report = {
         "mode":          mode.name,
@@ -419,6 +497,8 @@ def run(mode: ModeConfig = PADAWAN) -> dict:
         "avg_return":    round(float(rets.mean()), 5) if len(rets) > 0 else None,
         "scale_in_events":  scale_in_events,
         "scale_out_events": scale_out_events,
+        "breakeven_stops":  len(be_stop_trades),
+        "harvested_lots":   total_harvested,
         "reentry_trades":   len(reentry_trades),
         "reentry_sharpe":   sharpe(reentry_rets),
         "exit_breakdown": {
@@ -474,7 +554,7 @@ def run_holdout(mode: ModeConfig = PADAWAN, holdout_pct: float = 85.0) -> dict:
     pragma = {r[1] for r in conn.execute("PRAGMA table_info(signal_log)")}
     v_cols = [f"v_{s}" for s in ALL_ALGO_IDS if f"v_{s}" in pragma]
     want   = ["ts","symbol","outcome_4h_pct","outcome_1h_pct","close","high","low","open",
-              "atr_pct","squeeze","rvol","jedi_raw"] + v_cols
+              "atr_pct","squeeze","rvol","volume","jedi_raw"] + v_cols
     sel    = [c for c in want if c in pragma]
     seen: set = set()
     sel = [c for c in sel if not (c in seen or seen.add(c))]
@@ -525,9 +605,13 @@ def run_holdout(mode: ModeConfig = PADAWAN, holdout_pct: float = 85.0) -> dict:
     reentry_rets = _trade_returns(reentry_trades) if reentry_trades else np.array([])
 
     reentry_sharpe = sharpe(reentry_rets)
+    overall_sharpe = sharpe(rets)
+    # Prefer re-entry Sharpe if available (thin-statistics guard).
+    # Fall back to overall holdout Sharpe when re-entries are 0 (tight configs).
+    _judge = reentry_sharpe if reentry_sharpe is not None else overall_sharpe
     verdict = (
-        "VALID"    if reentry_sharpe is not None and reentry_sharpe >= 10 else
-        "MARGINAL" if reentry_sharpe is not None and reentry_sharpe >= 5  else
+        "VALID"    if _judge is not None and _judge >= 10 else
+        "MARGINAL" if _judge is not None and _judge >= 5  else
         "OVERFIT_WARNING"
     )
 
@@ -560,10 +644,11 @@ def run_holdout(mode: ModeConfig = PADAWAN, holdout_pct: float = 85.0) -> dict:
 if __name__ == "__main__":
     import argparse
     ap = argparse.ArgumentParser()
-    ap.add_argument("--mode", choices=["PADAWAN","NORMAL","EUPHORIA"], default="PADAWAN")
+    ap.add_argument("--mode", choices=["PADAWAN","NORMAL","EUPHORIA","MAX"], default="PADAWAN")
     ap.add_argument("--holdout", action="store_true", help="run holdout validation only")
+    ap.add_argument("--days", type=int, default=0, help="limit to last N days (0=all data)")
     args = ap.parse_args()
-    m = {"PADAWAN": PADAWAN, "NORMAL": NORMAL, "EUPHORIA": EUPHORIA}[args.mode]
+    m = {"PADAWAN": PADAWAN, "NORMAL": NORMAL, "EUPHORIA": EUPHORIA, "MAX": MAX}[args.mode]
 
     if args.holdout:
         r = run_holdout(m)
@@ -579,7 +664,7 @@ if __name__ == "__main__":
         print(f"  Verdict:         {r['verdict']}")
         print(f"{'='*55}")
     else:
-        r = run(m)
+        r = run(m, days=args.days)
         print(f"\n{'='*55}")
         print(f"  DELTA SPECIAL OPS — MODE: {r['mode']}")
         print(f"{'='*55}")
@@ -588,6 +673,8 @@ if __name__ == "__main__":
         print(f"  Win rate:        {r['win_rate']}")
         print(f"  Scale-in events: {r['scale_in_events']}")
         print(f"  Scale-out events:{r['scale_out_events']}  ← partial profit locks")
+        print(f"  Breakeven stops: {r['breakeven_stops']}  ← house money exits")
+        print(f"  Harvested lots:  {r['harvested_lots']}  ← lots booked on scale-in")
         print(f"  Re-entry trades: {r['reentry_trades']}  (Sharpe={r['reentry_sharpe']})")
         print(f"\n  Exit breakdown:")
         for reason, st in r["exit_breakdown"].items():

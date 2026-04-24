@@ -1,28 +1,30 @@
 {
-  "mode": "EUPHORIA",
-  "n_trades": 117,
-  "sharpe": 19.833,
-  "win_rate": 0.624,
-  "avg_return": 0.10074,
-  "scale_in_events": 26,
-  "scale_out_events": 134,
+  "mode": "MAX",
+  "n_trades": 25,
+  "sharpe": null,
+  "win_rate": 0.68,
+  "avg_return": 0.00748,
+  "scale_in_events": 3,
+  "scale_out_events": 0,
+  "breakeven_stops": 0,
+  "harvested_lots": 3,
   "reentry_trades": 0,
   "reentry_sharpe": null,
   "exit_breakdown": {
     "CIS": {
-      "n": 117,
-      "sharpe": 19.833,
-      "win_rate": 0.624
+      "n": 25,
+      "sharpe": null,
+      "win_rate": 0.68
     }
   },
   "config": {
-    "kelly_mult": 2.5,
-    "max_lots": 3.0,
-    "entry_thr": 0.5,
-    "decay_thr": 0.2,
-    "cis_threshold": 3,
+    "kelly_mult": 4.0,
+    "max_lots": 5.0,
+    "entry_thr": 0.35,
+    "decay_thr": 0.12,
+    "cis_threshold": 1,
     "accel_bars": 2,
-    "reentry_window": 6,
+    "reentry_window": 4,
     "kill_hours": [
       0,
       1,
@@ -37,5 +39,5 @@
       23
     ]
   },
-  "generated_at": "2026-04-19T01:20:09"
+  "generated_at": "2026-04-24T14:47:34"
 }

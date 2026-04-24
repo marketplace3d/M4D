@@ -1,5 +1,21 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
+const DS  = "http://127.0.0.1:8000";
+const API = "http://127.0.0.1:3030";
+
+function usePoll(url, ms = 30_000) {
+  const [d, setD] = useState(null);
+  useEffect(() => {
+    let live = true;
+    const run = () =>
+      fetch(url).then(r => r.json()).then(x => { if (live) setD(x); }).catch(() => {});
+    run();
+    const id = setInterval(run, ms);
+    return () => { live = false; clearInterval(id); };
+  }, [url, ms]);
+  return d;
+}
+
 // ─── DESIGN TOKENS ───────────────────────────────────────────────────────────
 const T = {
   bg0: "#030810",
@@ -206,11 +222,30 @@ const DAYS = ["MON","TUE","WED","THU","FRI","SAT","SUN"];
 const DAYS_INIT = [true,true,true,true,true,false,false];
 
 function PulsePage() {
+  const council     = usePoll(`${API}/v1/council`, 30_000);
+  const caRpt       = usePoll(`${DS}/v1/cross/report/`, 60_000);
+  const paperStatus = usePoll(`${DS}/v1/paper/status/`, 30_000);
+
+  const liveJedi   = council?.jedi_score ?? null;
+  const liveRegime = council?.regime     ?? null;
+  const liveCA     = caRpt?.ca_regime    ?? null;
+  const liveEquity = paperStatus?.account?.equity ?? null;
+  const livePnl    = paperStatus?.account?.unrealized_pl ?? null;
+
   const [gates, setGates] = useState(GATES_INIT);
   const [hours, setHours] = useState(HOUR_DATA);
   const [days, setDays] = useState(DAYS_INIT);
-  const [kellyMult, setKellyMult] = useState(0.5); // 0=quarter, 0.5=half, 1=full
-  const [crossAsset, setCrossAsset] = useState("RISK_ON");
+  const [kellyMult, setKellyMult] = useState(0.5);
+  const [crossAsset, setCrossAsset] = useState("NEUTRAL");
+
+  // sync CA regime from live once on first load
+  const caSeeded = useRef(false);
+  useEffect(() => {
+    if (!caSeeded.current && liveCA) {
+      setCrossAsset(liveCA);
+      caSeeded.current = true;
+    }
+  }, [liveCA]);
 
   const toggleGate = (id) =>
     setGates(g => g.map(gate => gate.id === id ? { ...gate, on: !gate.on } : gate));
@@ -255,6 +290,49 @@ function PulsePage() {
           <Badge color="green" size="xs">● LIVE</Badge>
           <Badge color="gray" size="xs">PAPER MODE</Badge>
           <Badge color="gold" size="xs">{activeGates}/10 GATES ON</Badge>
+        </div>
+      </div>
+
+      {/* Live Intel Strip */}
+      <div style={{
+        display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap",
+        padding: "5px 10px", background: T.bg2, border: `1px solid ${T.border}`,
+        borderRadius: 3, marginBottom: 8, fontSize: 9, fontFamily: T.mono,
+      }}>
+        <span style={{ color: T.text3, letterSpacing: "0.1em" }}>LIVE ▸</span>
+        {liveJedi !== null ? (
+          <span style={{ color: liveJedi > 0 ? T.green : T.red, fontWeight: 700 }}>
+            JEDI {liveJedi > 0 ? `+${liveJedi}` : liveJedi}
+          </span>
+        ) : <span style={{ color: T.text3 }}>JEDI —</span>}
+        <span style={{ color: T.border2 }}>|</span>
+        {liveRegime ? (
+          <span style={{ color: liveRegime === "TRENDING" ? T.green : liveRegime === "RISK-OFF" ? T.red : T.text2, fontWeight: 700 }}>
+            {liveRegime}
+          </span>
+        ) : <span style={{ color: T.text3 }}>REGIME —</span>}
+        <span style={{ color: T.border2 }}>|</span>
+        <span style={{ color: T.text3 }}>CA:</span>
+        {liveCA ? (
+          <span style={{ color: liveCA === "RISK_ON" ? T.green : liveCA === "RISK_OFF" ? T.red : T.text2, fontWeight: 700 }}>
+            {liveCA} {liveCA !== crossAsset && <span style={{ color: T.gold }}>(override: {crossAsset})</span>}
+          </span>
+        ) : <span style={{ color: T.text3 }}>—</span>}
+        <span style={{ color: T.border2 }}>|</span>
+        {liveEquity !== null ? (
+          <span style={{ color: T.blue, fontWeight: 700 }}>
+            EQUITY ${liveEquity.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+            {livePnl !== null && (
+              <span style={{ color: livePnl >= 0 ? T.green : T.red, marginLeft: 6 }}>
+                {livePnl >= 0 ? "+" : ""}${livePnl.toFixed(2)} UPL
+              </span>
+            )}
+          </span>
+        ) : <span style={{ color: T.text3 }}>PAPER EQUITY —</span>}
+        <div style={{ marginLeft: "auto" }}>
+          <Badge color={council ? "green" : "gray"} size="xs">{council ? "● :3030" : "○ :3030"}</Badge>
+          <span style={{ marginLeft: 4 }}></span>
+          <Badge color={paperStatus ? "green" : "gray"} size="xs">{paperStatus ? "● :8000" : "○ :8000"}</Badge>
         </div>
       </div>
 
@@ -674,14 +752,17 @@ function FireButton({ label, onClick, variant = "default", disabled = false }) {
 }
 
 function TradePage() {
+  const score       = usePoll(`${DS}/v1/paper/score/?symbol=BTC`, 30_000);
+  const paperStatus = usePoll(`${DS}/v1/paper/status/`, 30_000);
+
   const [autoFire, setAutoFire] = useState(false);
   const [cisAuto, setCisAuto] = useState(true);
   const [reentryAuto, setReentryAuto] = useState(true);
   const [scaleAuto, setScaleAuto] = useState(true);
   const [fired, setFired] = useState(false);
-  const [logItems, setLogItems] = useState(TRADE_LOG);
   const [claudeVisible, setClaudeVisible] = useState(false);
   const [reasoningIdx, setReasoningIdx] = useState(0);
+  const [fireResult, setFireResult] = useState(null);
 
   // Typewriter effect for Claude reasoning
   useEffect(() => {
@@ -692,26 +773,77 @@ function TradePage() {
     }
   }, [claudeVisible, reasoningIdx]);
 
-  const convScore = 87;
+  // Live trade log from paper status
+  const logItems = (() => {
+    const trades = paperStatus?.recent_trades ?? [];
+    if (!trades.length) return TRADE_LOG;
+    return trades.slice(0, 10).map(t => {
+      const d = new Date(t.ts * 1000);
+      const time = `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+      const sym = (t.symbol || "").replace(/USDT$/i, "");
+      const dir = (t.side || "").toLowerCase().includes("buy") ? "LONG" : "SHORT";
+      const pos = (paperStatus?.positions ?? []).find(p =>
+        p.symbol?.replace(/USDT$/i,"") === sym
+      );
+      return {
+        time, sym, dir,
+        entry: t.price ?? 0,
+        exit: pos ? null : t.price,
+        pnl: pos ? Math.round((pos.unrealized_pl ?? 0) * 100) / 100 : 0,
+        mode: t.mode || "PADAWAN",
+        score: null,
+        notes: t.note || "",
+      };
+    });
+  })();
 
-  const handleFire = (dir) => {
-    const now = new Date();
-    const time = `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
-    setLogItems(prev => [{
-      time, sym: "BTC", dir,
-      entry: PRELOADED_VALS.entry,
-      exit: null,
-      pnl: 0,
-      mode: "PADAWAN",
-      score: convScore,
-      notes: "Fired from UI. Watching.",
-    }, ...prev]);
-    setFired(true);
+  // Live conviction from score endpoint
+  const convScore = score?.gates_pass === false
+    ? Math.round((score.soft_score ?? 0) * 40)
+    : score
+      ? Math.min(100, Math.round(45 + (score.soft_score ?? 0) * 30 + (score.jedi_raw ?? 0) * 1.5))
+      : 87;
+
+  const liveVals = {
+    symbol: "BTC/USDT",
+    direction: score?.entry_dir === "buy" ? "LONG" : score?.entry_dir === "sell" ? "SHORT" : PRELOADED_VALS.direction,
+    entry:   score?.price ?? PRELOADED_VALS.entry,
+    sl:      score?.price ? Math.round(score.price * 0.988 * 10) / 10 : PRELOADED_VALS.sl,
+    tp1:     score?.price ? Math.round(score.price * 1.010 * 10) / 10 : PRELOADED_VALS.tp1,
+    tp2:     score?.price ? Math.round(score.price * 1.018 * 10) / 10 : PRELOADED_VALS.tp2,
+    sizeKelly: PRELOADED_VALS.sizeKelly,
+    sizeAdj:   PRELOADED_VALS.sizeAdj,
+    rr:        PRELOADED_VALS.rr,
+    atrDist:   score?.atr_rank ? `${(score.atr_rank * 100).toFixed(0)}pct ATR` : PRELOADED_VALS.atrDist,
+    mode:      PRELOADED_VALS.mode,
+    regime:    score?.regime   ?? PRELOADED_VALS.regime,
+    jedi:      score?.jedi_raw ?? PRELOADED_VALS.jedi,
+    rvol:      score?.rvol_now ?? PRELOADED_VALS.rvol,
   };
 
-  const slPct = (((PRELOADED_VALS.entry - PRELOADED_VALS.sl) / PRELOADED_VALS.entry) * 100).toFixed(2);
-  const tp1Pct = (((PRELOADED_VALS.tp1 - PRELOADED_VALS.entry) / PRELOADED_VALS.entry) * 100).toFixed(2);
-  const tp2Pct = (((PRELOADED_VALS.tp2 - PRELOADED_VALS.entry) / PRELOADED_VALS.entry) * 100).toFixed(2);
+  const handleFire = async (dir) => {
+    setFired(true);
+    try {
+      const resp = await fetch(`${DS}/v1/paper/run/?mode=PADAWAN`, { method: "POST" });
+      const data = await resp.json();
+      setFireResult(data);
+    } catch (e) {
+      setFireResult({ ok: false, error: String(e) });
+    }
+  };
+
+  const slPct  = (((liveVals.entry - liveVals.sl)  / liveVals.entry) * 100).toFixed(2);
+  const tp1Pct = (((liveVals.tp1 - liveVals.entry) / liveVals.entry) * 100).toFixed(2);
+  const tp2Pct = (((liveVals.tp2 - liveVals.entry) / liveVals.entry) * 100).toFixed(2);
+
+  const liveArbChecks = score ? [
+    { label: "REGIME",     val: score.regime ?? "—",            pass: ["TRENDING","BREAKOUT"].includes(score.regime) },
+    { label: "JEDI",       val: String((score.jedi_raw ?? 0).toFixed(2)), pass: Math.abs(score.jedi_raw ?? 0) > 4 },
+    { label: "GATES",      val: score.gates_pass ? "PASS" : `KILL:${(score.gates_killed??[]).join(",")||"?"}`, pass: score.gates_pass },
+    { label: "ATR RANK",   val: `${((score.atr_rank ?? 0.5)*100).toFixed(0)}pct`, pass: (score.atr_rank ?? 0) > 0.30 },
+    { label: "RVOL",       val: `${(score.rvol_now ?? 1).toFixed(2)}×`, pass: (score.rvol_now ?? 0) < 4 ? null : false },
+    { label: "SQUEEZE",    val: score.squeeze ? "LOCKED" : "CLEAR", pass: !score.squeeze },
+  ] : ARB_CHECKS;
 
   return (
     <div style={{
@@ -767,7 +899,7 @@ function TradePage() {
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 3 }}>
-                  {ARB_CHECKS.map((chk, i) => (
+                  {liveArbChecks.map((chk, i) => (
                     <div key={i} style={{
                       display: "flex", alignItems: "center", gap: 4,
                       padding: "3px 5px",
@@ -839,29 +971,29 @@ function TradePage() {
               <span style={{ fontSize: 16, fontWeight: 700, color: T.green, letterSpacing: "0.2em" }}>
                 ▲ LONG
               </span>
-              <span style={{ fontSize: 10, color: T.green, marginLeft: 8 }}>{PRELOADED_VALS.symbol}</span>
+              <span style={{ fontSize: 10, color: T.green, marginLeft: 8 }}>{liveVals.symbol}</span>
             </div>
 
-            <StatRow label="ENTRY"         value={`$${PRELOADED_VALS.entry.toLocaleString()}`} valueColor={T.gold} />
-            <StatRow label="STOP LOSS"     value={`$${PRELOADED_VALS.sl.toLocaleString()} (−${slPct}%)`} valueColor={T.red} />
-            <StatRow label="TP1 (CIS)"     value={`$${PRELOADED_VALS.tp1.toLocaleString()} (+${tp1Pct}%)`} valueColor={T.green} />
-            <StatRow label="TP2 scale 50%" value={`$${PRELOADED_VALS.tp2.toLocaleString()} (+${tp2Pct}%)`} valueColor={T.green} />
-            <StatRow label="RISK:REWARD"   value={`1 : ${PRELOADED_VALS.rr}`} valueColor={T.green} />
-            <StatRow label="SIZE (½ Kelly)" value={`${PRELOADED_VALS.sizeKelly}%`} valueColor={T.text} />
-            <StatRow label="CA-ADJ SIZE"   value={`${PRELOADED_VALS.sizeAdj}%`} valueColor={T.green} />
-            <StatRow label="ATR DIST"      value={PRELOADED_VALS.atrDist} />
-            <StatRow label="MODE"          value={PRELOADED_VALS.mode} valueColor={T.gold} />
-            <StatRow label="REGIME"        value={PRELOADED_VALS.regime} valueColor={T.green} />
-            <StatRow label="JEDI SCORE"    value={PRELOADED_VALS.jedi.toFixed(2)} valueColor={T.purple} />
-            <StatRow label="RVOL"          value={`${PRELOADED_VALS.rvol}×`} valueColor={T.blue} border={false} />
+            <StatRow label="ENTRY"         value={`$${liveVals.entry.toLocaleString()}`} valueColor={T.gold} />
+            <StatRow label="STOP LOSS"     value={`$${liveVals.sl.toLocaleString()} (−${slPct}%)`} valueColor={T.red} />
+            <StatRow label="TP1 (CIS)"     value={`$${liveVals.tp1.toLocaleString()} (+${tp1Pct}%)`} valueColor={T.green} />
+            <StatRow label="TP2 scale 50%" value={`$${liveVals.tp2.toLocaleString()} (+${tp2Pct}%)`} valueColor={T.green} />
+            <StatRow label="RISK:REWARD"   value={`1 : ${liveVals.rr}`} valueColor={T.green} />
+            <StatRow label="SIZE (½ Kelly)" value={`${liveVals.sizeKelly}%`} valueColor={T.text} />
+            <StatRow label="CA-ADJ SIZE"   value={`${liveVals.sizeAdj}%`} valueColor={T.green} />
+            <StatRow label="ATR DIST"      value={liveVals.atrDist} />
+            <StatRow label="MODE"          value={liveVals.mode} valueColor={T.gold} />
+            <StatRow label="REGIME"        value={liveVals.regime} valueColor={T.green} />
+            <StatRow label="JEDI SCORE"    value={Number(liveVals.jedi).toFixed(2)} valueColor={T.purple} />
+            <StatRow label="RVOL"          value={`${liveVals.rvol}×`} valueColor={T.blue} border={false} />
 
             {/* Price ladder visual */}
             <div style={{ marginTop: 8, padding: "6px 8px", background: T.bg3, borderRadius: 2 }}>
               {[
-                { label: "TP2",   price: PRELOADED_VALS.tp2, color: T.green,  pct: +tp2Pct },
-                { label: "TP1",   price: PRELOADED_VALS.tp1, color: T.green,  pct: +tp1Pct },
-                { label: "ENTRY", price: PRELOADED_VALS.entry,color: T.gold,  pct: 0 },
-                { label: "SL",    price: PRELOADED_VALS.sl,  color: T.red,   pct: -slPct },
+                { label: "TP2",   price: liveVals.tp2, color: T.green,  pct: +tp2Pct },
+                { label: "TP1",   price: liveVals.tp1, color: T.green,  pct: +tp1Pct },
+                { label: "ENTRY", price: liveVals.entry,color: T.gold,  pct: 0 },
+                { label: "SL",    price: liveVals.sl,  color: T.red,   pct: -slPct },
               ].map((lvl) => (
                 <div key={lvl.label} style={{
                   display: "flex", justifyContent: "space-between",
@@ -884,25 +1016,46 @@ function TradePage() {
           right={<Badge color={fired ? "green" : "gold"} size="xs">{fired ? "EXECUTED" : "ARMED"}</Badge>}>
           <div style={{ padding: "8px 10px" }}>
             {/* AI recommendation banner */}
-            <div style={{
-              padding: "8px 10px", marginBottom: 8,
-              background: T.greenDD, border: `1px solid ${T.green}`,
-              borderRadius: 2,
-            }}>
-              <div style={{ fontSize: 8, color: T.green, letterSpacing: "0.1em", marginBottom: 2 }}>
-                AI RECOMMENDATION
+            {(() => {
+              const dir   = liveVals.direction;
+              const pass  = score?.gates_pass ?? true;
+              const bg    = pass ? T.greenDD : T.redDD;
+              const border= pass ? T.green   : T.red;
+              const col   = pass ? T.green   : T.red;
+              const label = pass
+                ? `✓ ENTER ${dir} — ${convScore >= 80 ? "HIGH" : "MED"} CONVICTION`
+                : `✗ GATE BLOCKED — ${(score?.gates_killed ?? []).join(", ") || "UNKNOWN"}`;
+              return (
+                <div style={{ padding: "8px 10px", marginBottom: 8, background: bg, border: `1px solid ${border}`, borderRadius: 2 }}>
+                  <div style={{ fontSize: 8, color: col, letterSpacing: "0.1em", marginBottom: 2 }}>
+                    {score ? "LIVE SIGNAL" : "AI RECOMMENDATION"}
+                  </div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: col }}>{label}</div>
+                  <div style={{ fontSize: 8, color: col, opacity: 0.7, marginTop: 1 }}>
+                    ARB {convScore}/100 · {liveArbChecks.filter(c=>c.pass===true).length}/{liveArbChecks.length} checks passed
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Fire result */}
+            {fireResult && (
+              <div style={{
+                padding: "5px 8px", marginBottom: 8,
+                background: fireResult.ok ? T.greenDD : T.redDD,
+                border: `1px solid ${fireResult.ok ? T.green : T.red}`,
+                borderRadius: 2, fontSize: 8,
+                color: fireResult.ok ? T.green : T.red,
+              }}>
+                {fireResult.ok
+                  ? `✓ PAPER RUN OK · ${fireResult.regime ?? ""} · ${(fireResult.trades_entered ?? []).length ?? 0} entered`
+                  : `✗ ${fireResult.error}`}
               </div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: T.green }}>
-                ✓ ENTER LONG — HIGH CONVICTION
-              </div>
-              <div style={{ fontSize: 8, color: T.greenD, marginTop: 1 }}>
-                ARB 87/100 · 5/6 checks passed
-              </div>
-            </div>
+            )}
 
             {/* Fire buttons */}
             <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
-              <FireButton label="⚡ FIRE LONG — AI SUPPORTED" variant="ai" onClick={() => handleFire("LONG")} />
+              <FireButton label={`⚡ FIRE ${liveVals.direction} — ${score ? "LIVE SIGNAL" : "AI SUPPORTED"}`} variant="ai" onClick={() => handleFire(liveVals.direction)} />
               <FireButton label="▲ MANUAL LONG — OVERRIDE" variant="long" onClick={() => handleFire("LONG")} />
               <FireButton label="▼ MANUAL SHORT — OVERRIDE" variant="short" onClick={() => handleFire("SHORT")} />
             </div>
