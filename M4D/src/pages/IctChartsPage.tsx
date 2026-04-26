@@ -88,6 +88,7 @@ export default function TvLwChartsPage() {
     controls.showSqueeze &&
     controls.showPoc &&
     controls.showLt &&
+    controls.showLt2 &&
     controls.showVwap &&
     controls.showCouncilArrows &&
     controls.showIchimoku &&
@@ -102,6 +103,7 @@ export default function TvLwChartsPage() {
     controls.showFvg &&
     controls.showPoc &&
     controls.showLt &&
+    controls.showLt2 &&
     controls.showVwap &&
     controls.showSwingRays &&
     controls.showSessionLevels &&
@@ -565,6 +567,14 @@ export default function TvLwChartsPage() {
             </button>
             <button
               type="button"
+              className={controls.showLt2 ? 'tv-lw-pill tv-lw-pill--on' : 'tv-lw-pill'}
+              onClick={() => persist({ ...controls, showLt2: !controls.showLt2 })}
+              title="LT2 — time-bin liquidity walls (start/stop buckets from thermal calc)"
+            >
+              LT2
+            </button>
+            <button
+              type="button"
               className={controls.showVwap ? 'tv-lw-pill tv-lw-pill--on' : 'tv-lw-pill'}
               onClick={() => persist({ ...controls, showVwap: !controls.showVwap })}
               title="Session VWAP + ±1σ bands (trend read)"
@@ -702,6 +712,7 @@ export default function TvLwChartsPage() {
                   showSqueeze: next,
                   showPoc: next,
                   showLt: next,
+                  showLt2: next,
                   showVwap: next,
                   showCouncilArrows: next,
                   showIchimoku: next,

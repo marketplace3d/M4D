@@ -8,6 +8,7 @@ import { loadControls, saveControls, setMasLayer, type ChartControls } from '@pw
 import { computePriceTargets, type LiquidityThermalResult } from '@pwa/lib/computePriceTargets';
 import { buildObiChartHeatTargets, type ObiLineDensity, type ObiLineSpread } from '@pwa/lib/obiChartHeatTargets';
 import { obiBoomMinimalControls } from '@pwa/lib/obiBoomMinimalControls';
+import { useObPressureStream } from '../hooks/useObPressureStream';
 import type { HeatTarget } from '../components/BoomLwChart';
 import BoomLwChart from '../components/BoomLwChart';
 import { SoloMasterOrb, type SoloOrbDirection } from '../viz/SoloMasterOrb';
@@ -896,11 +897,37 @@ const SOLO_PARTICIPATION_FLOOR_PCT = 15
 type SoloDockSide = 'left' | 'right'
 type SoloDockTier = 0 | 1 | 2
 type SoloDockState = { side: SoloDockSide; tier: SoloDockTier; visible: boolean }
+type LtVizState = {
+  glowGain: number;
+  lt2PriceBins: number;
+  lt2TimeBins: number;
+  lt2OpacityGain: number;
+  lt3MiniArrowGain: number;
+  lt3MainArrowGain: number;
+}
 
 function loadSoloDock(): SoloDockState {
   try { const j = JSON.parse(localStorage.getItem(SOLO_DOCK_KEY) ?? '{}') as Partial<SoloDockState>; return { side: j.side === 'left' ? 'left' : 'right', tier: j.tier === 0 || j.tier === 1 || j.tier === 2 ? j.tier : 1, visible: j.visible !== false } } catch { return { side: 'right', tier: 1, visible: true } }
 }
 function saveSoloDock(s: SoloDockState) { try { localStorage.setItem(SOLO_DOCK_KEY, JSON.stringify(s)) } catch {} }
+const LT_VIZ_KEY = 'm5d.obi.ltViz'
+function loadLtViz(): LtVizState {
+  try {
+    const raw = localStorage.getItem(LT_VIZ_KEY)
+    if (!raw) return { glowGain: 1.2, lt2PriceBins: 31, lt2TimeBins: 12, lt2OpacityGain: 1.0, lt3MiniArrowGain: 1.0, lt3MainArrowGain: 1.2 }
+    const j = JSON.parse(raw) as Partial<LtVizState>
+    return {
+      glowGain: typeof j.glowGain === 'number' ? Math.max(0.2, Math.min(2.5, j.glowGain)) : 1.2,
+      lt2PriceBins: typeof j.lt2PriceBins === 'number' ? Math.max(12, Math.min(72, Math.round(j.lt2PriceBins))) : 31,
+      lt2TimeBins: typeof j.lt2TimeBins === 'number' ? Math.max(4, Math.min(32, Math.round(j.lt2TimeBins))) : 12,
+      lt2OpacityGain: typeof j.lt2OpacityGain === 'number' ? Math.max(0.35, Math.min(2.5, j.lt2OpacityGain)) : 1.0,
+      lt3MiniArrowGain: typeof j.lt3MiniArrowGain === 'number' ? Math.max(0.5, Math.min(2.5, j.lt3MiniArrowGain)) : 1.0,
+      lt3MainArrowGain: typeof j.lt3MainArrowGain === 'number' ? Math.max(0.5, Math.min(3.0, j.lt3MainArrowGain)) : 1.2,
+    }
+  } catch {
+    return { glowGain: 1.2, lt2PriceBins: 31, lt2TimeBins: 12, lt2OpacityGain: 1.0, lt3MiniArrowGain: 1.0, lt3MainArrowGain: 1.2 }
+  }
+}
 
 type ObiChartLines = { show: boolean; density: ObiLineDensity; spread: ObiLineSpread }
 function loadObiChartLines(): ObiChartLines {
@@ -949,11 +976,13 @@ export default function ObiPage() {
   const [tickerInput, setTickerInput] = useState('')
   const [tickerFocus, setTickerFocus] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [obiVisible, setObiVisible] = useState(true)
+  const [obiVisible, setObiVisible] = useState(false)
   const [obiChartLines, setObiChartLines] = useState<ObiChartLines>(() => loadObiChartLines())
   const [showObiTargets, setShowObiTargets] = useState(true)  // ◎ ranked T1–T4 lines on chart
   const [obiBoomMinimal, setObiBoomMinimal] = useState<boolean>(() => loadObiBoomMinimal())
   const [soloDock, setSoloDock] = useState<SoloDockState>(() => loadSoloDock())
+  const [ltViz, setLtViz] = useState<LtVizState>(() => loadLtViz())
+  const [ltPanelOpen, setLtPanelOpen] = useState(false)
   const setObiChartLinesPatch = useCallback((patch: Partial<ObiChartLines> | ((p: ObiChartLines) => ObiChartLines)) => {
     setObiChartLines(prev => {
       const n = typeof patch === 'function' ? patch(prev) : { ...prev, ...patch }
@@ -966,11 +995,15 @@ export default function ObiPage() {
   const preSafetySigRef = useRef<{ sigMode: ChartControls['sigMode']; sigRvolMin: number; sigAtrExpandMin: number; sigBreakAtrFrac: number } | null>(null)
 
   const TOP_STOCKS = ['ES','SPY','QQQ','EURUSD','XAUUSD','BTC','NVDA','AAPL','MSFT','TSLA','AMZN','META','GOOGL'] as const
+  const obPressure = useObPressureStream(sym, vitePolygonKey)
 
   const persist = useCallback((next: ChartControls) => { setControls(next); saveControls(next) }, [])
   const setSoloDockPatch = useCallback((patch: Partial<SoloDockState> | ((p: SoloDockState) => Partial<SoloDockState>)) => {
     setSoloDock(prev => { const delta = typeof patch === 'function' ? patch(prev) : patch; const next = { ...prev, ...delta }; saveSoloDock(next); return next })
   }, [])
+  useEffect(() => {
+    try { localStorage.setItem(LT_VIZ_KEY, JSON.stringify(ltViz)) } catch {}
+  }, [ltViz])
 
   // SOLO orb
   const solo = useMemo(() => {
@@ -1025,6 +1058,8 @@ export default function ObiPage() {
     controls.showSqueeze &&
     controls.showPoc &&
     controls.showLt &&
+    controls.showLt2 &&
+    controls.showLt3 &&
     controls.showVwap &&
     controls.showCouncilArrows &&
     controls.showIchimoku &&
@@ -1040,7 +1075,7 @@ export default function ObiPage() {
   // defaultControls.masterOn=true, so we DON'T use it to drive the toggle — instead
   // we track whether the pack is currently in “ICT clean state” by checking all 7 keys.
   const ict7Keys: (keyof ChartControls)[] = [
-    'showOrderBlocks', 'showFvg', 'showPoc', 'showLt', 'showVwap', 'showSwingRays', 'showSessionLevels',
+    'showOrderBlocks', 'showFvg', 'showPoc', 'showLt', 'showLt2', 'showLt3', 'showVwap', 'showSwingRays', 'showSessionLevels',
   ]
   // “ICT mode” = all 7 are on AND the noisy layers are off
   const ictModeOn =
@@ -1055,7 +1090,7 @@ export default function ObiPage() {
         showBB: false, showKC: false, showSar: false,
         showSqueeze: false, squeezeLinesGreen: false, squeezePurpleBg: false,
         showDarvas: false, showCouncilArrows: false, showVoteDots: false,
-        showLt: true, showKillzones: false, showEqualLevels: false,
+        showLt: true, showLt2: true, showLt3: true, showKillzones: false, showEqualLevels: false,
         showBreakerBlocks: false, showVolBubbles: false, showMmBrain: false,
         showOrderBlocks: true, showFvg: true, showPoc: true, showVwap: true,
         showSwingRays: true, showSessionLevels: true,
@@ -1063,7 +1098,7 @@ export default function ObiPage() {
         masterOn: true,
       })
     } else {
-      persist({ ...controls, showOrderBlocks: false, showFvg: false, showPoc: false, showLt: false, showVwap: false, showSwingRays: false, showSessionLevels: false, masterOn: false })
+      persist({ ...controls, showOrderBlocks: false, showFvg: false, showPoc: false, showLt: false, showLt2: false, showLt3: false, showVwap: false, showSwingRays: false, showSessionLevels: false, masterOn: false })
     }
   }, [controls, persist, setObiBoomMinimalPatch])
 
@@ -1388,6 +1423,8 @@ export default function ObiPage() {
               ['showFvg','FVG','Fair value gaps'],
               ['showPoc','VP','Volume profile'],
               ['showLt','LT','Liquidity thermal heatmap'],
+              ['showLt2','LT2','Liquidity thermal time-binned walls (start/stop by time bucket)'],
+              ['showLt3','LT3','Liquidity thermal every-interval dense heatmap (all intervals)'],
               ['showVwap','VWAP','VWAP ±1σ/2σ'],
               ['showSwingRays','SWG','Swing rays'],
               ['showSessionLevels','SESS','Session levels: OR / PDH / PDL'],
@@ -1429,7 +1466,7 @@ export default function ObiPage() {
               onClick={() => {
                 const next = !obiBoomMinimal
                 setObiBoomMinimalPatch(next)
-                if (next) persist({ ...controls, showBB: false, showKC: false, showSqueeze: false, squeezePurpleBg: false, showSar: false, showDarvas: false, showCouncilArrows: false, showVoteDots: false, showLt: false, showOrderBlocks: false, showFvg: false, showPoc: false, showVwap: false, showSwingRays: false, showSessionLevels: false, showIchimoku: false, showMas: false })
+                if (next) persist({ ...controls, showBB: false, showKC: false, showSqueeze: false, squeezePurpleBg: false, showSar: false, showDarvas: false, showCouncilArrows: false, showVoteDots: false, showLt: false, showLt2: false, showLt3: false, showOrderBlocks: false, showFvg: false, showPoc: false, showVwap: false, showSwingRays: false, showSessionLevels: false, showIchimoku: false, showMas: false })
               }}
               title="MIN: strip overlays to clean candles. Other buttons still work.">MIN</button>
             <button type="button" className={obiVisible ? 'tv-lw-pill tv-lw-pill--purple-on' : 'tv-lw-pill tv-lw-pill--purple-off'} style={{ fontSize: 8, padding: '1px 5px' }} onClick={() => setObiVisible(v => !v)} title="OBI targets panel">OBI</button>
@@ -1555,8 +1592,145 @@ export default function ObiPage() {
               symbol={sym}
               obiConfirmTargets
               heatTargets={chartLtHeatTargets}
+              ltViz={{
+                actionGlowGain: ltViz.glowGain,
+                showActionBubbles: false,
+                bubbleThreshold: 1,
+                obPressure: obPressure.pressure,
+                obConfidence: obPressure.confidence,
+                lt2PriceBins: ltViz.lt2PriceBins,
+                lt2TimeBins: ltViz.lt2TimeBins,
+                lt2OpacityGain: ltViz.lt2OpacityGain,
+                lt3MiniArrowGain: ltViz.lt3MiniArrowGain,
+                lt3MainArrowGain: ltViz.lt3MainArrowGain,
+              }}
             />
           )}
+          <div style={{
+            position: 'absolute',
+            bottom: 12,
+            left: 12,
+            width: ltPanelOpen ? 188 : 112,
+            border: '1px solid rgba(255,255,255,0.18)',
+            background: 'rgba(4,10,18,0.22)',
+            backdropFilter: 'blur(2px)',
+            borderRadius: 4,
+            padding: '5px 7px',
+            zIndex: 8,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: ltPanelOpen ? 4 : 0 }}>
+              <div style={{ fontSize: 8, color: '#22d3ee', fontFamily: 'monospace', letterSpacing: 1 }}>
+                LT CONTEXT
+              </div>
+              <button
+                type="button"
+                className="tv-lw-pill"
+                style={{ fontSize: 8, padding: '1px 6px' }}
+                onClick={() => setLtPanelOpen((v) => !v)}
+                title={ltPanelOpen ? 'Collapse LT panel' : 'Expand LT panel'}
+              >
+                {ltPanelOpen ? 'HIDE' : 'SHOW'}
+              </button>
+            </div>
+            {ltPanelOpen ? (
+              <>
+                <div style={{ fontSize: 8, color: '#94a3b8', fontFamily: 'monospace', marginBottom: 6 }}>
+                  LT2 context menu
+                </div>
+                <label style={{ display: 'block', marginBottom: 6 }}>
+                  <div style={{ fontSize: 8, color: '#e2e8f0', fontFamily: 'monospace', marginBottom: 2 }}>
+                    Pressure {ltViz.glowGain.toFixed(2)}x
+                  </div>
+                  <input
+                    type="range"
+                    min={0.2}
+                    max={2.5}
+                    step={0.05}
+                    value={ltViz.glowGain}
+                    onChange={(e) => setLtViz((s) => ({ ...s, glowGain: Number.parseFloat(e.target.value) || 1 }))}
+                    style={{ width: '100%' }}
+                  />
+                </label>
+                <label style={{ display: 'block', marginBottom: 6 }}>
+                  <div style={{ fontSize: 8, color: '#e2e8f0', fontFamily: 'monospace', marginBottom: 2 }}>
+                    LT2 Price Bins {ltViz.lt2PriceBins}
+                  </div>
+                  <input
+                    type="range"
+                    min={12}
+                    max={72}
+                    step={1}
+                    value={ltViz.lt2PriceBins}
+                    onChange={(e) => setLtViz((s) => ({ ...s, lt2PriceBins: Number.parseInt(e.target.value, 10) || 31 }))}
+                    style={{ width: '100%' }}
+                  />
+                </label>
+                <label style={{ display: 'block', marginBottom: 6 }}>
+                  <div style={{ fontSize: 8, color: '#e2e8f0', fontFamily: 'monospace', marginBottom: 2 }}>
+                    LT2 Time Bins {ltViz.lt2TimeBins}
+                  </div>
+                  <input
+                    type="range"
+                    min={4}
+                    max={32}
+                    step={1}
+                    value={ltViz.lt2TimeBins}
+                    onChange={(e) => setLtViz((s) => ({ ...s, lt2TimeBins: Number.parseInt(e.target.value, 10) || 12 }))}
+                    style={{ width: '100%' }}
+                  />
+                </label>
+                <label style={{ display: 'block', marginBottom: 6 }}>
+                  <div style={{ fontSize: 8, color: '#e2e8f0', fontFamily: 'monospace', marginBottom: 2 }}>
+                    LT2 Opacity {ltViz.lt2OpacityGain.toFixed(2)}x
+                  </div>
+                  <input
+                    type="range"
+                    min={0.35}
+                    max={2.5}
+                    step={0.05}
+                    value={ltViz.lt2OpacityGain}
+                    onChange={(e) => setLtViz((s) => ({ ...s, lt2OpacityGain: Number.parseFloat(e.target.value) || 1 }))}
+                    style={{ width: '100%' }}
+                  />
+                </label>
+                <label style={{ display: 'block', marginBottom: 6 }}>
+                  <div style={{ fontSize: 8, color: '#e2e8f0', fontFamily: 'monospace', marginBottom: 2 }}>
+                    LT3 Mini Arrows {ltViz.lt3MiniArrowGain.toFixed(2)}x
+                  </div>
+                  <input
+                    type="range"
+                    min={0.5}
+                    max={2.5}
+                    step={0.05}
+                    value={ltViz.lt3MiniArrowGain}
+                    onChange={(e) => setLtViz((s) => ({ ...s, lt3MiniArrowGain: Number.parseFloat(e.target.value) || 1 }))}
+                    style={{ width: '100%' }}
+                  />
+                </label>
+                <label style={{ display: 'block', marginBottom: 6 }}>
+                  <div style={{ fontSize: 8, color: '#e2e8f0', fontFamily: 'monospace', marginBottom: 2 }}>
+                    LT3 Main Arrow {ltViz.lt3MainArrowGain.toFixed(2)}x
+                  </div>
+                  <input
+                    type="range"
+                    min={0.5}
+                    max={3.0}
+                    step={0.05}
+                    value={ltViz.lt3MainArrowGain}
+                    onChange={(e) => setLtViz((s) => ({ ...s, lt3MainArrowGain: Number.parseFloat(e.target.value) || 1.2 }))}
+                    style={{ width: '100%' }}
+                  />
+                </label>
+                <div style={{ marginTop: 6, fontSize: 8, color: '#94a3b8', fontFamily: 'monospace' }}>
+                  OB {obPressure.status.toUpperCase()} {obPressure.pressure >= 0 ? 'UP' : 'DN'} {(Math.abs(obPressure.pressure) * 100).toFixed(0)}%
+                </div>
+              </>
+            ) : (
+              <div style={{ fontSize: 8, color: '#94a3b8', fontFamily: 'monospace', marginTop: 3 }}>
+                LT2 {ltViz.lt2PriceBins}/{ltViz.lt2TimeBins} · A {ltViz.lt3MainArrowGain.toFixed(2)}x
+              </div>
+            )}
+          </div>
           {!loading && obiResult && <ObiDirectionArrow obi={obiResult} rightOffset={obiVisible ? 216 : 20} />}
         </div>
         {/* OBI panel — fixed width, full height */}

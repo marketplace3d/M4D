@@ -50,8 +50,8 @@ export default function App() {
     return ([0.85, 1.0, 1.2, 1.5] as TextScale[]).includes(s as TextScale) ? s as TextScale : 1.0
   })
   const [leftCollapsed, setLeftCollapsed] = useState(() => window.innerWidth < 1200)
-  /** Right “algo status” rail: open on desktop by default; mobile forces closed. */
-  const [rightOpen, setRightOpen]         = useState(() => typeof window !== 'undefined' && window.innerWidth >= 768)
+  /** Right “algo status” rail: default closed; user can expand on demand. */
+  const [rightOpen, setRightOpen]         = useState(false)
 
   const bp = useBreakpoint()
 

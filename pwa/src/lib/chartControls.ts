@@ -54,6 +54,10 @@ export type ChartControls = {
   safetyDefenseOn: boolean;
   /** Liquidity Thermal heatmap (300-bar, 31-bin BigBeluga-style) */
   showLt: boolean;
+  /** Liquidity Thermal v2 — time-binned walls (start/stop by bucket) */
+  showLt2: boolean;
+  /** Liquidity Thermal v3 — every-interval dense heat calculation */
+  showLt3: boolean;
   /** Session killzone background bands: London Open (08-10 UTC) + NY Open (14-16 UTC) */
   showKillzones: boolean;
   /** Equal Highs / Equal Lows — ICT liquidity pool magnets */
@@ -97,6 +101,8 @@ export const defaultControls: ChartControls = {
   sigBreakAtrFrac: 0.03,
   safetyDefenseOn: false,
   showLt: true,
+  showLt2: false,
+  showLt3: false,
   showKillzones: true,
   showEqualLevels: true,
   showBreakerBlocks: true,
@@ -136,6 +142,8 @@ export const defaultControlsAllOff: ChartControls = {
   sigBreakAtrFrac: 0.03,
   safetyDefenseOn: false,
   showLt: false,
+  showLt2: false,
+  showLt3: false,
   showKillzones: false,
   showEqualLevels: false,
   showBreakerBlocks: false,
@@ -212,6 +220,8 @@ export function loadControls(): ChartControls {
       fvgMaxDisplay,
       safetyDefenseOn,
       showLt: p.showLt !== false,   // default ON — only off if explicitly saved false
+      showLt2: p.showLt2 === true,  // default OFF — only on if explicitly saved true
+      showLt3: p.showLt3 === true,  // default OFF — only on if explicitly saved true
     };
   } catch {
     return { ...defaultControls };

@@ -46,6 +46,8 @@ declare module '@pwa/lib/chartControls' {
     sigBreakAtrFrac: number;
     safetyDefenseOn: boolean;
     showLt: boolean;
+    showLt2: boolean;
+    showLt3: boolean;
   };
   export const defaultControls: ChartControls;
   export const defaultControlsAllOff: ChartControls;

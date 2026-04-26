@@ -17,6 +17,7 @@ COMBINED INVALIDATION SCORE (CIS):
   3. JEDI_REVERSAL    — jedi_raw crossed to opposite sign vs entry
   4. SCORE_DECAY      — soft_score dropped below DECAY_THR (momentum gone)
   5. ATR_COLLAPSE     — ATR rank < 20th pct (market frozen post-entry)
+  6. DELTA_EARLY_FAIL — in first 10-30s after entry, delta flips against entry direction
 
 Any 2+ firing = EXIT. No stop price. No donation.
 
@@ -73,6 +74,11 @@ class ModeConfig:
     harvest_on_scale: bool = False  # on each scale-in, book 1 base_lot as harvested profit
     reentry_lot_mult: float = 1.0  # multiply base_lot on re-entry (retest confirmation edge)
     horizon_bars: int = 48  # max hold duration in 5m bars (48=4h, 24=2h, 12=1h)
+    # Microstructure guard (seconds after entry): early breakout failure detector.
+    # Active only when delta columns are present in the dataframe.
+    early_exit_window_min_sec: int = 10
+    early_exit_window_max_sec: int = 30
+    delta_early_fail_enabled: bool = True
 
 
 PADAWAN = ModeConfig(
@@ -147,6 +153,7 @@ def compute_cis(
     entry_jedi: float,
     entry_score: float,
     mode: ModeConfig,
+    entry_idx: int,
 ) -> tuple[int, dict]:
     """Return (cis_total, breakdown_dict).
 
@@ -202,6 +209,39 @@ def compute_cis(
     # 6. SQUEEZE_FIRED — squeeze activated while in a directional position
     sqz = int(df.iloc[idx]["squeeze"]) if "squeeze" in df.columns else 0
     flags["SQUEEZE_FIRED"] = int(sqz == 1)
+
+    # 7. DELTA_EARLY_FAIL — first 10-30s post-entry, detect immediate pressure flip.
+    # This is intentionally strict for breakout protection/retest awareness.
+    # It only fires if delta fields exist (safe no-op otherwise).
+    flags["DELTA_EARLY_FAIL"] = 0
+    if mode.delta_early_fail_enabled:
+        ts_now = float(df.iloc[idx].get("ts", np.nan))
+        ts_ent = float(df.iloc[entry_idx].get("ts", np.nan)) if "ts" in df.columns else np.nan
+        if np.isfinite(ts_now) and np.isfinite(ts_ent):
+            # ts can be ms or s
+            elapsed = (ts_now - ts_ent) / (1000.0 if ts_now > 1e12 else 1.0)
+            in_window = mode.early_exit_window_min_sec <= elapsed <= mode.early_exit_window_max_sec
+            if in_window:
+                d10 = float(df.iloc[idx].get("delta_10s", np.nan))
+                d30 = float(df.iloc[idx].get("delta_30s", np.nan))
+                if not np.isfinite(d10):
+                    d10 = float(df.iloc[idx].get("cvd_delta_10s", np.nan))
+                if not np.isfinite(d30):
+                    d30 = float(df.iloc[idx].get("cvd_delta_30s", np.nan))
+                if not np.isfinite(d10):
+                    d10 = float(df.iloc[idx].get("delta", np.nan))
+                if not np.isfinite(d30):
+                    d30 = float(df.iloc[idx].get("cvd_delta", np.nan))
+
+                if np.isfinite(d10) or np.isfinite(d30):
+                    # Use entry_jedi sign as direction proxy:
+                    #   entry_jedi >= 0 => long-bias breakout, need positive delta support
+                    #   entry_jedi < 0  => short-bias breakout, need negative delta support
+                    long_bias = entry_jedi >= 0
+                    opp10 = np.isfinite(d10) and ((d10 < 0) if long_bias else (d10 > 0))
+                    opp30 = np.isfinite(d30) and ((d30 < 0) if long_bias else (d30 > 0))
+                    # Fire only if both short and medium micro windows oppose the entry
+                    flags["DELTA_EARLY_FAIL"] = int(opp10 and opp30)
 
     total = sum(flags.values())
     return total, flags
@@ -293,6 +333,7 @@ def simulate_symbol(
                 i, df, scores, regimes,
                 position.entry_regime, position.entry_jedi,
                 position.entry_score, mode,
+                entry_idx=position.entry_idx,
             )
 
             # CIS exit — check BEFORE scale-in (never scale into an exit)
@@ -515,6 +556,9 @@ def run(mode: ModeConfig = PADAWAN, days: int = 0) -> dict:
             "entry_thr":        mode.entry_thr,
             "decay_thr":        mode.decay_thr,
             "cis_threshold":    mode.cis_threshold,
+            "delta_early_fail_enabled": mode.delta_early_fail_enabled,
+            "early_exit_window_min_sec": mode.early_exit_window_min_sec,
+            "early_exit_window_max_sec": mode.early_exit_window_max_sec,
             "accel_bars":       mode.accel_bars,
             "reentry_window":   mode.reentry_window,
             "kill_hours":       sorted(KILL_HOURS),

@@ -27,6 +27,8 @@ export function obiBoomMinimalControls(c: ChartControls): ChartControls {
     showPoc: false,
     showVwap: false,
     showLt: false,
+    showLt2: false,
+    showLt3: false,
     showKillzones: false,
     showEqualLevels: false,
     showBreakerBlocks: false,

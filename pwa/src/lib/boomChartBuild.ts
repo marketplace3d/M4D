@@ -17,6 +17,8 @@ import { createIchimokuCloudPrimitive } from './ichimokuCloudPrimitive';
 import { createEmaRibbonPrimitive } from './emaRibbonPrimitive';
 import { createVolumeProfileHeatPrimitive } from './volumeProfileHeatPrimitive';
 import { createLiquidityThermalPrimitive } from './liquidityThermalPrimitive';
+import { createLiquidityThermalTimeBinsPrimitive } from './liquidityThermalTimeBinsPrimitive';
+import { createLiquidityThermalEveryIntervalPrimitive } from './liquidityThermalEveryIntervalPrimitive';
 import { detectEqualLevels } from './equalLevels';
 import { detectBreakerBlocks } from './breakerBlocks';
 import { computeLiquidityThermal } from './liquidityThermal';
@@ -82,6 +84,19 @@ export type MountBoomChartOpts = {
   symbol?: string;
   /** Polygon.io API key — required for MTF daily bar fetch on non-BTC symbols. */
   polygonKey?: string;
+  /** Liquidity thermal visual tuning (LT2/LT3). */
+  ltViz?: {
+    actionGlowGain?: number;
+    showActionBubbles?: boolean;
+    bubbleThreshold?: number;
+    obPressure?: number;
+    obConfidence?: number;
+    lt2PriceBins?: number;
+    lt2TimeBins?: number;
+    lt2OpacityGain?: number;
+    lt3MiniArrowGain?: number;
+    lt3MainArrowGain?: number;
+  };
 };
 
 export async function mountBoomChart(
@@ -95,6 +110,7 @@ export async function mountBoomChart(
   const compactUi = opts?.compactUi === true;
   const symbol = opts?.symbol;
   const polygonKey = opts?.polygonKey;
+  const ltViz = opts?.ltViz;
   const lwc = await import('lightweight-charts');
   const {
     createChart,
@@ -249,6 +265,42 @@ export async function mountBoomChart(
   if ((c as { showLt?: boolean }).showLt && bars.length >= 40) {
     candle.attachPrimitive(
       createLiquidityThermalPrimitive(bars, { period: 300, panelWidth: 52 }),
+    );
+  }
+
+  // Liquidity Thermal LT2 — time-binned walls (start/stop by time bucket)
+  if ((c as { showLt2?: boolean }).showLt2 && bars.length >= 40) {
+    candle.attachPrimitive(
+      createLiquidityThermalTimeBinsPrimitive(bars, {
+        period: 300,
+        priceBins: ltViz?.lt2PriceBins ?? 31,
+        timeBins: ltViz?.lt2TimeBins ?? 12,
+        wallThreshold: 0,
+        actionGlowGain: ltViz?.actionGlowGain ?? 1,
+        showActionBubbles: ltViz?.showActionBubbles ?? false,
+        bubbleThreshold: ltViz?.bubbleThreshold ?? 1,
+        obPressure: ltViz?.obPressure ?? 0,
+        obConfidence: ltViz?.obConfidence ?? 0,
+        opacityGain: ltViz?.lt2OpacityGain ?? 1,
+      }),
+    );
+  }
+
+  // Liquidity Thermal LT3 — dense every-interval computation
+  if ((c as { showLt3?: boolean }).showLt3 && bars.length >= 40) {
+    candle.attachPrimitive(
+      createLiquidityThermalEveryIntervalPrimitive(bars, {
+        period: 220,
+        priceBins: 31,
+        intervalStep: 1,
+        actionGlowGain: ltViz?.actionGlowGain ?? 1,
+        showActionBubbles: ltViz?.showActionBubbles ?? false,
+        bubbleThreshold: ltViz?.bubbleThreshold ?? 1,
+        obPressure: ltViz?.obPressure ?? 0,
+        obConfidence: ltViz?.obConfidence ?? 0,
+        miniArrowGain: ltViz?.lt3MiniArrowGain ?? 1,
+        mainArrowGain: ltViz?.lt3MainArrowGain ?? 1,
+      }),
     );
   }
 
