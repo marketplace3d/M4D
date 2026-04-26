@@ -305,7 +305,8 @@ export async function mountBoomChart(
   }
 
   // ── Session killzone backgrounds — London Open + NY Open ─────────────────
-  if ((c as { showKillzones?: boolean }).showKillzones && bars.length >= 2) {
+  // SESS should include killzones by default; keep showKillzones as explicit override.
+  if (((c as { showKillzones?: boolean }).showKillzones || c.showSessionLevels) && bars.length >= 2) {
     candle.attachPrimitive({
       attached({ chart: _c, series: _s }) {},
       detached() {},

@@ -74,6 +74,15 @@ export default function BoomLwChart({ bars, controls, compactUi = false, showVwa
 
   const barsKey = barsFingerprint(bars);
   const controlsKey = JSON.stringify(chartControls);
+  const ltVizKey = useMemo(() => {
+    if (!ltViz) return '';
+    return JSON.stringify({
+      ...ltViz,
+      // Quantize live OB fields so chart doesn't remount excessively on tiny ticks.
+      obPressure: typeof ltViz.obPressure === 'number' ? Number(ltViz.obPressure.toFixed(2)) : undefined,
+      obConfidence: typeof ltViz.obConfidence === 'number' ? Number(ltViz.obConfidence.toFixed(2)) : undefined,
+    });
+  }, [ltViz]);
 
   useEffect(() => {
     const el = elRef.current;
@@ -121,7 +130,7 @@ export default function BoomLwChart({ bars, controls, compactUi = false, showVwa
       chart = null;
       ro = null;
     };
-  }, [barsKey, controlsKey, bars, chartControls, compactUi]);
+  }, [barsKey, controlsKey, ltVizKey, bars, chartControls, compactUi, symbol, polygonKey]);
 
   // ── Heatseeker target level line ────────────────────────────────────────────
   useEffect(() => {

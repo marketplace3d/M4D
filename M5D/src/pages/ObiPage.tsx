@@ -564,7 +564,7 @@ function ObiDirectionArrow({ obi, rightOffset = 20 }: { obi: NonNullable<ReturnT
 
   return (
     <div style={{
-      position: 'absolute', bottom: 48, right: rightOffset, zIndex: 12,
+      position: 'absolute', bottom: 78, right: rightOffset, zIndex: 12,
       display: 'flex', flexDirection: 'column', alignItems: 'center',
       pointerEvents: 'none', userSelect: 'none',
     }}>
@@ -904,6 +904,16 @@ type LtVizState = {
   lt2OpacityGain: number;
   lt3MiniArrowGain: number;
   lt3MainArrowGain: number;
+  bubbles: boolean;
+}
+const LT_VIZ_DEFAULTS: LtVizState = {
+  glowGain: 1.2,
+  lt2PriceBins: 31,
+  lt2TimeBins: 12,
+  lt2OpacityGain: 1.0,
+  lt3MiniArrowGain: 1.0,
+  lt3MainArrowGain: 1.2,
+  bubbles: false,
 }
 
 function loadSoloDock(): SoloDockState {
@@ -914,18 +924,19 @@ const LT_VIZ_KEY = 'm5d.obi.ltViz'
 function loadLtViz(): LtVizState {
   try {
     const raw = localStorage.getItem(LT_VIZ_KEY)
-    if (!raw) return { glowGain: 1.2, lt2PriceBins: 31, lt2TimeBins: 12, lt2OpacityGain: 1.0, lt3MiniArrowGain: 1.0, lt3MainArrowGain: 1.2 }
+    if (!raw) return LT_VIZ_DEFAULTS
     const j = JSON.parse(raw) as Partial<LtVizState>
     return {
-      glowGain: typeof j.glowGain === 'number' ? Math.max(0.2, Math.min(2.5, j.glowGain)) : 1.2,
-      lt2PriceBins: typeof j.lt2PriceBins === 'number' ? Math.max(12, Math.min(72, Math.round(j.lt2PriceBins))) : 31,
-      lt2TimeBins: typeof j.lt2TimeBins === 'number' ? Math.max(4, Math.min(32, Math.round(j.lt2TimeBins))) : 12,
-      lt2OpacityGain: typeof j.lt2OpacityGain === 'number' ? Math.max(0.35, Math.min(2.5, j.lt2OpacityGain)) : 1.0,
-      lt3MiniArrowGain: typeof j.lt3MiniArrowGain === 'number' ? Math.max(0.5, Math.min(2.5, j.lt3MiniArrowGain)) : 1.0,
-      lt3MainArrowGain: typeof j.lt3MainArrowGain === 'number' ? Math.max(0.5, Math.min(3.0, j.lt3MainArrowGain)) : 1.2,
+      glowGain: typeof j.glowGain === 'number' ? Math.max(0.2, Math.min(2.5, j.glowGain)) : LT_VIZ_DEFAULTS.glowGain,
+      lt2PriceBins: typeof j.lt2PriceBins === 'number' ? Math.max(12, Math.min(72, Math.round(j.lt2PriceBins))) : LT_VIZ_DEFAULTS.lt2PriceBins,
+      lt2TimeBins: typeof j.lt2TimeBins === 'number' ? Math.max(4, Math.min(32, Math.round(j.lt2TimeBins))) : LT_VIZ_DEFAULTS.lt2TimeBins,
+      lt2OpacityGain: typeof j.lt2OpacityGain === 'number' ? Math.max(0.35, Math.min(2.5, j.lt2OpacityGain)) : LT_VIZ_DEFAULTS.lt2OpacityGain,
+      lt3MiniArrowGain: typeof j.lt3MiniArrowGain === 'number' ? Math.max(0.5, Math.min(2.5, j.lt3MiniArrowGain)) : LT_VIZ_DEFAULTS.lt3MiniArrowGain,
+      lt3MainArrowGain: typeof j.lt3MainArrowGain === 'number' ? Math.max(0.5, Math.min(3.0, j.lt3MainArrowGain)) : LT_VIZ_DEFAULTS.lt3MainArrowGain,
+      bubbles: j.bubbles === true,
     }
   } catch {
-    return { glowGain: 1.2, lt2PriceBins: 31, lt2TimeBins: 12, lt2OpacityGain: 1.0, lt3MiniArrowGain: 1.0, lt3MainArrowGain: 1.2 }
+    return LT_VIZ_DEFAULTS
   }
 }
 
@@ -1414,15 +1425,15 @@ export default function ObiPage() {
           </div>
 
           <div className="tv-lw-masters-seg tv-lw-masters-seg--ict-master" role="group" aria-label="ICT-6 master">
-            <button type="button" className={ictModeOn ? 'tv-lw-pill tv-lw-pill--on' : 'tv-lw-pill'} onClick={toggleIctMaster} title="ICT: turns on OB·FVG·VP·LT·VWAP·SWG·SESS — knocks on, doesn't lock. Each still toggles independently.">ICT</button>
+            <button type="button" className={ictModeOn ? 'tv-lw-pill tv-lw-pill--on' : 'tv-lw-pill'} onClick={toggleIctMaster} title="ICT: turns on OB·FVG·HEAT·VP·VWAP·SWG·SESS — knocks on, doesn't lock. Each still toggles independently.">ICT</button>
           </div>
           {/* ICT-7: the 7 structural layers — ICT master lights all of these */}
           <div className="tv-lw-masters-seg tv-lw-masters-seg--ict" role="group" aria-label="ICT structural layers" style={{ gap: 2 }}>
             {([
               ['showOrderBlocks','OB','Order blocks'],
               ['showFvg','FVG','Fair value gaps'],
-              ['showPoc','VP','Volume profile'],
-              ['showLt','LT','Liquidity thermal heatmap'],
+              ['showPoc','HEAT','Predictive ICT heat layer'],
+              ['showLt','VP','Volume profile (liquidity profile)'],
               ['showLt2','LT2','Liquidity thermal time-binned walls (start/stop by time bucket)'],
               ['showLt3','LT3','Liquidity thermal every-interval dense heatmap (all intervals)'],
               ['showVwap','VWAP','VWAP ±1σ/2σ'],
@@ -1437,6 +1448,15 @@ export default function ObiPage() {
                 onClick={() => persist({ ...controls, [key]: !controls[key] })}
                 title={tip}>{label}</button>
             ))}
+            <button
+              type="button"
+              className={ltViz.bubbles ? 'tv-lw-pill tv-lw-pill--on' : 'tv-lw-pill'}
+              style={{ fontSize: 8, padding: '1px 4px' }}
+              onClick={() => setLtViz((s) => ({ ...s, bubbles: !s.bubbles }))}
+              title="BU: pressure bubbles on LT layers"
+            >
+              BU
+            </button>
           </div>
 
           {/* Secondary — structural context, dimmed */}
@@ -1536,7 +1556,7 @@ export default function ObiPage() {
             <span
               style={{
                 position: 'absolute',
-                top: 6,
+                top: 34,
                 right: obiVisible ? 220 : 24,
                 fontSize: 8,
                 fontFamily: 'monospace',
@@ -1553,7 +1573,7 @@ export default function ObiPage() {
             <span
               style={{
                 position: 'absolute',
-                top: 20,
+                top: 48,
                 right: obiVisible ? 220 : 24,
                 fontSize: 7,
                 fontFamily: 'monospace',
@@ -1574,8 +1594,9 @@ export default function ObiPage() {
               const c = isAbove ? '#4ade80' : '#f43f5e'
               return (
                 <span style={{
-                  position: 'absolute', [isAbove ? 'top' : 'bottom']: 6, right: obiVisible ? 220 : 24,
+                  position: 'absolute', top: 64, right: obiVisible ? 260 : 64,
                   fontSize: 9, fontFamily: 'monospace', fontWeight: 800,
+                  background: 'rgba(2,6,12,0.55)', padding: '1px 5px', borderRadius: 3,
                   color: c, textShadow: `0 0 8px ${c}`, letterSpacing: 1, pointerEvents: 'none',
                 }}>
                   {isAbove ? '▲' : '▼'} T1 {fmt(t1.price)}
@@ -1594,7 +1615,7 @@ export default function ObiPage() {
               heatTargets={chartLtHeatTargets}
               ltViz={{
                 actionGlowGain: ltViz.glowGain,
-                showActionBubbles: false,
+                showActionBubbles: ltViz.bubbles,
                 bubbleThreshold: 1,
                 obPressure: obPressure.pressure,
                 obConfidence: obPressure.confidence,
@@ -1724,6 +1745,15 @@ export default function ObiPage() {
                 <div style={{ marginTop: 6, fontSize: 8, color: '#94a3b8', fontFamily: 'monospace' }}>
                   OB {obPressure.status.toUpperCase()} {obPressure.pressure >= 0 ? 'UP' : 'DN'} {(Math.abs(obPressure.pressure) * 100).toFixed(0)}%
                 </div>
+                <button
+                  type="button"
+                  className="tv-lw-pill"
+                  style={{ marginTop: 6, fontSize: 8, padding: '1px 8px' }}
+                  onClick={() => setLtViz(LT_VIZ_DEFAULTS)}
+                  title="Reset LT controls to defaults"
+                >
+                  RESET
+                </button>
               </>
             ) : (
               <div style={{ fontSize: 8, color: '#94a3b8', fontFamily: 'monospace', marginTop: 3 }}>
@@ -1731,7 +1761,7 @@ export default function ObiPage() {
               </div>
             )}
           </div>
-          {!loading && obiResult && <ObiDirectionArrow obi={obiResult} rightOffset={obiVisible ? 216 : 20} />}
+          {!loading && obiResult && <ObiDirectionArrow obi={obiResult} rightOffset={obiVisible ? 266 : 70} />}
         </div>
         {/* OBI panel — fixed width, full height */}
         {obiVisible && obiResult && obiJediGate && (

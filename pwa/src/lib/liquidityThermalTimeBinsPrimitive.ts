@@ -136,15 +136,6 @@ export function createLiquidityThermalTimeBinsPrimitive(
         const lastClose = bars[bars.length - 1]?.close ?? 0;
 
         target.useMediaCoordinateSpace(({ context: ctx, mediaSize }) => {
-          // subtle watermark so user knows LT2 mode is active
-          ctx.save();
-          ctx.font = 'bold 10px monospace';
-          ctx.textAlign = 'left';
-          ctx.textBaseline = 'top';
-          ctx.fillStyle = 'rgba(128, 222, 234, 0.42)';
-          ctx.fillText('LT2 TIME-BIN WALLS', 8, 6);
-          ctx.restore();
-
           for (let tb = 0; tb < timeBins; tb++) {
             const tStart = lt2.bucketStarts[tb];
             const tEnd = lt2.bucketEnds[tb];
@@ -352,7 +343,7 @@ export function createLiquidityThermalTimeBinsPrimitive(
             }
 
             // Tiny strength readout beside arrow
-            ctx.font = 'bold 8px monospace';
+            ctx.font = 'bold 7px monospace';
             ctx.textAlign = 'right';
             ctx.textBaseline = 'middle';
             ctx.fillText(`${up ? 'UP' : 'DN'} ${(norm * 100).toFixed(0)}%`, x - 8, y);

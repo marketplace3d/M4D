@@ -122,47 +122,8 @@ export function createLiquidityThermalEveryIntervalPrimitive(
 
         target.useMediaCoordinateSpace(({ context: ctx, mediaSize }) => {
           const barSpacing = Math.max(2, ts.options().barSpacing ?? 6);
-          ctx.save();
-          ctx.font = 'bold 10px monospace';
-          ctx.textAlign = 'left';
-          ctx.textBaseline = 'top';
-          ctx.fillStyle = 'rgba(255, 214, 102, 0.46)';
-          ctx.fillText('LT3 EVERY-INTERVAL', 8, 20);
-          ctx.restore();
 
-          const stride = Math.max(1, intervalStep);
-          for (let cIdx = 0; cIdx < d.cells.length; cIdx++) {
-            const startBarIdx = cIdx * stride;
-            const endBarIdx = Math.min(d.slice.length - 1, startBarIdx + stride - 1);
-            const tStart = d.slice[startBarIdx]?.time;
-            const tEnd = d.slice[endBarIdx]?.time;
-            if (tStart == null || tEnd == null) continue;
-            const x1 = ts.timeToCoordinate(tStart as unknown as Time);
-            if (x1 == null) continue;
-            const w = Math.max(3, Math.round(barSpacing * Math.max(1, intervalStep) * 0.92));
-            const left = Math.round(x1 - w / 2);
-
-            const col = d.cells[cIdx]!;
-            for (let i = 0; i < priceBins; i++) {
-              const v = col[i]!;
-              if (v <= 0) continue;
-              const norm = v / d.maxCell;
-              const ll = d.levels[i]!;
-              const hh = ll + d.step;
-              const y1 = seriesApi.priceToCoordinate(ll);
-              const y2 = seriesApi.priceToCoordinate(hh);
-              if (y1 == null || y2 == null) continue;
-              const top = Math.min(y1, y2);
-              const h = Math.max(1, Math.abs(y2 - y1));
-
-              const mid = ll + d.step / 2;
-              const sellSide = mid >= close;
-              const [r, g, b] = sellSide ? [189, 43, 43] : [41, 180, 83];
-              const alpha = clamp(0.12 + norm * 0.74, 0.12, 0.86);
-              ctx.fillStyle = `rgba(${r},${g},${b},${alpha.toFixed(3)})`;
-              ctx.fillRect(left, top, w, h);
-            }
-          }
+          // LT3 background heat blocks removed by request.
 
           // LT3 signal mechanic:
           // - 3 flip arrows above last 3 candles (mechanical, low-noise)
@@ -246,38 +207,41 @@ export function createLiquidityThermalEveryIntervalPrimitive(
             // Single large combined arrow on right (color only here).
             const [rr, gg, bb] = avgUp ? [41, 180, 83] : [189, 43, 43];
             const alpha = clamp((0.35 + avgNorm * 0.6) * actionGlowGain * Math.max(0.75, mainArrowGain * 0.9), 0.35, 0.99);
-            const xR = mediaSize.width - 28;
-            const yR = yGuide - 2;
+            // Align vertical column with lower targeting arrow.
+            const xR = mediaSize.width - 54;
+            const yR = yGuide + 13;
             const stemR = (44 + avgNorm * 76) * mainArrowGain;
             const headR = (14 + avgNorm * 14) * Math.max(0.9, mainArrowGain * 0.95);
+            const shaftHalfW = Math.max(3, ((6.2 + avgNorm * 5.2) * Math.max(0.9, mainArrowGain * 0.95)) * 0.5);
             ctx.save();
-            ctx.strokeStyle = `rgba(${rr},${gg},${bb},${alpha.toFixed(3)})`;
             ctx.fillStyle = `rgba(${rr},${gg},${bb},${alpha.toFixed(3)})`;
-            ctx.lineWidth = (6.2 + avgNorm * 5.2) * Math.max(0.9, mainArrowGain * 0.95);
+            // Single polygon arrow (no overlap seam between shaft/head).
             if (avgUp) {
+              const headBaseY = yR - stemR * 0.5;
               ctx.beginPath();
-              ctx.moveTo(xR, yR + stemR * 0.5);
-              ctx.lineTo(xR, yR - stemR * 0.5);
-              ctx.stroke();
-              ctx.beginPath();
-              ctx.moveTo(xR, yR - stemR * 0.5 - headR);
-              ctx.lineTo(xR - headR, yR - stemR * 0.5 + headR * 0.2);
-              ctx.lineTo(xR + headR, yR - stemR * 0.5 + headR * 0.2);
+              ctx.moveTo(xR - shaftHalfW, yR + stemR * 0.5);
+              ctx.lineTo(xR + shaftHalfW, yR + stemR * 0.5);
+              ctx.lineTo(xR + shaftHalfW, headBaseY);
+              ctx.lineTo(xR + headR, headBaseY);
+              ctx.lineTo(xR, headBaseY - headR);
+              ctx.lineTo(xR - headR, headBaseY);
+              ctx.lineTo(xR - shaftHalfW, headBaseY);
               ctx.closePath();
               ctx.fill();
             } else {
+              const headBaseY = yR + stemR * 0.5;
               ctx.beginPath();
-              ctx.moveTo(xR, yR - stemR * 0.5);
-              ctx.lineTo(xR, yR + stemR * 0.5);
-              ctx.stroke();
-              ctx.beginPath();
-              ctx.moveTo(xR, yR + stemR * 0.5 + headR);
-              ctx.lineTo(xR - headR, yR + stemR * 0.5 - headR * 0.2);
-              ctx.lineTo(xR + headR, yR + stemR * 0.5 - headR * 0.2);
+              ctx.moveTo(xR - shaftHalfW, yR - stemR * 0.5);
+              ctx.lineTo(xR + shaftHalfW, yR - stemR * 0.5);
+              ctx.lineTo(xR + shaftHalfW, headBaseY);
+              ctx.lineTo(xR + headR, headBaseY);
+              ctx.lineTo(xR, headBaseY + headR);
+              ctx.lineTo(xR - headR, headBaseY);
+              ctx.lineTo(xR - shaftHalfW, headBaseY);
               ctx.closePath();
               ctx.fill();
             }
-            ctx.font = `bold ${Math.round(14 * Math.max(0.9, mainArrowGain))}px monospace`;
+            ctx.font = `bold ${Math.round(10 * Math.max(0.85, mainArrowGain * 0.8))}px monospace`;
             ctx.textAlign = 'right';
             ctx.textBaseline = 'middle';
             ctx.fillText(`${avgUp ? 'UP' : 'DN'} ${(avgNorm * 100).toFixed(0)}%`, xR - 8, yR);

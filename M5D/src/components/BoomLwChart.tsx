@@ -55,6 +55,19 @@ type Props = {
   symbol?: string;
   /** Polygon.io API key for MTF daily bar fetch. Falls back to VITE_POLYGON_KEY env. */
   polygonKey?: string;
+  /** Liquidity-thermal visual tuning (LT2/LT3). */
+  ltViz?: {
+    actionGlowGain?: number;
+    showActionBubbles?: boolean;
+    bubbleThreshold?: number;
+    obPressure?: number;
+    obConfidence?: number;
+    lt2PriceBins?: number;
+    lt2TimeBins?: number;
+    lt2OpacityGain?: number;
+    lt3MiniArrowGain?: number;
+    lt3MainArrowGain?: number;
+  };
 };
 
 /** Mirrors `pwa/src/lib/BoomChart.svelte` — Lightweight Charts + BOOM3D build. */
@@ -66,7 +79,7 @@ const lineNoAutoscale = {
   autoscaleInfoProvider: (_base: () => AutoscaleInfo | null) => null,
 };
 
-export default function BoomLwChart({ bars, controls, compactUi = false, showVwap, storageKey, heatTarget, heatTargets, obiConfirmTargets = false, symbol, polygonKey }: Props) {
+export default function BoomLwChart({ bars, controls, compactUi = false, showVwap, storageKey, heatTarget, heatTargets, obiConfirmTargets = false, symbol, polygonKey, ltViz }: Props) {
   void storageKey;
   const chartControls = useMemo(
     () => (showVwap === undefined ? controls : { ...controls, showVwap }),
@@ -79,6 +92,14 @@ export default function BoomLwChart({ bars, controls, compactUi = false, showVwa
 
   const barsKey = barsFingerprint(bars);
   const controlsKey = JSON.stringify(chartControls);
+  const ltVizKey = useMemo(() => {
+    if (!ltViz) return '';
+    return JSON.stringify({
+      ...ltViz,
+      obPressure: typeof ltViz.obPressure === 'number' ? Number(ltViz.obPressure.toFixed(2)) : undefined,
+      obConfidence: typeof ltViz.obConfidence === 'number' ? Number(ltViz.obConfidence.toFixed(2)) : undefined,
+    });
+  }, [ltViz]);
 
   useEffect(() => {
     const el = elRef.current;
@@ -100,6 +121,7 @@ export default function BoomLwChart({ bars, controls, compactUi = false, showVwa
       compactUi,
       symbol,
       polygonKey: polygonKey ?? import.meta.env.VITE_POLYGON_KEY as string | undefined,
+      ltViz,
     }).then((x) => {
       if (!alive) {
         x.ro.disconnect();
@@ -125,7 +147,7 @@ export default function BoomLwChart({ bars, controls, compactUi = false, showVwa
       chart = null;
       ro = null;
     };
-  }, [barsKey, controlsKey, bars, chartControls, compactUi]);
+  }, [barsKey, controlsKey, ltVizKey, bars, chartControls, compactUi, symbol, polygonKey]);
 
   // ── Heatseeker target level line ────────────────────────────────────────────
   useEffect(() => {
