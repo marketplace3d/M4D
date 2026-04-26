@@ -87,6 +87,7 @@ export default function TvLwChartsPage() {
     controls.showKC &&
     controls.showSqueeze &&
     controls.showPoc &&
+    controls.showLt &&
     controls.showVwap &&
     controls.showCouncilArrows &&
     controls.showIchimoku &&
@@ -100,6 +101,7 @@ export default function TvLwChartsPage() {
     controls.showOrderBlocks &&
     controls.showFvg &&
     controls.showPoc &&
+    controls.showLt &&
     controls.showVwap &&
     controls.showSwingRays &&
     controls.showSessionLevels &&
@@ -204,6 +206,7 @@ export default function TvLwChartsPage() {
           showOrderBlocks: next,
           showFvg: next,
           showPoc: next,
+          showLt: next,
           showVwap: next,
           showSwingRays: next,
           showSessionLevels: next,
@@ -522,7 +525,7 @@ export default function TvLwChartsPage() {
               type="button"
               className={allIctOn ? 'tv-lw-pill tv-lw-pill--on' : 'tv-lw-pill'}
               onClick={toggleAllIct}
-              title="All ICT layers: OB · FVG · VP · VWAP · SWG · SESS · ICHI · MAs"
+              title="All ICT layers: OB · FVG · VP · LT · VWAP · SWG · SESS · ICHI · MAs"
             >
               ICT
             </button>
@@ -698,6 +701,7 @@ export default function TvLwChartsPage() {
                   showKC: next,
                   showSqueeze: next,
                   showPoc: next,
+                  showLt: next,
                   showVwap: next,
                   showCouncilArrows: next,
                   showIchimoku: next,
@@ -708,7 +712,7 @@ export default function TvLwChartsPage() {
                   showSessionLevels: next,
                 });
               }}
-              title="Toggle all strip overlays (incl. heat + VWAP)"
+              title="Toggle all strip overlays (VP, LT, heat bases, BOOM, SIG levels)"
             >
               IND
             </button>

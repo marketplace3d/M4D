@@ -528,7 +528,7 @@ export default function DeltaOpsFlowPage() {
         <div style={{ flex:1, overflow:'auto', padding:16 }}>
           <div style={{ color:C.dim, fontSize:11, marginBottom:16 }}>
             Combined Invalidation Score — 5 independent market structure signals.
-            Any {report?.config ? (report.config as Record<string,unknown>).cis_threshold ?? '2' : '2'} firing = full position exit.
+            Any {report?.config ? String((report.config as Record<string, unknown>).cis_threshold ?? '2') : '2'} firing = full position exit.
             Not a stop-loss. An invalidation exit.
           </div>
 

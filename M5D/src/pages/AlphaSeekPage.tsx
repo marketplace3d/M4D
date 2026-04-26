@@ -87,8 +87,9 @@ export default function AlphaSeekPage({ onPageChange }: Props) {
   const walkRpt   = usePoll<any>(`${DS}/v1/walkforward/`, 120_000)
   const discovRpt = usePoll<any>(`${DS}/v1/discovery/`, 120_000)
   const icRpt     = usePoll<any>(`${DS}/v1/ic/report/`, 120_000)
+  const ictWfRpt  = usePoll<any>(`${DS}/v1/ict-walkforward/`, 120_000)
 
-  const [tab, setTab] = useState<'council'|'walk'|'discovery'|'ic'|'regime'|'field'>('council')
+  const [tab, setTab] = useState<'council'|'walk'|'discovery'|'ic'|'regime'|'field'|'ict'>('council')
   const [regimeSym, setRegimeSym] = useState<FuturesSym>('ES')
   const regimeSnap = usePoll<RegimeSnap>(`${DS}/v1/regime/?symbol=${regimeSym}`, 30_000)
 
@@ -152,6 +153,7 @@ export default function AlphaSeekPage({ onPageChange }: Props) {
         {([
           ['council',   'COUNCIL REVIEW', 'var(--purpleB)'],
           ['walk',      'WALK-FORWARD',   'var(--greenB)'],
+          ['ict',       'ICT BACKTEST',   '#ff6b00'],
           ['discovery', 'DISCOVERY',      'var(--tealB)'],
           ['ic',        'IC DECAY',       'var(--goldB)'],
           ['regime',    'REGIME ENGINE',  '#ff8c20'],
@@ -523,6 +525,127 @@ export default function AlphaSeekPage({ onPageChange }: Props) {
                   ? <>{section('ON FIELD', onField, 'var(--greenB)', 'active')}{section('LOCKER ROOM', lockerRm, 'var(--goldB)', 'ready')}{section('BENCH', benchd, 'var(--text3)', 'muted')}</>
                   : <div style={{ fontSize:9, color:'var(--text3)' }}>Waiting for regime (DS :8000)…</div>
                 }
+              </div>
+            )
+          })()}
+
+          {/* ICT BACKTEST */}
+          {tab === 'ict' && (() => {
+            const r = ictWfRpt
+            const wf = r?.waterfall as any[] | undefined
+            const maxSh = wf ? Math.max(...wf.map((w: any) => Math.abs(w.mean_oos_sharpe ?? 0)), 1) : 12
+            const shColor = (v: number | null) => v == null ? 'var(--text3)' : v >= 10 ? '#ff6b00' : v > 0 ? 'var(--greenB)' : 'var(--redB)'
+            const layerColor = (name: string) => name.startsWith('HK_+ict') ? '#ff6b00' : name.startsWith('L5') ? '#a78bfa' : name.startsWith('CTL') ? '#60a5fa' : 'var(--tealB)'
+            return (
+              <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                {/* Header row */}
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'5px 8px', background:'rgba(255,107,0,0.07)', border:'1px solid rgba(255,107,0,0.25)', borderRadius:3 }}>
+                  <div>
+                    <span style={{ fontSize:10, fontWeight:700, color:'#ff6b00', letterSpacing:'0.12em' }}>◉ ICT SIGNAL STACK BACKTEST</span>
+                    {r?.data_range && <span style={{ fontSize:8, color:'var(--text3)', marginLeft:10 }}>{r.data_range.from} → {r.data_range.to} · {r.data_range.rows?.toLocaleString()} bars</span>}
+                    {r?.generated_at && <span style={{ fontSize:8, color:'var(--text3)', marginLeft:8 }}>run: {r.generated_at.slice(0,16)}</span>}
+                  </div>
+                  <Btn small label="RUN (~5 min)" color="#ff6b00"
+                    onClick={() => fetch(`${DS}/v1/ict-walkforward/run/`, { method:'POST' }).then(() => alert('ICT walkforward launched — refresh in 5min'))} />
+                </div>
+
+                {!r?.ok && (
+                  <div style={{ fontSize:9, color:'var(--text3)', padding:'10px 0' }}>
+                    No report yet. Click RUN to compute (~5min). Results persist across sessions.
+                  </div>
+                )}
+
+                {wf && (
+                  <>
+                    {/* Waterfall chart */}
+                    <div>
+                      <div style={{ fontSize:8, color:'var(--text3)', marginBottom:4, letterSpacing:2 }}>SHARPE WATERFALL — OOS MEAN (42 FOLDS)</div>
+                      {wf.map((row: any) => {
+                        const sh = row.mean_oos_sharpe as number | null
+                        const std = row.std_sharpe as number | null
+                        const n = row.mean_n_per_fold as number | null
+                        const wr = row.mean_win_rate as number | null
+                        const pf = row.pct_pos_folds as number | null
+                        const thin = row.thin_stats_warn as boolean
+                        const barW = sh != null ? Math.abs(sh) / maxSh * 220 : 0
+                        const color = layerColor(row.layer)
+                        const isWinner = row.layer === 'HK_+ict_kz'
+                        return (
+                          <div key={row.layer} style={{ display:'flex', alignItems:'center', gap:6, padding:'2px 0', borderBottom:'1px solid rgba(255,255,255,0.04)', background: isWinner ? 'rgba(255,107,0,0.06)' : 'transparent' }}>
+                            <span style={{ fontSize:7, color: isWinner ? '#ff6b00' : 'var(--text3)', width:280, flexShrink:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', fontWeight: isWinner ? 700 : 400 }}
+                              title={row.label}>{row.label}</span>
+                            <div style={{ width:220, height:8, background:'var(--bg3)', borderRadius:1, flexShrink:0, position:'relative' }}>
+                              {sh != null && <div style={{ position:'absolute', left:0, top:0, height:'100%', width:barW, background: isWinner ? '#ff6b00' : sh > 0 ? 'var(--greenB)' : 'var(--redB)', borderRadius:1, transition:'width 0.4s', boxShadow: isWinner ? '0 0 6px #ff6b00' : 'none' }} />}
+                            </div>
+                            <span style={{ fontSize:8, color: shColor(sh), fontWeight:700, width:44, textAlign:'right', flexShrink:0 }}>{sh != null ? `${sh > 0 ? '+' : ''}${sh.toFixed(2)}` : '—'}</span>
+                            <span style={{ fontSize:7, color:'var(--text3)', width:34, flexShrink:0 }}>±{std != null ? std.toFixed(1) : '—'}</span>
+                            <span style={{ fontSize:7, color:'var(--text3)', width:36, flexShrink:0 }}>{n != null ? `${Math.round(n)}N` : ''}</span>
+                            <span style={{ fontSize:7, color: wr != null && wr >= 0.55 ? 'var(--greenB)' : 'var(--text3)', width:36, flexShrink:0 }}>{wr != null ? `${(wr*100).toFixed(0)}%WR` : ''}</span>
+                            {thin && <span style={{ fontSize:6, color:'#ff8c20' }}>⚠THIN</span>}
+                            {isWinner && <span style={{ fontSize:7, color:'#ff6b00', fontWeight:800 }}>★ BEST</span>}
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    {/* RenTech gates */}
+                    {r.rentech_gates && (
+                      <div style={{ padding:'4px 8px', border:'1px solid rgba(255,255,255,0.07)', borderRadius:3 }}>
+                        <div style={{ fontSize:8, color:'var(--text3)', marginBottom:4, letterSpacing:2 }}>
+                          RENTECH GATES (L4 full ICT gate) — {r.rentech_gates.passed} · <span style={{ color: r.rentech_gates.verdict === 'ROBUST' ? 'var(--greenB)' : r.rentech_gates.verdict === 'PROMISING' ? 'var(--goldB)' : 'var(--redB)' }}>{r.rentech_gates.verdict}</span>
+                        </div>
+                        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1px 8px' }}>
+                          {Object.entries(r.rentech_gates.gates ?? {}).map(([k, v]) => (
+                            <div key={k} style={{ display:'flex', gap:5, fontSize:7 }}>
+                              <span style={{ color: v ? 'var(--greenB)' : 'var(--redB)' }}>{v ? '✓' : '○'}</span>
+                              <span style={{ color:'var(--text3)' }}>{k.replace(/_/g,' ')}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Signal fire rates + IC */}
+                    <div style={{ display:'flex', gap:12, flexWrap:'wrap' }}>
+                      <div style={{ flex:1, minWidth:180 }}>
+                        <div style={{ fontSize:8, color:'var(--text3)', marginBottom:3, letterSpacing:2 }}>ICT SIGNAL FIRE RATES</div>
+                        {Object.entries(r.signal_fire_rates ?? {}).map(([k, v]) => (
+                          <div key={k} style={{ display:'flex', justifyContent:'space-between', fontSize:7, padding:'1px 0', borderBottom:'1px solid rgba(255,255,255,0.03)' }}>
+                            <span style={{ color:'var(--text3)' }}>{k}</span>
+                            <span style={{ color:'var(--text)', fontWeight:700 }}>{((v as number)*100).toFixed(1)}%</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ flex:1, minWidth:180 }}>
+                        <div style={{ fontSize:8, color:'var(--text3)', marginBottom:3, letterSpacing:2 }}>ICT SIGNAL IC (OOS SPEARMAN)</div>
+                        {Object.entries(r.ict_ic ?? {}).map(([k, v]) => (
+                          <div key={k} style={{ display:'flex', justifyContent:'space-between', fontSize:7, padding:'1px 0', borderBottom:'1px solid rgba(255,255,255,0.03)' }}>
+                            <span style={{ color:'var(--text3)' }}>{k}</span>
+                            <span style={{ color: (v as number) > 0.01 ? 'var(--greenB)' : (v as number) < -0.01 ? 'var(--redB)' : 'var(--text3)', fontWeight:700 }}>
+                              {v != null ? `${(v as number) > 0 ? '+' : ''}${(v as number).toFixed(4)}` : '—'}
+                            </span>
+                          </div>
+                        ))}
+                        {r.killzone_overlap && (
+                          <div style={{ marginTop:6, padding:'3px 6px', background:'rgba(255,255,255,0.04)', borderRadius:2 }}>
+                            <div style={{ fontSize:7, color:'var(--text3)' }}>KZ blocked by HOUR_KILLS: <span style={{ color: (r.killzone_overlap.kz_blocked_by_hk ?? 0) > 0.6 ? 'var(--redB)' : 'var(--greenB)', fontWeight:700 }}>{((r.killzone_overlap.kz_blocked_by_hk ?? 0)*100).toFixed(0)}%</span></div>
+                            <div style={{ fontSize:7, color:'var(--text3)', marginTop:1 }}>{r.killzone_overlap.note}</div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Devil's Advocate */}
+                    {(r.devils_advocate?.length ?? 0) > 0 && (
+                      <div style={{ padding:'4px 8px', border:'1px solid rgba(255,204,58,0.2)', borderRadius:3, background:'rgba(255,204,58,0.04)' }}>
+                        <div style={{ fontSize:8, color:'var(--goldB)', marginBottom:4, letterSpacing:2 }}>DEVIL'S ADVOCATE</div>
+                        {(r.devils_advocate as string[]).map((d, i) => (
+                          <div key={i} style={{ fontSize:7, color:'var(--goldB)', opacity:0.85, padding:'1px 0' }}>⚠ {d}</div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             )
           })()}

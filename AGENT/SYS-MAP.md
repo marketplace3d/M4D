@@ -8,12 +8,12 @@
 
 | Site | Folder | Port | Purpose | Status |
 |------|--------|------|---------|--------|
-| **M5D** | `m5d/` | **:5556** | Co-trader · 4-page Palantir UI | ✅ NEW |
+| **M5D** | `M5D/` | **:5556** | Co-trader · 4-page Palantir UI | ✅ NEW |
 | M3D     | `site/` | :5500 | Test bots · MaxCogViz · research | ✅ RUNNING |
 | M4D     | `M4D/`  | :5555 | Legacy oracle UI | KEEP/NO EXTEND |
 | W3D/W4D | `W3D/`,`W4D/` | — | Hedge fund layer | SEPARATE |
 
-Launch: `./go5d.sh` (M5D) · `./go3d.sh` (M3D) · `./go.sh ds` (Django :8000)
+Launch: `./go.sh` or `./go.sh all` (full stack **includes M5D :5556** + M4D :5555) · `./go.sh m5d` (M5D only) · `./go5d.sh` (M5D only) · `./go3d.sh` (M3D) · `./go.sh ds` (Django :8000)
 
 ---
 

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Bar } from '$indicators/boom3d-tech';
-import type { IChartApi, ISeriesApi, LogicalRange, Time } from 'lightweight-charts';
+import type { AutoscaleInfo, IChartApi, ISeriesApi, LogicalRange, Time } from 'lightweight-charts';
+import { LineSeries } from 'lightweight-charts';
 import { mountBoomChart } from '@pwa/lib/boomChartBuild';
 import type { ChartControls } from '@pwa/lib/chartControls';
 
@@ -24,6 +25,11 @@ type Props = {
   /** Multiple target lines (LT levels, etc.) — draws a line per entry. */
   heatTargets?: HeatTarget[];
   /**
+   * OBI / trade-confirm view: thick lines — blue above last close, red below, ICT purple if ~at price.
+   * When false, uses tier-based colors (POC / R / S).
+   */
+  obiConfirmTargets?: boolean;
+  /**
    * Symbol identifier (e.g. 'EURUSD', 'XAUUSD', 'BTC').
    * When provided, triggers MTF ICT level fetch (PWH/PWL/PMH/PML) and MM Brain next stop line.
    */
@@ -33,7 +39,16 @@ type Props = {
 };
 
 /** Mirrors `pwa/src/lib/BoomChart.svelte` — Lightweight Charts + BOOM3D build. */
-export default function BoomLwChart({ bars, controls, compactUi = false, showVwap, storageKey, heatTarget, heatTargets, symbol, polygonKey }: Props) {
+const OBI_CONFIRM_ABOVE = '#2563eb';
+const OBI_CONFIRM_BELOW = '#dc2626';
+const OBI_CONFIRM_ICT = '#a78bfa';
+
+/** Match `boomChartBuild` — horizontal refs must not resize the y-scale. */
+const lineNoAutoscale = {
+  autoscaleInfoProvider: (_base: () => AutoscaleInfo | null) => null,
+};
+
+export default function BoomLwChart({ bars, controls, compactUi = false, showVwap, storageKey, heatTarget, heatTargets, obiConfirmTargets = false, symbol, polygonKey }: Props) {
   void storageKey;
   const chartControls = useMemo(
     () => (showVwap === undefined ? controls : { ...controls, showVwap }),
@@ -100,7 +115,8 @@ export default function BoomLwChart({ bars, controls, compactUi = false, showVwa
     const color = heatTarget.tier === 'S' ? '#00ffaa' : '#ffee00';
     let series: ISeriesApi<'Line'> | null = null;
     try {
-      series = (chartApi as any).addLineSeries({
+      series = chartApi.addSeries(LineSeries, {
+        ...lineNoAutoscale,
         color,
         lineWidth: 2,
         lineStyle: 0,
@@ -109,7 +125,7 @@ export default function BoomLwChart({ bars, controls, compactUi = false, showVwa
         crosshairMarkerVisible: false,
         title: `${heatTarget.tier}-TARGET`,
       });
-      series?.setData(
+      series.setData(
         bars.map((b) => ({ time: b.time as unknown as Time, value: heatTarget.price })),
       );
     } catch {
@@ -122,19 +138,39 @@ export default function BoomLwChart({ bars, controls, compactUi = false, showVwa
     };
   }, [chartApi, heatTarget, bars]);
 
-  // ── Multi-target lines (LT levels) ──────────────────────────────────────────
+  // ── Multi-target lines (LT levels) — optional OBI trade-confirm: blue above / red below / ICT at price
   useEffect(() => {
     if (!chartApi || !heatTargets || heatTargets.length === 0 || bars.length === 0) return;
+    const last = bars[bars.length - 1]!.close;
+    const atEps = Math.max(last * 1.5e-6, 1e-9);
     const seriesList: ISeriesApi<'Line'>[] = [];
     for (const ht of heatTargets) {
-      const isPoc = ht.tier === 'POC';
-      const isResist = ht.tier.startsWith('R');
-      const color = isPoc ? '#ff9500' : isResist ? '#ff4466' : '#00cc88';
+      let color: string;
+      let lineWidth: number;
+      let lineStyle: 0 | 1 | 2 | 3 | 4;
+      if (obiConfirmTargets) {
+        if (Math.abs(ht.price - last) <= atEps) {
+          color = OBI_CONFIRM_ICT;
+        } else if (ht.price > last) {
+          color = OBI_CONFIRM_ABOVE;
+        } else {
+          color = OBI_CONFIRM_BELOW;
+        }
+        lineWidth = 3;
+        lineStyle = 0;
+      } else {
+        const isPoc = ht.tier === 'POC';
+        const isResist = ht.tier.startsWith('R');
+        color = isPoc ? '#ff9500' : isResist ? '#ff4466' : '#00cc88';
+        lineWidth = isPoc ? 2 : 1;
+        lineStyle = isPoc ? 0 : 2;
+      }
       try {
-        const s = (chartApi as any).addLineSeries({
+        const s = chartApi.addSeries(LineSeries, {
+          ...lineNoAutoscale,
           color,
-          lineWidth: isPoc ? 2 : 1,
-          lineStyle: isPoc ? 0 : 2,
+          lineWidth: lineWidth as 1 | 2 | 3 | 4,
+          lineStyle,
           priceLineVisible: false,
           lastValueVisible: true,
           crosshairMarkerVisible: false,
@@ -149,7 +185,7 @@ export default function BoomLwChart({ bars, controls, compactUi = false, showVwa
         try { chartApi.removeSeries(s); } catch { /* removed with chart */ }
       }
     };
-  }, [chartApi, heatTargets, bars]);
+  }, [chartApi, heatTargets, bars, obiConfirmTargets]);
 
   function jumpToLatest() {
     chartApi?.timeScale().scrollToRealTime();

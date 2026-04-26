@@ -1,66 +1,66 @@
 {
   "ok": true,
-  "ts": 1777066526,
+  "ts": 1777196540,
   "cached": false,
   "signals": {
     "BTC": {
       "signal": "NEUTRAL",
       "mult": 1.0,
-      "oi": 96458.2,
-      "oi_change_pct": -0.002,
-      "price": 77567.5,
-      "price_change_pct": -0.066,
+      "oi": 95929.59,
+      "oi_change_pct": -0.286,
+      "price": 77894.9,
+      "price_change_pct": 0.739,
       "note": "OI stable"
     },
     "ETH": {
-      "signal": "NEUTRAL",
-      "mult": 1.0,
-      "oi": 2022532.91,
-      "oi_change_pct": -0.131,
-      "price": 2316.75,
-      "price_change_pct": 0.01,
-      "note": "OI stable"
+      "signal": "TREND_CONFIRM",
+      "mult": 1.15,
+      "oi": 2074390.06,
+      "oi_change_pct": 2.816,
+      "price": 2331.81,
+      "price_change_pct": 0.868,
+      "note": "longs entering \u2014 bullish fuel"
     },
     "SOL": {
-      "signal": "NEUTRAL",
-      "mult": 1.0,
-      "oi": 9147899.59,
-      "oi_change_pct": -0.027,
-      "price": 86.54,
-      "price_change_pct": -0.081,
-      "note": "OI stable"
+      "signal": "TREND_CONFIRM",
+      "mult": 1.15,
+      "oi": 9258033.04,
+      "oi_change_pct": 1.387,
+      "price": 86.45,
+      "price_change_pct": 0.418,
+      "note": "longs entering \u2014 bullish fuel"
     },
     "BNB": {
-      "signal": "NEUTRAL",
-      "mult": 1.0,
-      "oi": 543824.37,
-      "oi_change_pct": -0.003,
-      "price": 637.82,
-      "price_change_pct": 0.014,
-      "note": "OI stable"
+      "signal": "TREND_CONFIRM",
+      "mult": 1.15,
+      "oi": 544680.25,
+      "oi_change_pct": 0.323,
+      "price": 631.1,
+      "price_change_pct": -0.831,
+      "note": "shorts entering \u2014 bearish fuel"
     },
     "DOGE": {
-      "signal": "NEUTRAL",
-      "mult": 1.0,
-      "oi": 3234289028.0,
-      "oi_change_pct": -0.007,
-      "price": 0.09894,
-      "price_change_pct": -0.03,
-      "note": "OI stable"
+      "signal": "EXHAUSTION",
+      "mult": 0.7,
+      "oi": 3166437991.0,
+      "oi_change_pct": -1.192,
+      "price": 0.09845,
+      "price_change_pct": 0.449,
+      "note": "shorts covering \u2014 no new conviction"
     }
   },
   "raw_oi": {
-    "BTCUSDT": 96458.197,
-    "ETHUSDT": 2022532.913,
-    "SOLUSDT": 9147899.59,
-    "BNBUSDT": 543824.37,
-    "DOGEUSDT": 3234289028.0
+    "BTCUSDT": 95929.59,
+    "ETHUSDT": 2074390.056,
+    "SOLUSDT": 9258033.04,
+    "BNBUSDT": 544680.25,
+    "DOGEUSDT": 3166437991.0
   },
   "raw_price": {
-    "BTCUSDT": 77577.9,
-    "ETHUSDT": 2316.9,
-    "SOLUSDT": 86.55,
-    "BNBUSDT": 637.81,
-    "DOGEUSDT": 0.09894
+    "BTCUSDT": 77894.8,
+    "ETHUSDT": 2331.81,
+    "SOLUSDT": 86.45,
+    "BNBUSDT": 631.09,
+    "DOGEUSDT": 0.09845
   }
 }

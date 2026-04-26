@@ -20,9 +20,10 @@ const PRIMARY: NavSection[] = [
   { id: 'perf',    icon: '⑤', label: 'PERF',      sublabel: 'Sharpe · Stack · IC',       status: 'live', group: 'primary' },
 ]
 const RESEARCH: NavSection[] = [
-  { id: 'alphaseek', icon: '⟡', label: 'ALPHASEEK', sublabel: '27 Algos · IC · WF',   status: 'idle', group: 'research' },
-  { id: 'medallion', icon: '✦', label: 'MEDALLION', sublabel: 'RenTech · Run Lab',     status: 'idle', group: 'research' },
-  { id: 'obi',       icon: '◉', label: 'OBI',       sublabel: '8-Engine · Targets',    status: 'live', group: 'research' },
+  { id: 'alphaseek',    icon: '⟡', label: 'ALPHASEEK',    sublabel: '27 Algos · IC · WF',      status: 'idle', group: 'research' },
+  { id: 'medallion',   icon: '✦', label: 'MEDALLION',    sublabel: 'RenTech · Run Lab',        status: 'idle', group: 'research' },
+  { id: 'obi',         icon: '◉', label: 'OBI',          sublabel: '8-Engine · Targets',       status: 'live', group: 'research' },
+  { id: 'backtest-lab',icon: '⧉', label: 'BACKTEST LAB', sublabel: 'ICT Stack · WF · Sharpe',  status: 'idle', group: 'research' },
 ]
 
 interface Props {
@@ -50,8 +51,9 @@ function contextSublabel(id: PageId, activePage: PageId, jedi: number|null, regi
     case 'perf':      return 'SHARPE 29.72 · LIVE'
     case 'alphaseek': return `27 ALGOS · JEDI ${j}`
     case 'medallion': return 'SIGNAL CIVILISATION'
-    case 'obi':       return '8-ENGINE · BTC LIVE'
-    default:          return ''
+    case 'obi':           return '8-ENGINE · BTC LIVE'
+    case 'backtest-lab':  return 'ICT WF · HK+KZ WINNER'
+    default:              return ''
   }
 }
 
@@ -68,7 +70,7 @@ function NavItem({ s, active, collapsed, page, jedi, regime, activity, gates, eq
       onClick={() => onPageChange(s.id)}
       title={collapsed ? `${s.label}` : undefined}
       style={{
-        padding: collapsed ? '11px 0' : '8px 12px',
+        padding: collapsed ? '10px 0' : '6px 8px',
         cursor: 'pointer',
         background: active ? 'rgba(58,143,255,0.1)' : 'transparent',
         borderLeft: `2px solid ${active ? 'var(--accent)' : 'transparent'}`,

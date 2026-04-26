@@ -16,7 +16,7 @@
   <!-- Title -->
   <rect x="0" y="0" width="1200" height="60" fill="#030810"/>
   <text x="600" y="22" fill="#4a9eff" font-size="18" font-weight="bold" text-anchor="middle" filter="url(#glow)">M4D ALPHA SYSTEM — ARCHITECTURE MAP</text>
-  <text x="600" y="44" fill="#3a6a9e" font-size="11" text-anchor="middle">RenTech/Medallion Doctrine · Solo Operator JR · Build Master Claude Sonnet 4.6 · 2026-04-19</text>
+  <text x="600" y="44" fill="#3a6a9e" font-size="11" text-anchor="middle">RenTech/Medallion Doctrine · Solo Operator JR · Build Master Claude Sonnet 4.6 · 2026-04-25</text>
   <text x="600" y="56" fill="#1a8a3e" font-size="10" text-anchor="middle">PROMISING 4/5 RenTech Gates · Stacked Sharpe 15.862 · EUPHORIA 19.833 (62.4% WR) · Re-entry 29.716</text>
 
   <!-- ═══ LAYER 0-1: DATA ═══ -->
@@ -369,17 +369,17 @@
   <text x="610" y="1428" fill="#1a7a3a" font-size="8">Est: 1h · modify delta_ops.py split</text>
   <text x="610" y="1465" fill="#003a1a" font-size="8">Status: PENDING</text>
 
-  <!-- ICT / HALO fix -->
-  <rect x="885" y="1323" width="285" height="150" rx="4" fill="#1a1000" stroke="#4a3000" stroke-width="1"/>
-  <rect x="885" y="1323" width="285" height="20" rx="4" fill="#2a1800"/>
-  <text x="895" y="1338" fill="#ffcc3a" font-size="10" font-weight="bold">ITER · ICT Liquidity + HALO Fix</text>
-  <text x="895" y="1356" fill="#c8940a" font-size="9">ICT FVG: Fair Value Gap fill = exit signal</text>
-  <text x="895" y="1369" fill="#c8940a" font-size="9">EQH/EQL: equal highs/lows proximity gate</text>
-  <text x="895" y="1382" fill="#c8940a" font-size="9">Round numbers proximity (MM magnets)</text>
-  <text x="895" y="1395" fill="#c8940a" font-size="9">HALO fingerprint formula fix (cv overflow)</text>
-  <text x="895" y="1415" fill="#ffcc3a" font-size="9" font-weight="bold">EQH/EQL already in exit_optimizer (-3.3)</text>
-  <text x="895" y="1428" fill="#8a6008" font-size="8">Retest with tighter proximity (0.05% not 0.2%)</text>
-  <text x="895" y="1465" fill="#3a2000" font-size="8">Status: PENDING</text>
+  <!-- P3 OBI-JEDI Bridge — BUILT -->
+  <rect x="885" y="1323" width="285" height="150" rx="4" fill="#002a1a" stroke="#006a40" stroke-width="1"/>
+  <rect x="885" y="1323" width="285" height="20" rx="4" fill="#003a20"/>
+  <text x="895" y="1338" fill="#3ae87a" font-size="10" font-weight="bold">P3 · OBI-JEDI Bridge</text>
+  <text x="895" y="1356" fill="#2aaa5a" font-size="9">computeICTBrain: DOL · killzone · entryZone</text>
+  <text x="895" y="1369" fill="#2aaa5a" font-size="9">computeObiJediGate: 7-condition FIRE tree</text>
+  <text x="895" y="1382" fill="#2aaa5a" font-size="9">detectOB + detectFVG: entry zone detection</text>
+  <text x="895" y="1395" fill="#2aaa5a" font-size="9">OBI panel CO-TRADE block: live gate status</text>
+  <text x="895" y="1415" fill="#3ae87a" font-size="9" font-weight="bold">jediAlign ±1.2 on FIRE — orb amplified</text>
+  <text x="895" y="1428" fill="#1a7a3a" font-size="8">Next: wire /v1/council for real JEDI regime</text>
+  <text x="895" y="1465" fill="#1a5a30" font-size="8">Status: BUILT ✓  ObiPage.tsx 2026-04-25</text>
 
   <!-- P1-C MTF -->
   <rect x="30" y="1490" width="550" height="100" rx="4" fill="#080818" stroke="#1a1a5e" stroke-width="1"/>

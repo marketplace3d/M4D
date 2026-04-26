@@ -1,5 +1,5 @@
 export type Theme = 'navy-subtle' | 'navy-vibrant' | 'navy-glow' | 'hc-dark' | 'colour'
-export type PageId = 'market' | 'pulse' | 'trade' | 'starray' | 'perf' | 'alphaseek' | 'medallion' | 'obi'
+export type PageId = 'market' | 'pulse' | 'trade' | 'starray' | 'perf' | 'alphaseek' | 'medallion' | 'obi' | 'backtest-lab'
 
 export interface AlgoVote {
   id: string

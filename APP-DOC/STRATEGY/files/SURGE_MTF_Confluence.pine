@@ -1,0 +1,185 @@
+//@version=5
+indicator("SURGE MTF Confluence v1.0", overlay=false, max_lines_count=100)
+
+// =============================================================================
+// SURGE MTF CONFLUENCE MODULE v1.0
+// Computes bias alignment across 5 timeframes → outputs 0-100 score
+// Score fed to LLM Arbitration Layer as weight multiplier
+// =============================================================================
+
+// ─── INPUTS ──────────────────────────────────────────────────────────────────
+grp_tf = "Timeframe Config"
+tf1 = input.timeframe("D",  "HTF 1 (Macro Bias)",     group=grp_tf)
+tf2 = input.timeframe("240","HTF 2 (Trend)",           group=grp_tf)
+tf3 = input.timeframe("60", "MTF (Swing)",             group=grp_tf)
+tf4 = input.timeframe("15", "LTF (Entry)",             group=grp_tf)
+tf5 = input.timeframe("5",  "Execution TF",            group=grp_tf)
+
+grp_weights = "Alignment Weights (must sum to 100)"
+w1 = input.int(30, "HTF1 Weight", minval=5, maxval=50, group=grp_weights)
+w2 = input.int(25, "HTF2 Weight", minval=5, maxval=40, group=grp_weights)
+w3 = input.int(20, "MTF Weight",  minval=5, maxval=30, group=grp_weights)
+w4 = input.int(15, "LTF Weight",  minval=5, maxval=25, group=grp_weights)
+w5 = input.int(10, "Exec Weight", minval=5, maxval=20, group=grp_weights)
+
+grp_struct = "Structure Parameters"
+ema_fast  = input.int(20, "EMA Fast",  minval=5,  group=grp_struct)
+ema_slow  = input.int(50, "EMA Slow",  minval=20, group=grp_struct)
+ema_trend = input.int(200,"EMA Trend", minval=50, group=grp_struct)
+rsi_len   = input.int(14, "RSI Length",minval=5,  group=grp_struct)
+
+// ─── BIAS FUNCTION ───────────────────────────────────────────────────────────
+// Returns: 1 = bull, -1 = bear, 0 = neutral
+// Uses: price vs EMAs + EMA stack + RSI above/below 50
+getBias(tf) =>
+    c     = request.security(syminfo.tickerid, tf, close)
+    ef    = request.security(syminfo.tickerid, tf, ta.ema(close, ema_fast))
+    es    = request.security(syminfo.tickerid, tf, ta.ema(close, ema_slow))
+    et    = request.security(syminfo.tickerid, tf, ta.ema(close, ema_trend))
+    rsi   = request.security(syminfo.tickerid, tf, ta.rsi(close, rsi_len))
+    h20   = request.security(syminfo.tickerid, tf, ta.highest(high, 20))
+    l20   = request.security(syminfo.tickerid, tf, ta.lowest(low,  20))
+
+    // EMA stack score: each alignment layer +1 or -1
+    emaScore = 0
+    emaScore += c > ef ? 1 : -1
+    emaScore += c > es ? 1 : -1
+    emaScore += c > et ? 1 : -1
+    emaScore += ef > es ? 1 : -1
+    emaScore += es > et ? 1 : -1  // Full bear stack = -5, full bull = +5
+
+    rsiScore = rsi > 55 ? 1 : rsi < 45 ? -1 : 0
+
+    // Higher high / higher low structure
+    hhhl = c > (h20 * 0.98) ? 1 : c < (l20 * 1.02) ? -1 : 0
+
+    totalScore = emaScore + rsiScore + hhhl  // -7 to +7
+
+    // Classify: strong bias if >= 3 or <= -3
+    result = totalScore >= 3 ? 1 : totalScore <= -3 ? -1 : 0
+    [result, totalScore, rsi, ef, es, et]
+
+// ─── COMPUTE ALL TF BIASES ───────────────────────────────────────────────────
+[bias1, score1, rsi1, ef1, es1, et1] = getBias(tf1)
+[bias2, score2, rsi2, ef2, es2, et2] = getBias(tf2)
+[bias3, score3, rsi3, ef3, es3, et3] = getBias(tf3)
+[bias4, score4, rsi4, ef4, es4, et4] = getBias(tf4)
+[bias5, score5, rsi5, ef5, es5, et5] = getBias(tf5)
+
+// ─── ALIGNMENT SCORE CALCULATION ─────────────────────────────────────────────
+// Each TF contributes weighted score based on directional agreement
+// Score = sum of (weight × bias) normalized to 0-100
+
+totalWeight = w1 + w2 + w3 + w4 + w5  // Should = 100, normalize anyway
+
+weightedSum = (bias1 * w1) + (bias2 * w2) + (bias3 * w3) + (bias4 * w4) + (bias5 * w5)
+
+// Normalize: -totalWeight to +totalWeight → 0 to 100
+alignmentScore = (weightedSum / totalWeight + 1) / 2 * 100
+
+// Agreement count (how many TFs agree)
+bullCount = (bias1 == 1 ? 1 : 0) + (bias2 == 1 ? 1 : 0) + (bias3 == 1 ? 1 : 0) +
+            (bias4 == 1 ? 1 : 0) + (bias5 == 1 ? 1 : 0)
+bearCount = (bias1 == -1 ? 1 : 0) + (bias2 == -1 ? 1 : 0) + (bias3 == -1 ? 1 : 0) +
+            (bias4 == -1 ? 1 : 0) + (bias5 == -1 ? 1 : 0)
+
+agreement = math.max(bullCount, bearCount)  // 0-5
+
+// Final bias from alignment
+mtfBias = alignmentScore >= 65 ? "BULL" : alignmentScore <= 35 ? "BEAR" : "NEUTRAL"
+
+// ─── DRILL-DOWN LOGIC (HTF locks LTF execution filter) ───────────────────────
+// Rule: LTF signals only fire in direction of HTF bias
+// Mismatch = filter out (conflict penalty in arbitrator)
+htfBias = bias1 == 1 ? "BULL" : bias1 == -1 ? "BEAR" : "NEUTRAL"
+ltfBias = bias4 == 1 ? "BULL" : bias4 == -1 ? "BEAR" : "NEUTRAL"
+
+htfLtfAligned = htfBias == ltfBias
+conflictPenalty = htfLtfAligned ? 0 : 25  // Penalty applied in LLM arbitrator
+
+// Adjusted score after conflict penalty
+adjustedScore = math.max(0, alignmentScore - conflictPenalty)
+
+// ─── PLOTS ────────────────────────────────────────────────────────────────────
+col_bull = color.new(#00E676, 0)
+col_bear = color.new(#FF1744, 0)
+col_neut = color.new(#9E9E9E, 0)
+
+// Main alignment line
+alignCol = alignmentScore >= 65 ? col_bull : alignmentScore <= 35 ? col_bear : col_neut
+plot(alignmentScore,    "MTF Alignment (0-100)", color=alignCol, linewidth=2)
+plot(adjustedScore,     "MTF Adjusted Score",    color=color.new(alignCol, 50), linewidth=1)
+
+// Reference bands
+h1 = hline(65, "Bull Zone",   color=color.new(#00E676, 70), linestyle=hline.style_dashed)
+h2 = hline(35, "Bear Zone",   color=color.new(#FF1744, 70), linestyle=hline.style_dashed)
+h3 = hline(50, "Neutral",     color=color.new(#9E9E9E, 70), linestyle=hline.style_solid)
+fill(h1, h3, color=color.new(#00E676, 93))
+fill(h2, h3, color=color.new(#FF1744, 93))
+
+// Individual TF scores (data window)
+plot(score1 * 10 + 50, "D Score",  display=display.data_window)
+plot(score2 * 10 + 50, "4H Score", display=display.data_window)
+plot(score3 * 10 + 50, "1H Score", display=display.data_window)
+plot(score4 * 10 + 50, "15m Score",display=display.data_window)
+plot(score5 * 10 + 50, "5m Score", display=display.data_window)
+
+// ─── DASHBOARD ────────────────────────────────────────────────────────────────
+var table mtfTable = table.new(position.top_left, 3, 8,
+                                bgcolor=color.new(#0D0D0D, 10),
+                                border_color=color.new(color.white, 80), border_width=1)
+
+biasColor(b) =>
+    b == 1 ? color.new(#00E676, 0) : b == -1 ? color.new(#FF1744, 0) : color.new(#9E9E9E, 0)
+biasStr(b) =>
+    b == 1 ? "BULL" : b == -1 ? "BEAR" : "NEUT"
+
+if barstate.islast
+    table.cell(mtfTable, 0, 0, "TF",    text_color=color.white, bgcolor=#1565C0, text_size=size.tiny)
+    table.cell(mtfTable, 1, 0, "Bias",  text_color=color.white, bgcolor=#1565C0, text_size=size.tiny)
+    table.cell(mtfTable, 2, 0, "Str",   text_color=color.white, bgcolor=#1565C0, text_size=size.tiny)
+
+    tfs    = array.from(tf1, tf2, tf3, tf4, tf5)
+    biases = array.from(bias1, bias2, bias3, bias4, bias5)
+    scores = array.from(score1, score2, score3, score4, score5)
+
+    for i = 0 to 4
+        row = i + 1
+        b   = array.get(biases, i)
+        s   = array.get(scores, i)
+        table.cell(mtfTable, 0, row, array.get(tfs, i),    text_color=color.gray,     text_size=size.tiny)
+        table.cell(mtfTable, 1, row, biasStr(b),            text_color=biasColor(b),   text_size=size.tiny)
+        table.cell(mtfTable, 2, row, str.tostring(s),       text_color=biasColor(b),   text_size=size.tiny)
+
+    // Alignment score row
+    table.cell(mtfTable, 0, 6, "Align",  text_color=color.gray, text_size=size.tiny)
+    table.cell(mtfTable, 1, 6, str.tostring(math.round(alignmentScore)), text_color=alignCol, text_size=size.small)
+    table.cell(mtfTable, 2, 6, mtfBias,  text_color=alignCol, text_size=size.small)
+
+    // HTF/LTF conflict row
+    table.cell(mtfTable, 0, 7, "Lock",   text_color=color.gray, text_size=size.tiny)
+    lockCol = htfLtfAligned ? color.green : color.red
+    table.cell(mtfTable, 1, 7, htfLtfAligned ? "✓ OK" : "✗ CONFLICT", text_color=lockCol, text_size=size.tiny)
+    table.cell(mtfTable, 2, 7, "-" + str.tostring(conflictPenalty),     text_color=lockCol, text_size=size.tiny)
+
+// ─── MTF ALERT OUTPUT ────────────────────────────────────────────────────────
+mtfAlertCond = ta.crossover(alignmentScore, 65) or ta.crossunder(alignmentScore, 35)
+
+if mtfAlertCond
+    alert(
+        '{"source":"SURGE_MTF",' +
+        '"ts":"'              + str.tostring(timenow) + '",' +
+        '"ticker":"'          + syminfo.ticker + '",' +
+        '"mtf_bias":"'        + mtfBias + '",' +
+        '"align_score":'      + str.tostring(math.round(alignmentScore)) + ',' +
+        '"adj_score":'        + str.tostring(math.round(adjustedScore)) + ',' +
+        '"agreement":'        + str.tostring(agreement) + ',' +
+        '"htf_ltf_aligned":'  + str.tostring(htfLtfAligned) + ',' +
+        '"conflict_penalty":' + str.tostring(conflictPenalty) + ',' +
+        '"bias_d":"'          + biasStr(bias1) + '",' +
+        '"bias_4h":"'         + biasStr(bias2) + '",' +
+        '"bias_1h":"'         + biasStr(bias3) + '",' +
+        '"bias_15m":"'        + biasStr(bias4) + '",' +
+        '"bias_5m":"'         + biasStr(bias5) + '"}',
+        alert.freq_once_per_bar
+    )

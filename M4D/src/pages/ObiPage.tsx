@@ -4,6 +4,10 @@ import { fetchBarsForSymbol, type ChartSymbol } from '@pwa/lib/fetchBars';
 import { defaultSymbolForStrip, loadChartStripSymbol, saveChartStripSymbol } from '@pwa/lib/chartStripSymbol';
 import { TIMEFRAME_OPTIONS, loadTimeframe, saveTimeframe, type TimeframePreset } from '@pwa/lib/chartTimeframes';
 import { loadControls, saveControls, setMasLayer, type ChartControls } from '@pwa/lib/chartControls';
+import { computePriceTargets, type LiquidityThermalResult } from '@pwa/lib/computePriceTargets';
+import { buildObiChartHeatTargets, type ObiLineDensity, type ObiLineSpread } from '@pwa/lib/obiChartHeatTargets';
+import { obiBoomMinimalControls } from '@pwa/lib/obiBoomMinimalControls';
+import type { HeatTarget } from '../components/BoomLwChart';
 import BoomLwChart from '../components/BoomLwChart';
 import { SoloMasterOrb, type SoloOrbDirection } from '../viz/SoloMasterOrb';
 import './TvLwChartsPage.css';
@@ -268,6 +272,10 @@ function ObiPanel({ bars }: { bars: Bar[] }) {
 
 const CHART_STRIP_ID = 'spx' as const
 const SOLO_DOCK_KEY = 'm4d.obi.soloDock'
+/** LT blue/red/ICT OBI line overlay — on/off and 3 vs 7 levels (persists) */
+const OBI_CHART_LINES_KEY = 'm4d.obi.chartLines' as const
+/** OBI: hide all mountBoomChart overlays; LINES + candles only (persists) */
+const OBI_BOOM_MIN_KEY = 'm4d.obi.boomMinimal' as const
 const SOLO_PARTICIPATION_FLOOR_PCT = 15
 
 type SoloDockSide = 'left' | 'right'
@@ -279,6 +287,40 @@ function loadSoloDock(): SoloDockState {
 }
 function saveSoloDock(s: SoloDockState) { try { localStorage.setItem(SOLO_DOCK_KEY, JSON.stringify(s)) } catch {} }
 
+type ObiChartLines = { show: boolean; density: ObiLineDensity; spread: ObiLineSpread }
+function loadObiChartLines(): ObiChartLines {
+  try {
+    const raw = localStorage.getItem(OBI_CHART_LINES_KEY)
+    if (!raw) return { show: true, density: 3, spread: 'normal' }
+    const j = JSON.parse(raw) as Record<string, unknown>
+    const show = j.show !== false
+    if (j.density === 7 || j.density === '7') {
+      return { show, density: 7, spread: j.spread === 'wide' ? 'wide' : 'normal' }
+    }
+    if (j.density === 'multi' || j.density === 'M' || j.density === 'm') {
+      return { show, density: 'multi', spread: j.spread === 'wide' ? 'wide' : 'normal' }
+    }
+    if (j.full === true) {
+      return { show, density: 7, spread: j.spread === 'wide' ? 'wide' : 'normal' }
+    }
+    if (j.full === false) {
+      return { show, density: 3, spread: j.spread === 'wide' ? 'wide' : 'normal' }
+    }
+    return { show, density: 3, spread: j.spread === 'wide' ? 'wide' : 'normal' }
+  } catch { return { show: true, density: 3, spread: 'normal' } }
+}
+function saveObiChartLines(s: ObiChartLines) { try { localStorage.setItem(OBI_CHART_LINES_KEY, JSON.stringify(s)) } catch { /* */ } }
+
+function loadObiBoomMinimal(): boolean {
+  try {
+    const raw = localStorage.getItem(OBI_BOOM_MIN_KEY)
+    if (raw == null) return false
+    const j = JSON.parse(raw) as { v?: boolean }
+    return j.v === true
+  } catch { return false }
+}
+function saveObiBoomMinimal(v: boolean) { try { localStorage.setItem(OBI_BOOM_MIN_KEY, JSON.stringify({ v })) } catch { /* */ } }
+
 export default function ObiPage() {
   const vitePolygonKey = (import.meta.env.VITE_POLYGON_IO_KEY || import.meta.env.VITE_POLYGON_API_KEY) as string | undefined
   const [bars, setBars]         = useState<Bar[]>([])
@@ -289,9 +331,25 @@ export default function ObiPage() {
   const [tf, setTf]             = useState<TimeframePreset>(() => loadTimeframe())
   const [tickerInput, setTickerInput] = useState('')
   const [tickerFocus, setTickerFocus] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [showHeat, setShowHeat] = useState(true)
   const [obiVisible, setObiVisible] = useState(true)
+  const [obiChartLines, setObiChartLines] = useState<ObiChartLines>(() => loadObiChartLines())
+  const [obiBoomMinimal, setObiBoomMinimal] = useState<boolean>(() => loadObiBoomMinimal())
   const [soloDock, setSoloDock] = useState<SoloDockState>(() => loadSoloDock())
+  const setObiChartLinesPatch = useCallback((patch: Partial<ObiChartLines> | ((p: ObiChartLines) => ObiChartLines)) => {
+    setObiChartLines(prev => {
+      const n = typeof patch === 'function' ? patch(prev) : { ...prev, ...patch }
+      saveObiChartLines(n)
+      return n
+    })
+  }, [])
+  const setObiBoomMinimalPatch = useCallback((v: boolean) => { setObiBoomMinimal(v); saveObiBoomMinimal(v) }, [])
+
+  const boomControls = useMemo(
+    () => (obiBoomMinimal ? obiBoomMinimalControls(controls) : controls),
+    [obiBoomMinimal, controls],
+  )
   const preSafetySigRef = useRef<{ sigMode: ChartControls['sigMode']; sigRvolMin: number; sigAtrExpandMin: number; sigBreakAtrFrac: number } | null>(null)
 
   const TOP_STOCKS = ['ES','SPY','QQQ','EURUSD','XAUUSD','BTC','NVDA','AAPL','MSFT','TSLA','AMZN','META','GOOGL'] as const
@@ -344,10 +402,50 @@ export default function ObiPage() {
 
   const setTimeframe = useCallback((next: TimeframePreset) => { setTf(next); saveTimeframe(next); void load(sym, next) }, [load, sym])
 
-  const allIctOn = controls.showOrderBlocks && controls.showFvg && controls.showPoc && controls.showVwap && controls.showSwingRays && controls.showSessionLevels && controls.showIchimoku && controls.showMas
+  const allIndicatorsOn =
+    controls.showBB &&
+    controls.showKC &&
+    controls.showSqueeze &&
+    controls.showPoc &&
+    controls.showLt &&
+    controls.showVwap &&
+    controls.showCouncilArrows &&
+    controls.showIchimoku &&
+    controls.showMas &&
+    controls.showFvg &&
+    controls.squeezePurpleBg &&
+    controls.showOrderBlocks &&
+    controls.showSwingRays &&
+    controls.showSessionLevels
+  const allIctOn =
+    controls.showOrderBlocks &&
+    controls.showFvg &&
+    controls.showPoc &&
+    controls.showLt &&
+    controls.showVwap &&
+    controls.showSwingRays &&
+    controls.showSessionLevels &&
+    controls.showIchimoku &&
+    controls.showMas
+  const safetySummary = `RV ${controls.sigRvolMin.toFixed(2)}x · ATR ${controls.sigAtrExpandMin.toFixed(2)}x · BRK ${(controls.sigBreakAtrFrac * 100).toFixed(0)}% · ${controls.sigMode === 'strict' ? 'STR' : 'BAL'}`
   const toggleAllIct = useCallback(() => {
     const next = !allIctOn
-    persist(setMasLayer({ ...controls, showOrderBlocks: next, showFvg: next, showPoc: next, showVwap: next, showSwingRays: next, showSessionLevels: next, showIchimoku: next }, next))
+    persist(
+      setMasLayer(
+        {
+          ...controls,
+          showOrderBlocks: next,
+          showFvg: next,
+          showPoc: next,
+          showLt: next,
+          showVwap: next,
+          showSwingRays: next,
+          showSessionLevels: next,
+          showIchimoku: next,
+        },
+        next,
+      ),
+    )
   }, [allIctOn, controls, persist])
 
   const tickerQuery = tickerInput.trim().toUpperCase()
@@ -365,6 +463,15 @@ export default function ObiPage() {
   const priceChgPct = lastPrice && prevBar ? (lastBar!.close - prevBar.close)/prevBar.close*100 : null
   const fmtPrice = (p: number) => p >= 1000 ? p.toLocaleString('en-US', { maximumFractionDigits: 2 }) : p < 10 ? p.toFixed(5) : p.toFixed(2)
   const chartKey = bars.length > 0 ? `${sym}-${tf}-${bars[0]!.time}-${bars[bars.length-1]!.time}-${bars.length}` : ''
+  const targetPack = useMemo(() => computePriceTargets(bars), [bars])
+  const lt: LiquidityThermalResult | null = targetPack.lt
+  const chartLtHeatTargets = useMemo((): HeatTarget[] => {
+    return buildObiChartHeatTargets(bars, lt, targetPack.targets, targetPack.atr, {
+      show: obiChartLines.show,
+      density: obiChartLines.density,
+      spread: obiChartLines.spread,
+    })
+  }, [lt, obiChartLines, bars, targetPack.targets, targetPack.atr])
 
   // Heatseeker (reuse from TvLwChartsPage logic)
   const heat = useMemo(() => {
@@ -418,15 +525,13 @@ export default function ObiPage() {
         )}
       </div>
 
-      {/* Control strip */}
+      {/* Control strip (aligned with #spx chart pages) */}
       <div className="tv-lw-control-strip">
-        <div className="tv-lw-masters-row">
-          {/* OBI badge */}
+        <div className="tv-lw-masters-row" role="group" aria-label="Chart overlays">
           <div className="tv-lw-masters-seg" style={{ paddingRight: 4 }}>
             <span style={{ fontSize: 10, fontWeight: 800, color: '#a78bfa', fontFamily: 'monospace', letterSpacing: 2, textShadow: '0 0 8px #a78bfa', padding: '2px 6px' }}>◉ OBI</span>
           </div>
 
-          {/* Ticker */}
           <div className="tv-lw-masters-seg tv-lw-masters-seg--sym">
             <div className="tv-lw-ticker-wrap">
               <input type="text" className="tv-lw-ticker-input" value={tickerInput} placeholder={sym}
@@ -434,43 +539,165 @@ export default function ObiPage() {
                 onChange={e => setTickerInput(e.target.value.toUpperCase())}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); void selectTicker(tickerInput) } }} />
               {tickerFocus && (
-                <div className="tv-lw-ticker-dd">
+                <div className="tv-lw-ticker-dd" role="listbox">
                   {tickerSuggestions.map(t => <button key={t} type="button" className="tv-lw-ticker-dd-item" onMouseDown={e => { e.preventDefault(); void selectTicker(t) }}>{t}</button>)}
                 </div>
               )}
             </div>
           </div>
 
-          {/* TF */}
           <div className="tv-lw-masters-seg tv-lw-masters-seg--tf">
             {TIMEFRAME_OPTIONS.map(o => <button key={o.id} type="button" className={tf === o.id ? 'tv-lw-pill tv-lw-pill--on' : 'tv-lw-pill'} onClick={() => setTimeframe(o.id)}>{o.label}</button>)}
           </div>
 
-          {/* ICT group */}
-          <div className="tv-lw-masters-seg tv-lw-masters-seg--ict-master">
-            <button type="button" className={allIctOn ? 'tv-lw-pill tv-lw-pill--on' : 'tv-lw-pill'} onClick={toggleAllIct}>ICT</button>
+          <div className="tv-lw-masters-seg tv-lw-masters-seg--ict-master" role="group" aria-label="ICT layers master">
+            <button type="button" className={allIctOn ? 'tv-lw-pill tv-lw-pill--on' : 'tv-lw-pill'} onClick={toggleAllIct} title="All ICT layers: OB · FVG · VP · LT · VWAP · SWG · SESS · ICHI · MAs">ICT</button>
           </div>
-          <div className="tv-lw-masters-seg tv-lw-masters-seg--ict">
-            {([['OB','showOrderBlocks'],['FVG','showFvg'],['VP','showPoc'],['VWAP','showVwap'],['SWG','showSwingRays'],['SESS','showSessionLevels'],['ICHI','showIchimoku'],['MAs','showMas']] as [string, keyof ChartControls][]).map(([lbl, key]) => (
-              <button key={key} type="button" className={controls[key] ? 'tv-lw-pill tv-lw-pill--on' : 'tv-lw-pill'} onClick={() => persist({ ...controls, [key]: !controls[key] })}>{lbl}</button>
-            ))}
+          <div className="tv-lw-masters-seg tv-lw-masters-seg--ict" role="group" aria-label="ICT · heat bases">
+            <button type="button" className={controls.showOrderBlocks ? 'tv-lw-pill tv-lw-pill--on' : 'tv-lw-pill'} onClick={() => persist({ ...controls, showOrderBlocks: !controls.showOrderBlocks })} title="Order blocks (SMC)">OB</button>
+            <button type="button" className={controls.showFvg ? 'tv-lw-pill tv-lw-pill--on' : 'tv-lw-pill'} onClick={() => persist({ ...controls, showFvg: !controls.showFvg })} title="FVG heat bands (horizontal)">FVG</button>
+            <button type="button" className={controls.showPoc ? 'tv-lw-pill tv-lw-pill--on' : 'tv-lw-pill'} onClick={() => persist({ ...controls, showPoc: !controls.showPoc })} title="VP heat + VPOC line (volume-at-price)">VP</button>
+            <button type="button" className={controls.showLt ? 'tv-lw-pill tv-lw-pill--on' : 'tv-lw-pill'} onClick={() => persist({ ...controls, showLt: !controls.showLt })} title="Liquidity Thermal — 300-bar 31-bin volume heatmap (full canvas)">LT</button>
+            <button type="button" className={controls.showVwap ? 'tv-lw-pill tv-lw-pill--on' : 'tv-lw-pill'} onClick={() => persist({ ...controls, showVwap: !controls.showVwap })} title="Session VWAP + ±1σ bands (trend read)">VWAP</button>
+            <button type="button" className={controls.showSwingRays ? 'tv-lw-pill tv-lw-pill--on' : 'tv-lw-pill'} onClick={() => persist({ ...controls, showSwingRays: !controls.showSwingRays })} title="Fractal swing rays">SWG</button>
+            <button type="button" className={controls.showSessionLevels ? 'tv-lw-pill tv-lw-pill--on' : 'tv-lw-pill'} onClick={() => persist({ ...controls, showSessionLevels: !controls.showSessionLevels })} title="Session levels: OR / PDH / PDL">SESS</button>
+            <button type="button" className={controls.showIchimoku ? 'tv-lw-pill tv-lw-pill--on' : 'tv-lw-pill'} onClick={() => persist({ ...controls, showIchimoku: !controls.showIchimoku })} title="Ichimoku cloud">ICHI</button>
+            <button type="button" className={controls.showMas ? 'tv-lw-pill tv-lw-pill--on' : 'tv-lw-pill'} onClick={() => persist(setMasLayer(controls, !controls.showMas))} title="EMA ribbon">MAs</button>
           </div>
 
-          {/* Heat + OBI toggle */}
-          <div className="tv-lw-masters-seg tv-lw-masters-seg--heat">
-            <button type="button" className={showHeat ? 'tv-lw-pill tv-lw-pill--purple-on' : 'tv-lw-pill tv-lw-pill--purple-off'} onClick={() => setShowHeat(v => !v)}>HEAT</button>
-            <button type="button" className={obiVisible ? 'tv-lw-pill tv-lw-pill--purple-on' : 'tv-lw-pill tv-lw-pill--purple-off'} onClick={() => setObiVisible(v => !v)} style={{ marginLeft: 2 }}>OBI</button>
+          <div className="tv-lw-masters-seg tv-lw-masters-seg--vol" role="group" aria-label="Volatility · signals">
+            <button type="button" className={controls.showBB || controls.showKC ? 'tv-lw-pill tv-lw-pill--on' : 'tv-lw-pill'}
+              onClick={() => { const next = !(controls.showBB || controls.showKC); persist({ ...controls, showBB: next, showKC: next }) }}>BB·KC</button>
+            <button type="button" className={controls.showSqueeze ? 'tv-lw-pill tv-lw-pill--on' : 'tv-lw-pill'} onClick={() => persist({ ...controls, showSqueeze: !controls.showSqueeze })} title="BOOM squeeze: box lines + trend fill">SQZ</button>
+            <button type="button" className={controls.showCouncilArrows ? 'tv-lw-pill tv-lw-pill--on' : 'tv-lw-pill'} onClick={() => persist({ ...controls, showCouncilArrows: !controls.showCouncilArrows })} title="SIG arrows: box break + RVOL + ATR (targets expansion)">SIG</button>
+            <button type="button" className={controls.sigMode === 'strict' ? 'tv-lw-pill tv-lw-pill--on' : 'tv-lw-pill'}
+              onClick={() => persist({ ...controls, sigMode: controls.sigMode === 'strict' ? 'balanced' : 'strict' })} title="SIG density: BAL vs STR">{controls.sigMode === 'strict' ? 'SIG STR' : 'SIG BAL'}</button>
+            <button type="button" className={controls.squeezePurpleBg ? 'tv-lw-pill tv-lw-pill--purple-on' : 'tv-lw-pill tv-lw-pill--purple-off'}
+              onClick={() => persist({ ...controls, squeezePurpleBg: !controls.squeezePurpleBg })} title="Purple squeeze tint">PURPLE</button>
+            <button type="button"
+              className={controls.squeezePurpleBg && controls.showSqueeze && controls.showCouncilArrows && controls.showSessionLevels ? 'tv-lw-pill tv-lw-pill--purple-on' : 'tv-lw-pill tv-lw-pill--purple-off'}
+              onClick={() => {
+                const next = !(controls.squeezePurpleBg && controls.showSqueeze && controls.showCouncilArrows && controls.showSessionLevels)
+                persist({ ...controls, squeezePurpleBg: next, showSqueeze: next, showCouncilArrows: next, showSessionLevels: next })
+              }} title="BOOM mode: Purple + SQZ + SIG + SESS">BOOM</button>
           </div>
 
-          {/* DEF */}
-          <div className="tv-lw-masters-seg tv-lw-masters-seg--tail">
+          <div className="tv-lw-masters-seg tv-lw-masters-seg--obi-lines" role="group" aria-label="OBI level lines (chart) — own layer" style={{ borderLeft: '1px solid rgba(59,130,246,0.4)', paddingLeft: 8, marginLeft: 4, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'nowrap' }}>
+            <button
+              type="button"
+              className={obiChartLines.show ? 'tv-lw-pill tv-lw-pill--purple-on' : 'tv-lw-pill tv-lw-pill--purple-off'}
+              onClick={() => setObiChartLinesPatch(s => ({ ...s, show: !s.show }))}
+              style={{ minWidth: 40, fontWeight: 800, letterSpacing: 0.5 }}
+              title="OBI level lines (own chart layer, drawn on top): blue above last · red below · purple ~at. Liquidity-thermal levels."
+            >
+              LINES
+            </button>
+            <button
+              type="button"
+              className={!obiChartLines.show ? 'tv-lw-pill tv-lw-pill--ghost' : 'tv-lw-pill tv-lw-pill--on'}
+              onClick={() => {
+                if (!obiChartLines.show) return
+                setObiChartLinesPatch((s) => ({
+                  ...s,
+                  density: s.density === 3 ? 7 : s.density === 7 ? 'multi' : 3,
+                }))
+              }}
+              title={obiChartLines.show
+                ? 'Cycle: 3 = LT core · 7 = up to 4 LT rungs · M = ICT (OB·sess·VP + swings), max 4, wide spacing'
+                : 'Turn on LINES first'}
+              disabled={!obiChartLines.show}
+            >
+              {obiChartLines.show
+                ? (obiChartLines.density === 3 ? '3' : obiChartLines.density === 7 ? '7' : 'M')
+                : '—'}
+            </button>
+            <button
+              type="button"
+              className={!obiChartLines.show ? 'tv-lw-pill tv-lw-pill--ghost' : obiChartLines.spread === 'wide' ? 'tv-lw-pill tv-lw-pill--on' : 'tv-lw-pill'}
+              onClick={() => {
+                if (obiChartLines.show) { setObiChartLinesPatch(s => ({ ...s, spread: s.spread === 'wide' ? 'normal' : 'wide' })) }
+              }}
+              style={{ minWidth: 24 }}
+              title="Spread: N ≈0.62 A·TR + 0.15% price min gap; W ≈1.15 A·TR + 0.26% (fewer, farther magnets)"
+              disabled={!obiChartLines.show}
+            >
+              {obiChartLines.show ? (obiChartLines.spread === 'wide' ? 'W' : 'N') : '·'}
+            </button>
+            <button
+              type="button"
+              className={obiBoomMinimal ? 'tv-lw-pill tv-lw-pill--on' : 'tv-lw-pill'}
+              onClick={() => setObiBoomMinimalPatch(!obiBoomMinimal)}
+              style={{ marginLeft: 4, minWidth: 32 }}
+              title="MIN: hide FVG·OB·LT·VWAP·ICHI·SIG·MM·… on the chart. Strip pills stay as saved for other routes; off = full layer stack. Default off (new visit / no stored MIN)."
+            >
+              MIN
+            </button>
+          </div>
+
+          <div className="tv-lw-masters-seg tv-lw-masters-seg--heat" role="group" aria-label="OBI page overlays">
+            <button type="button" className={showHeat ? 'tv-lw-pill tv-lw-pill--purple-on' : 'tv-lw-pill tv-lw-pill--purple-off'} onClick={() => setShowHeat(v => !v)} title="Heatseeker alpha score overlay">HEAT</button>
+            <button type="button" className={obiVisible ? 'tv-lw-pill tv-lw-pill--purple-on' : 'tv-lw-pill tv-lw-pill--purple-off'} onClick={() => setObiVisible(v => !v)} style={{ marginLeft: 2 }} title="OBI confluence & targets side panel">OBI</button>
+          </div>
+
+          <div className="tv-lw-masters-seg tv-lw-masters-seg--tail" role="group" aria-label="Layout · defence">
+            <button type="button" className={allIndicatorsOn ? 'tv-lw-pill tv-lw-pill--on' : 'tv-lw-pill'}
+              onClick={() => {
+                const next = !allIndicatorsOn
+                persist({ ...controls, showFvg: next, showBB: next, showKC: next, showSqueeze: next, showPoc: next, showLt: next, showVwap: next, showCouncilArrows: next, showIchimoku: next, showMas: next, squeezePurpleBg: next, showOrderBlocks: next, showSwingRays: next, showSessionLevels: next })
+              }} title="Toggle all strip overlays (VP, LT, heat bases, BOOM, SIG levels)">IND</button>
             <button type="button" className={controls.showGrid ? 'tv-lw-pill tv-lw-pill--on' : 'tv-lw-pill'} onClick={() => persist({ ...controls, showGrid: !controls.showGrid })}>GRID</button>
-            <button type="button" className={controls.safetyDefenseOn ? 'tv-lw-pill tv-lw-pill--on' : 'tv-lw-pill'} onClick={toggleSafetyDefense}>DEF</button>
+            <button type="button" className={controls.safetyDefenseOn ? 'tv-lw-pill tv-lw-pill--on' : 'tv-lw-pill'} onClick={toggleSafetyDefense} title="DEF: defence profile — stricter chart confirmations + softer SOLO conviction">DEF</button>
+            <button type="button" className={settingsOpen ? 'tv-lw-pill tv-lw-pill--on' : 'tv-lw-pill'} onClick={() => setSettingsOpen(v => !v)} title="FVG count + SIG (opacity, RVOL, ATR, BRK)">⚙ {settingsOpen ? '▴' : '▾'}</button>
           </div>
         </div>
       </div>
 
-      {controls.safetyDefenseOn && <div className="tv-lw-safety-chip"><span className="tv-lw-safety-chip__title">DEF · ARMED</span></div>}
+      {settingsOpen ? (
+        <div className="tv-lw-settings-panel" role="group" aria-label="Indicator slider settings">
+          <label className="tv-lw-opacity" dir="ltr" title="Max FVG heat zones drawn (most recent in list)">
+            <span className="tv-lw-opacity__val">FVG ×{controls.fvgMaxDisplay}</span>
+            <span className="tv-lw-opacity__tick tv-lw-opacity__tick--lo" aria-hidden>4</span>
+            <input type="range" min={4} max={80} step={2} value={controls.fvgMaxDisplay} aria-label="Number of FVG zones to display"
+              onChange={(e) => { const v = Number.parseInt(e.target.value, 10); persist({ ...controls, fvgMaxDisplay: Number.isFinite(v) ? v : 28 }) }} />
+            <span className="tv-lw-opacity__tick tv-lw-opacity__tick--hi" aria-hidden>80</span>
+          </label>
+          <label className="tv-lw-opacity" dir="ltr">
+            <span className="tv-lw-opacity__val">SIG {controls.sigOpacity}%</span>
+            <span className="tv-lw-opacity__tick tv-lw-opacity__tick--lo" aria-hidden>0</span>
+            <input type="range" min={0} max={100} step={5} value={controls.sigOpacity} aria-label="SIG overlay opacity"
+              onChange={(e) => persist({ ...controls, sigOpacity: Number.parseInt(e.target.value, 10) || 0 })} />
+            <span className="tv-lw-opacity__tick tv-lw-opacity__tick--hi" aria-hidden>100</span>
+          </label>
+          <label className="tv-lw-opacity" dir="ltr" title="SIG RVOL minimum">
+            <span className="tv-lw-opacity__val">RV {controls.sigRvolMin.toFixed(2)}x</span>
+            <span className="tv-lw-opacity__tick tv-lw-opacity__tick--lo" aria-hidden>1.00</span>
+            <input type="range" min={1} max={2} step={0.05} value={controls.sigRvolMin} aria-label="SIG RVOL minimum multiplier"
+              onChange={(e) => persist({ ...controls, sigRvolMin: Number.parseFloat(e.target.value) || 1.65 })} />
+            <span className="tv-lw-opacity__tick tv-lw-opacity__tick--hi" aria-hidden>2.00</span>
+          </label>
+          <label className="tv-lw-opacity" dir="ltr" title="SIG ATR expansion minimum">
+            <span className="tv-lw-opacity__val">ATR {controls.sigAtrExpandMin.toFixed(2)}x</span>
+            <span className="tv-lw-opacity__tick tv-lw-opacity__tick--lo" aria-hidden>1.00</span>
+            <input type="range" min={1} max={2} step={0.01} value={controls.sigAtrExpandMin} aria-label="SIG ATR expansion minimum multiplier"
+              onChange={(e) => persist({ ...controls, sigAtrExpandMin: Number.parseFloat(e.target.value) || 1.2 })} />
+            <span className="tv-lw-opacity__tick tv-lw-opacity__tick--hi" aria-hidden>2.00</span>
+          </label>
+          <label className="tv-lw-opacity" dir="ltr" title="SIG breakout distance as ATR fraction">
+            <span className="tv-lw-opacity__val">BRK {(controls.sigBreakAtrFrac * 100).toFixed(0)}%</span>
+            <span className="tv-lw-opacity__tick tv-lw-opacity__tick--lo" aria-hidden>1</span>
+            <input type="range" min={0.01} max={0.2} step={0.01} value={controls.sigBreakAtrFrac} aria-label="SIG breakout ATR fraction"
+              onChange={(e) => persist({ ...controls, sigBreakAtrFrac: Number.parseFloat(e.target.value) || 0.03 })} />
+            <span className="tv-lw-opacity__tick tv-lw-opacity__tick--hi" aria-hidden>20</span>
+          </label>
+        </div>
+      ) : null}
+
+      {controls.safetyDefenseOn ? (
+        <div className="tv-lw-safety-chip" role="status" aria-live="polite">
+          <span className="tv-lw-safety-chip__title">DEF · ARMED</span>
+          <span className="tv-lw-safety-chip__meta">{safetySummary}</span>
+        </div>
+      ) : null}
       {err && <p className="err">{err}</p>}
 
       {/* Chart stage — flex row: chart left, OBI panel right */}
@@ -482,11 +709,19 @@ export default function ObiPage() {
             {lastPrice !== null && <span className="tv-lw-overlay-price">{fmtPrice(lastPrice)}</span>}
             {priceChgPct !== null && <span className={`tv-lw-overlay-chg ${priceChgPct >= 0 ? 'pos' : 'neg'}`}>{priceChgPct >= 0 ? '+' : ''}{priceChgPct.toFixed(2)}%</span>}
             {heat && <span className={`tv-lw-overlay-heat tv-lw-overlay-heat--${heat.tier.toLowerCase()}`}>{heat.tier} {heat.alphaScore} {heat.jediBull ? '▲' : heat.jediBear ? '▼' : '·'} {heat.regime.replace(' TREND','')}</span>}
+            {obiBoomMinimal && <span className="tv-lw-overlay-heat" style={{ color: '#38bdf8', textShadow: '0 0 6px #38bdf8' }}>MIN</span>}
           </div>
           {loading && <p className="muted">Loading…</p>}
           {!loading && bars.length > 0 && chartKey && (
-            <BoomLwChart key={chartKey} bars={bars} controls={controls} symbol={sym}
-              heatTarget={(heat && (heat.tier === 'S' || heat.tier === 'A')) ? { price: heat.targetLevel, tier: heat.tier } : null} />
+            <BoomLwChart
+              key={chartKey}
+              bars={bars}
+              controls={boomControls}
+              symbol={sym}
+              obiConfirmTargets
+              heatTargets={chartLtHeatTargets}
+              heatTarget={(heat && (heat.tier === 'S' || heat.tier === 'A')) ? { price: heat.targetLevel, tier: heat.tier } : null}
+            />
           )}
         </div>
         {/* OBI panel — fixed width, full height */}

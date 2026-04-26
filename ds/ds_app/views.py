@@ -3625,3 +3625,75 @@ def paper_equity(request):
         return resp
     except Exception as exc:
         return JsonResponse({"error": str(exc)}, status=500)
+
+
+# ── ICT Walk-Forward ──────────────────────────────────────────────────────────
+
+_ICT_WF_REPORT   = pathlib.Path(__file__).parent.parent / "data" / "ict_walkforward_report.json"
+_ICT_WF_PROGRESS = pathlib.Path(__file__).parent.parent / "data" / "ict_wf_progress.json"
+
+
+@require_GET
+def ict_wf_report(request):
+    """GET /v1/ict-walkforward/ — cached ICT walkforward waterfall report"""
+    if not _ICT_WF_REPORT.exists():
+        resp = JsonResponse({"ok": False, "error": "No report yet. POST /v1/ict-walkforward/run/ (~5min)"}, status=404)
+        resp["Access-Control-Allow-Origin"] = "*"
+        return resp
+    try:
+        data = json.loads(_ICT_WF_REPORT.read_text())
+        resp = JsonResponse(data)
+        resp["Access-Control-Allow-Origin"] = "*"
+        return resp
+    except Exception as exc:
+        return JsonResponse({"ok": False, "error": str(exc)}, status=500)
+
+
+def ict_wf_run(request):
+    """POST /v1/ict-walkforward/run/ — launch ICT walkforward (~5min async)"""
+    import subprocess, sys
+    script = pathlib.Path(__file__).parent / "ict_walkforward.py"
+    try:
+        subprocess.Popen([sys.executable, str(script)], cwd=str(script.parent.parent))
+        resp = JsonResponse({"ok": True, "message": "ict_walkforward.py launched (~5min — OB/FVG loops are slow)"})
+        resp["Access-Control-Allow-Origin"] = "*"
+        return resp
+    except Exception as exc:
+        return JsonResponse({"ok": False, "error": str(exc)}, status=500)
+
+
+@require_GET
+def ict_wf_progress(request):
+    """GET /v1/ict-walkforward/progress/ — live fold progress during run"""
+    if not _ICT_WF_PROGRESS.exists():
+        resp = JsonResponse({"running": False, "phase": "idle", "pct": 0})
+        resp["Access-Control-Allow-Origin"] = "*"
+        return resp
+    try:
+        data = json.loads(_ICT_WF_PROGRESS.read_text())
+        resp = JsonResponse(data)
+        resp["Access-Control-Allow-Origin"] = "*"
+        return resp
+    except Exception as exc:
+        return JsonResponse({"running": False, "phase": "error", "error": str(exc)})
+
+
+# ── Liquidity Walls ───────────────────────────────────────────────────────────
+
+@require_GET
+def liquidity_walls(request):
+    """GET /v1/liquidity/walls/?symbol=ES&bars=500"""
+    from .liquidity_walls import run_for_symbol
+    symbol = request.GET.get("symbol", "ES").upper()
+    try:
+        n_bars = int(request.GET.get("bars", 500))
+        n_bars = max(100, min(n_bars, 2000))
+    except (ValueError, TypeError):
+        n_bars = 500
+    try:
+        data = run_for_symbol(symbol, n_bars)
+        resp = JsonResponse(data)
+        resp["Access-Control-Allow-Origin"] = "*"
+        return resp
+    except Exception as exc:
+        return JsonResponse({"ok": False, "error": str(exc)}, status=500)

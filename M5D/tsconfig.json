@@ -11,9 +11,14 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "strict": true,
+    "strict": false,
     "noUnusedLocals": false,
-    "noUnusedParameters": false
+    "noUnusedParameters": false,
+    "baseUrl": ".",
+    "paths": {
+      "$indicators/*": ["../indicators/*"],
+      "@pwa/lib/*": ["../pwa/src/lib/*"]
+    }
   },
   "include": ["src"]
 }

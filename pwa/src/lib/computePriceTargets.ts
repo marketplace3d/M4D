@@ -72,8 +72,16 @@ export function computePriceTargets(bars: Bar[]): {
   atr: number;
   lt: LiquidityThermalResult | null;
 } {
+  if (bars.length < 1) {
+    return { targets: [], lastClose: 0, atr: 0, lt: null };
+  }
+  const lastClose = bars[bars.length - 1]!.close;
+  /** OBI chart lines + liquidity thermal use this; it only needs ~10+ bars, unlike the full targets merge. */
+  const lt: LiquidityThermalResult | null =
+    bars.length >= 10 ? computeLiquidityThermal(bars) : null;
+
   if (bars.length < 25) {
-    return { targets: [], lastClose: bars[bars.length - 1]?.close ?? 0, atr: 0, lt: null };
+    return { targets: [], lastClose, atr: 0, lt };
   }
   const last = bars[bars.length - 1]!;
   const close = last.close;
@@ -132,8 +140,7 @@ export function computePriceTargets(bars: Bar[]): {
     push(z.dir === 1 ? 'OB·DEM' : 'OB·SUP', mid, open ? 62 : 48, 'ob');
   }
 
-  // Liquidity Thermal levels (300-bar, 31-bin)
-  const lt = computeLiquidityThermal(bars);
+  // Liquidity Thermal levels (300-bar, 31-bin) — `lt` computed above for 25+ as well
   if (lt) {
     push('LT-POC', lt.poc, 88, 'liq');
     lt.hvnsAbove.slice(0, 3).forEach((p, i) => push(`LT-R${i + 1}`, p, 76 - i * 8, 'liq'));

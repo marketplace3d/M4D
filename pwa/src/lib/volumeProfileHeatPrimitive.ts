@@ -5,8 +5,9 @@ import type {
   IPrimitivePaneRenderer,
   Time,
 } from 'lightweight-charts';
-import type { CanvasRenderingContext2D as CanvasCtx } from 'fancy-canvas';
 import type { CanvasRenderingTarget2D } from 'fancy-canvas';
+
+type CanvasCtx = CanvasRenderingContext2D;
 import type { Bar } from '../../../indicators/boom3d-tech';
 
 export type VolumeBin = {

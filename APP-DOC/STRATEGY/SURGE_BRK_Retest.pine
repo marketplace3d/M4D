@@ -1,0 +1,433 @@
+//@version=5
+indicator("SURGE BRK Retest v1.0", overlay=true, max_lines_count=500, max_labels_count=500, max_boxes_count=500)
+
+// =============================================================================
+// SURGE BREAKOUT + RETEST MODULE v1.0
+// Components:
+//   1. Structure Break Detector   — clean vs wick-only break classifier
+//   2. Retest Confirmation Engine — pullback to broken level + candle pattern gate
+//   3. Entry / SL / TP Auto-Calc  — OB/swing-anchored risk levels
+//   4. Alert JSON Output          — feeds LLM Arbitration Layer
+// Alpha ID: CONF-01
+// =============================================================================
+
+// ─── INPUTS ──────────────────────────────────────────────────────────────────
+grp_brk = "Structure Break"
+swing_len       = input.int(10,    "Swing Length",              minval=3, maxval=50,    group=grp_brk)
+min_break_pct   = input.float(0.1, "Min Break Body %",          minval=0.01, step=0.05, group=grp_brk)
+require_clean   = input.bool(false,"Require Clean Break Only",                          group=grp_brk)
+vol_confirm     = input.bool(true, "Volume Confirmation",                               group=grp_brk)
+vol_mult        = input.float(1.2, "Vol Multiplier (vs 20-bar avg)", minval=1.0, step=0.1, group=grp_brk)
+
+grp_ret = "Retest"
+retest_bars     = input.int(20,    "Max Bars to Retest",        minval=3, maxval=60,   group=grp_ret)
+retest_tol_pct  = input.float(0.15,"Retest Touch Tolerance %",  minval=0.01, step=0.05, group=grp_ret)
+require_pattern = input.bool(true, "Require Candle Pattern Confirm",                   group=grp_ret)
+
+grp_risk = "Risk Management"
+risk_atr_len    = input.int(14,    "ATR Length",                minval=5,  maxval=50,  group=grp_risk)
+sl_atr_mult     = input.float(1.5, "SL ATR Multiplier",         minval=0.5, step=0.25, group=grp_risk)
+tp1_rr          = input.float(2.0, "TP1 R:R",                   minval=1.0, step=0.5,  group=grp_risk)
+tp2_rr          = input.float(4.0, "TP2 R:R",                   minval=1.5, step=0.5,  group=grp_risk)
+use_swing_sl    = input.bool(true,  "Anchor SL to Swing (vs ATR only)",                group=grp_risk)
+
+grp_filt = "Filters"
+min_rr          = input.float(1.5, "Min R:R to Signal",         minval=1.0, step=0.25, group=grp_filt)
+trend_filter    = input.bool(true,  "EMA Trend Filter (200)",                          group=grp_filt)
+session_filter  = input.bool(false, "London/NY Session Only",                          group=grp_filt)
+
+grp_vis = "Visuals"
+col_bull_brk    = input.color(color.new(#00E5FF, 0),  "Bull Break",    group=grp_vis)
+col_bear_brk    = input.color(color.new(#FF1744, 0),  "Bear Break",    group=grp_vis)
+col_bull_ret    = input.color(color.new(#76FF03, 0),  "Bull Retest ✓", group=grp_vis)
+col_bear_ret    = input.color(color.new(#FF6D00, 0),  "Bear Retest ✓", group=grp_vis)
+col_level       = input.color(color.new(#FFD600, 60), "Break Level",   group=grp_vis)
+col_entry_zone  = input.color(color.new(#1DE9B6, 30), "Entry Zone",    group=grp_vis)
+show_sl_tp      = input.bool(true,  "Show SL/TP Lines",                group=grp_vis)
+
+// ─── CORE CALCULATIONS ───────────────────────────────────────────────────────
+atr     = ta.atr(risk_atr_len)
+ema200  = ta.ema(close, 200)
+vol_avg = ta.sma(volume, 20)
+
+// Session filter (UTC-based: London 07:00–16:00, NY 13:00–22:00)
+londonOpen  = time(timeframe.period, "0700-1600:1234567", "Europe/London")
+nyOpen      = time(timeframe.period, "0930-1700:1234567", "America/New_York")
+inSession   = not session_filter or (not na(londonOpen) or not na(nyOpen))
+
+// ─── SWING DETECTION ─────────────────────────────────────────────────────────
+ph = ta.pivothigh(high, swing_len, swing_len)
+pl = ta.pivotlow(low,   swing_len, swing_len)
+
+var float[] swingHighs   = array.new_float(0)
+var int[]   swingHighBar = array.new_int(0)
+var float[] swingLows    = array.new_float(0)
+var int[]   swingLowBar  = array.new_int(0)
+
+MAX_SW = 8
+
+if not na(ph)
+    array.unshift(swingHighs, ph)
+    array.unshift(swingHighBar, bar_index - swing_len)
+    if array.size(swingHighs) > MAX_SW
+        array.pop(swingHighs)
+        array.pop(swingHighBar)
+
+if not na(pl)
+    array.unshift(swingLows, pl)
+    array.unshift(swingLowBar, bar_index - swing_len)
+    if array.size(swingLows) > MAX_SW
+        array.pop(swingLows)
+        array.pop(swingLowBar)
+
+prevSwingHigh = array.size(swingHighs) >= 2 ? array.get(swingHighs, 1) : na
+prevSwingLow  = array.size(swingLows)  >= 2 ? array.get(swingLows,  1) : na
+
+// ─── BREAK CLASSIFIER ────────────────────────────────────────────────────────
+// Clean break: close above/below level by >= min_break_pct of price
+// Wick break: only high/low through level, body did not close through
+// Returns: 2=clean, 1=wick-only, 0=no break
+
+classifyBreak(level, isBull) =>
+    bodyBreak = isBull ? (close - level) / level * 100 >= min_break_pct :
+                         (level - close) / level * 100 >= min_break_pct
+    wickBreak = isBull ? high > level : low < level
+    result = bodyBreak ? 2 : wickBreak ? 1 : 0
+    result
+
+// Volume confirmation
+volOk = not vol_confirm or volume > vol_avg * vol_mult
+
+// Trend filter
+trendBull = not trend_filter or close > ema200
+trendBear = not trend_filter or close < ema200
+
+// Detect structure breaks on current bar
+bullBreakType = na(prevSwingHigh) ? 0 : classifyBreak(prevSwingHigh, true)
+bearBreakType = na(prevSwingLow)  ? 0 : classifyBreak(prevSwingLow,  false)
+
+bullBreakClean = bullBreakType == 2 and volOk and trendBull and inSession
+bullBreakWick  = bullBreakType == 1 and volOk and trendBull and inSession and not require_clean
+bearBreakClean = bearBreakType == 2 and volOk and trendBear and inSession
+bearBreakWick  = bearBreakType == 1 and volOk and trendBear and inSession and not require_clean
+
+bullBreak = bullBreakClean or bullBreakWick
+bearBreak = bearBreakClean or bearBreakWick
+
+// ─── BREAK STATE TRACKER ─────────────────────────────────────────────────────
+type BreakState
+    bool  isBull
+    float level         // The broken structure level
+    float breakClose    // Close at break bar
+    int   breakBar
+    int   breakType     // 2=clean, 1=wick
+    bool  retested
+    bool  confirmed
+    int   retestBar
+    float entryPrice
+    float sl
+    float tp1
+    float tp2
+    float rr
+
+var BreakState[] activeBreaks = array.new(BreakState, 0)
+MAX_BREAKS = 6
+
+// Register new breaks
+if bullBreak and not na(prevSwingHigh)
+    bs = BreakState.new(
+        isBull     = true,
+        level      = prevSwingHigh,
+        breakClose = close,
+        breakBar   = bar_index,
+        breakType  = bullBreakType,
+        retested   = false,
+        confirmed  = false,
+        retestBar  = 0,
+        entryPrice = 0.0,
+        sl         = 0.0,
+        tp1        = 0.0,
+        tp2        = 0.0,
+        rr         = 0.0
+    )
+    array.unshift(activeBreaks, bs)
+    if array.size(activeBreaks) > MAX_BREAKS
+        array.pop(activeBreaks)
+    label.new(bar_index, high, (bullBreakClean ? "BRK ▲" : "BRK~ ▲"),
+              color=col_bull_brk, textcolor=color.black,
+              style=label.style_label_down, size=size.small)
+
+if bearBreak and not na(prevSwingLow)
+    bs = BreakState.new(
+        isBull     = false,
+        level      = prevSwingLow,
+        breakClose = close,
+        breakBar   = bar_index,
+        breakType  = bearBreakType,
+        retested   = false,
+        confirmed  = false,
+        retestBar  = 0,
+        entryPrice = 0.0,
+        sl         = 0.0,
+        tp1        = 0.0,
+        tp2        = 0.0,
+        rr         = 0.0
+    )
+    array.unshift(activeBreaks, bs)
+    if array.size(activeBreaks) > MAX_BREAKS
+        array.pop(activeBreaks)
+    label.new(bar_index, low, (bearBreakClean ? "BRK ▼" : "BRK~ ▼"),
+              color=col_bear_brk, textcolor=color.white,
+              style=label.style_label_up, size=size.small)
+
+// ─── CANDLE PATTERN DETECTOR ─────────────────────────────────────────────────
+// Returns pattern name and bull/bear if detected, "" if none
+
+bodySize    = math.abs(close - open)
+totalRange  = high - low
+upperWick   = high - math.max(close, open)
+lowerWick   = math.min(close, open) - low
+isBullCandle = close > open
+isBearCandle = close < open
+
+// Engulfing
+bullEngulf = isBullCandle and open < close[1] and close > open[1] and bodySize > bodySize[1] * 0.8
+bearEngulf = isBearCandle and open > close[1] and close < open[1] and bodySize > bodySize[1] * 0.8
+
+// Pin bar / hammer / shooting star
+pinBarBull = lowerWick > bodySize * 2.0 and lowerWick > upperWick * 2.0 and totalRange > 0
+pinBarBear = upperWick > bodySize * 2.0 and upperWick > lowerWick * 2.0 and totalRange > 0
+
+// Rejection wick (strong close against wick)
+rejWickBull = lowerWick > totalRange * 0.55 and isBullCandle
+rejWickBear = upperWick > totalRange * 0.55 and isBearCandle
+
+// Inside bar (consolidation → confirms level respect)
+insideBar = high <= high[1] and low >= low[1]
+
+// Doji at level (indecision → often precedes reversal on retest)
+dojiCandle = bodySize <= totalRange * 0.1 and totalRange > 0
+
+bullPattern = bullEngulf or pinBarBull or rejWickBull
+bearPattern = bearEngulf or pinBarBear or rejWickBear
+
+getPatternStr(isBull) =>
+    if isBull
+        bullEngulf ? "Engulf" : pinBarBull ? "PinBar" : rejWickBull ? "RejWick" : insideBar ? "Inside" : "—"
+    else
+        bearEngulf ? "Engulf" : pinBarBear ? "PinBar" : rejWickBear ? "RejWick" : insideBar ? "Inside" : "—"
+
+// ─── RETEST DETECTION & CONFIRMATION ─────────────────────────────────────────
+tolMult = retest_tol_pct / 100
+
+retestConfBull = false
+retestConfBear = false
+var BreakState lastConfirmedBreak = na
+
+if array.size(activeBreaks) > 0
+    for i = 0 to array.size(activeBreaks) - 1
+        bs = array.get(activeBreaks, i)
+
+        // Expire stale breaks
+        if bar_index - bs.breakBar > retest_bars
+            continue
+
+        if bs.confirmed
+            continue
+
+        if bs.isBull
+            // Bull retest: price pulls back to broken level zone
+            levelTop = bs.level * (1 + tolMult)
+            levelBtm = bs.level * (1 - tolMult)
+            touchedLevel = low <= levelTop and high >= levelBtm
+            closedAbove  = close > bs.level
+
+            if touchedLevel and closedAbove
+                patternOk = not require_pattern or bullPattern
+                if patternOk
+                    // Calc risk levels
+                    swingSlRef = array.size(swingLows) > 0 ? array.get(swingLows, 0) : close - atr * sl_atr_mult
+                    slPrice    = use_swing_sl ? math.min(swingSlRef, close - atr * sl_atr_mult) :
+                                               close - atr * sl_atr_mult
+                    slDist     = close - slPrice
+                    calcRR     = slDist > 0 ? (atr * tp1_rr) / slDist : 0
+
+                    if calcRR >= min_rr
+                        bs.retested    := true
+                        bs.confirmed   := true
+                        bs.retestBar   := bar_index
+                        bs.entryPrice  := close
+                        bs.sl          := slPrice
+                        bs.tp1         := close + slDist * tp1_rr
+                        bs.tp2         := close + slDist * tp2_rr
+                        bs.rr          := calcRR
+                        retestConfBull := true
+                        lastConfirmedBreak := bs
+
+                        patStr = getPatternStr(true)
+                        label.new(bar_index, low,
+                                  "RETEST ▲\n" + patStr,
+                                  color=col_bull_ret, textcolor=color.black,
+                                  style=label.style_label_up, size=size.normal)
+
+        else
+            // Bear retest: price pulls back up to broken level zone
+            levelTop = bs.level * (1 + tolMult)
+            levelBtm = bs.level * (1 - tolMult)
+            touchedLevel = high >= levelBtm and low <= levelTop
+            closedBelow  = close < bs.level
+
+            if touchedLevel and closedBelow
+                patternOk = not require_pattern or bearPattern
+                if patternOk
+                    swingSlRef = array.size(swingHighs) > 0 ? array.get(swingHighs, 0) : close + atr * sl_atr_mult
+                    slPrice    = use_swing_sl ? math.max(swingSlRef, close + atr * sl_atr_mult) :
+                                               close + atr * sl_atr_mult
+                    slDist     = slPrice - close
+                    calcRR     = slDist > 0 ? (atr * tp1_rr) / slDist : 0
+
+                    if calcRR >= min_rr
+                        bs.retested    := true
+                        bs.confirmed   := true
+                        bs.retestBar   := bar_index
+                        bs.entryPrice  := close
+                        bs.sl          := slPrice
+                        bs.tp1         := close - slDist * tp1_rr
+                        bs.tp2         := close - slDist * tp2_rr
+                        bs.rr          := calcRR
+                        retestConfBear := true
+                        lastConfirmedBreak := bs
+
+                        patStr = getPatternStr(false)
+                        label.new(bar_index, high,
+                                  "RETEST ▼\n" + patStr,
+                                  color=col_bear_ret, textcolor=color.white,
+                                  style=label.style_label_down, size=size.normal)
+
+// ─── SL / TP LINES ───────────────────────────────────────────────────────────
+var line slLine  = na
+var line tp1Line = na
+var line tp2Line = na
+var line entLine = na
+
+if show_sl_tp and not na(lastConfirmedBreak) and lastConfirmedBreak.confirmed
+    bs = lastConfirmedBreak
+    if not na(slLine)
+        line.delete(slLine)
+        line.delete(tp1Line)
+        line.delete(tp2Line)
+        line.delete(entLine)
+    startBar = bs.retestBar
+    endBar   = bar_index + 20
+    slLine   := line.new(startBar, bs.sl,  endBar, bs.sl,
+                         color=color.new(color.red, 0),    style=line.style_dashed, width=1)
+    tp1Line  := line.new(startBar, bs.tp1, endBar, bs.tp1,
+                         color=color.new(color.green, 30), style=line.style_dashed, width=1)
+    tp2Line  := line.new(startBar, bs.tp2, endBar, bs.tp2,
+                         color=color.new(color.green, 0),  style=line.style_dashed, width=1)
+    entLine  := line.new(startBar, bs.entryPrice, endBar, bs.entryPrice,
+                         color=col_entry_zone, style=line.style_solid, width=2)
+
+    label.new(bar_index + 1, bs.sl,  "SL",  color=color.new(color.red, 0),   textcolor=color.white, size=size.tiny, style=label.style_label_right)
+    label.new(bar_index + 1, bs.tp1, "TP1", color=color.new(color.green,30), textcolor=color.white, size=size.tiny, style=label.style_label_right)
+    label.new(bar_index + 1, bs.tp2, "TP2", color=color.new(color.green,0),  textcolor=color.white, size=size.tiny, style=label.style_label_right)
+
+// ─── BREAK LEVEL LINES ───────────────────────────────────────────────────────
+if barstate.islast and array.size(activeBreaks) > 0
+    for i = 0 to math.min(array.size(activeBreaks) - 1, 3)
+        bs = array.get(activeBreaks, i)
+        if not bs.confirmed and bar_index - bs.breakBar <= retest_bars
+            line.new(bs.breakBar, bs.level, bar_index + 5, bs.level,
+                     color=col_level, style=line.style_dotted, width=1)
+
+// ─── DASHBOARD ────────────────────────────────────────────────────────────────
+var table dash = table.new(position.top_right, 2, 10,
+                            bgcolor=color.new(#0D0D0D, 10),
+                            border_color=color.new(color.white, 80), border_width=1)
+
+if barstate.islast
+    bs = lastConfirmedBreak
+
+    table.cell(dash, 0, 0, "SURGE BRK",    text_color=color.white, bgcolor=#1565C0, text_size=size.small)
+    table.cell(dash, 1, 0, syminfo.ticker + " " + timeframe.period,
+               text_color=color.white, bgcolor=#1565C0, text_size=size.small)
+
+    activeCount = 0
+    if array.size(activeBreaks) > 0
+        for i = 0 to array.size(activeBreaks) - 1
+            if not array.get(activeBreaks, i).confirmed and
+               bar_index - array.get(activeBreaks, i).breakBar <= retest_bars
+                activeCount += 1
+
+    table.cell(dash, 0, 1, "Pending BRKs", text_color=color.gray,  text_size=size.tiny)
+    table.cell(dash, 1, 1, str.tostring(activeCount), text_color=color.white, text_size=size.small)
+
+    table.cell(dash, 0, 2, "Last Signal",  text_color=color.gray,  text_size=size.tiny)
+    sigStr = na(bs) ? "—" : bs.isBull ? "LONG" : "SHORT"
+    sigCol = na(bs) ? color.gray : bs.isBull ? color.green : color.red
+    table.cell(dash, 1, 2, sigStr, text_color=sigCol, text_size=size.small)
+
+    table.cell(dash, 0, 3, "Break Type",   text_color=color.gray,  text_size=size.tiny)
+    typeStr = na(bs) ? "—" : bs.breakType == 2 ? "Clean" : "Wick"
+    table.cell(dash, 1, 3, typeStr, text_color=color.white, text_size=size.small)
+
+    table.cell(dash, 0, 4, "Entry",        text_color=color.gray,  text_size=size.tiny)
+    table.cell(dash, 1, 4, na(bs) ? "—" : str.tostring(bs.entryPrice, "#.####"),
+               text_color=color.white, text_size=size.small)
+
+    table.cell(dash, 0, 5, "SL",           text_color=color.gray,  text_size=size.tiny)
+    table.cell(dash, 1, 5, na(bs) ? "—" : str.tostring(bs.sl, "#.####"),
+               text_color=color.new(color.red, 0), text_size=size.small)
+
+    table.cell(dash, 0, 6, "TP1",          text_color=color.gray,  text_size=size.tiny)
+    table.cell(dash, 1, 6, na(bs) ? "—" : str.tostring(bs.tp1, "#.####"),
+               text_color=color.new(color.green, 30), text_size=size.small)
+
+    table.cell(dash, 0, 7, "TP2",          text_color=color.gray,  text_size=size.tiny)
+    table.cell(dash, 1, 7, na(bs) ? "—" : str.tostring(bs.tp2, "#.####"),
+               text_color=color.new(color.green, 0), text_size=size.small)
+
+    table.cell(dash, 0, 8, "R:R",          text_color=color.gray,  text_size=size.tiny)
+    rrCol = na(bs) ? color.gray : bs.rr >= tp1_rr ? color.green : color.yellow
+    table.cell(dash, 1, 8, na(bs) ? "—" : str.tostring(math.round(bs.rr * 100) / 100) + "R",
+               text_color=rrCol, text_size=size.small)
+
+    table.cell(dash, 0, 9, "Trend (200)",  text_color=color.gray,  text_size=size.tiny)
+    table.cell(dash, 1, 9, close > ema200 ? "BULL" : "BEAR",
+               text_color=close > ema200 ? color.green : color.red, text_size=size.small)
+
+// ─── ALERT JSON OUTPUT ───────────────────────────────────────────────────────
+if (retestConfBull or retestConfBear) and not na(lastConfirmedBreak)
+    bs = lastConfirmedBreak
+    patStr = getPatternStr(bs.isBull)
+
+    alert(
+        '{"source":"SURGE_BRK",' +
+        '"ts":"'         + str.tostring(timenow) + '",' +
+        '"ticker":"'     + syminfo.ticker + '",' +
+        '"tf":"'         + timeframe.period + '",' +
+        '"signal":"'     + (bs.isBull ? "LONG" : "SHORT") + '",' +
+        '"alpha_id":"CONF-01",' +
+        '"break_type":"' + (bs.breakType == 2 ? "clean" : "wick") + '",' +
+        '"break_level":' + str.tostring(bs.level) + ',' +
+        '"pattern":"'    + patStr + '",' +
+        '"entry":'       + str.tostring(bs.entryPrice) + ',' +
+        '"sl":'          + str.tostring(bs.sl) + ',' +
+        '"tp1":'         + str.tostring(bs.tp1) + ',' +
+        '"tp2":'         + str.tostring(bs.tp2) + ',' +
+        '"rr":'          + str.tostring(math.round(bs.rr * 100) / 100) + ',' +
+        '"atr":'         + str.tostring(atr) + ',' +
+        '"vol_confirm":' + str.tostring(volOk) + ',' +
+        '"trend_aligned":' + str.tostring(bs.isBull ? trendBull : trendBear) + '}',
+        alert.freq_once_per_bar_close
+    )
+
+// ─── PLOTS (data window + external script access) ────────────────────────────
+plot(bullBreak ? 1 : 0,      "Bull Break",       display=display.data_window)
+plot(bearBreak ? 1 : 0,      "Bear Break",       display=display.data_window)
+plot(retestConfBull ? 1 : 0, "Retest Bull Conf", display=display.data_window)
+plot(retestConfBear ? 1 : 0, "Retest Bear Conf", display=display.data_window)
+plot(atr,                    "ATR",              display=display.data_window)
+
+// EMA200 for trend context
+plot(ema200, "EMA 200", color=color.new(color.white, 60), linewidth=1)

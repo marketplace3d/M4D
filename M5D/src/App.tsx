@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import './theme.scss'
 import type { Theme, PageId } from './types'
 import type { TextScale } from './layout/TopBar'
@@ -17,23 +17,35 @@ import PerfPage from './pages/PerfPage'
 import AlphaSeekPage from './pages/AlphaSeekPage'
 import MedallionPage from './pages/MedallionPage'
 import ObiPage from './pages/ObiPage'
+import BacktestLabPage from './pages/BacktestLabPage'
 
 export default function App() {
   const [theme, setTheme]           = useState<Theme>('navy-subtle')
-  const [page, setPage]             = useState<PageId>('market')
+  const VALID_PAGES: PageId[] = ['market','pulse','trade','starray','perf','alphaseek','medallion','obi','backtest-lab']
+  const [page, setPage] = useState<PageId>(() => {
+    const hash = window.location.hash.slice(1) as PageId
+    if (VALID_PAGES.includes(hash)) return hash
+    const stored = localStorage.getItem('m5d.page') as PageId | null
+    return stored && VALID_PAGES.includes(stored) ? stored : 'market'
+  })
+  const navigate = useCallback((next: PageId) => {
+    setPage(next)
+    window.location.hash = next
+    localStorage.setItem('m5d.page', next)
+  }, [])
   const [textScale, setTextScale]   = useState<TextScale>(() => {
     const s = parseFloat(localStorage.getItem('m5d.textScale') ?? '1')
     return ([0.85, 1.0, 1.2, 1.5] as TextScale[]).includes(s as TextScale) ? s as TextScale : 1.0
   })
   const [leftCollapsed, setLeftCollapsed] = useState(() => window.innerWidth < 1200)
-  const [rightOpen, setRightOpen]         = useState(() => window.innerWidth >= 1800)
+  /** Right “algo status” rail: open on desktop by default; mobile forces closed. */
+  const [rightOpen, setRightOpen]         = useState(() => typeof window !== 'undefined' && window.innerWidth >= 768)
 
   const bp = useBreakpoint()
 
   useEffect(() => {
     if (bp === 'mobile') { setLeftCollapsed(true); setRightOpen(false) }
     if (bp === 'tablet') { setLeftCollapsed(true) }
-    if (bp === '4k')     { setRightOpen(true) }
   }, [bp])
 
   const council    = useCouncil()
@@ -62,10 +74,11 @@ export default function App() {
       case 'trade':     return <TradePage council={council} />
       case 'starray':   return <StarRayPage />
       case 'perf':      return <PerfPage />
-      case 'alphaseek': return <AlphaSeekPage onPageChange={setPage} />
-      case 'medallion': return <MedallionPage onPageChange={setPage} />
-      case 'obi':       return <ObiPage />
-      default:          return null
+      case 'alphaseek': return <AlphaSeekPage onPageChange={navigate} />
+      case 'medallion': return <MedallionPage onPageChange={navigate} />
+      case 'obi':           return <ObiPage />
+      case 'backtest-lab':  return <BacktestLabPage />
+      default:              return null
     }
   }
 
@@ -88,7 +101,7 @@ export default function App() {
         {!isMobile && (
           <LeftNav
             page={page}
-            onPageChange={setPage}
+            onPageChange={navigate}
             gates={7}
             equity={equity}
             pnl={pnl}
@@ -102,7 +115,7 @@ export default function App() {
         )}
 
         <main
-          className="m5d-main"
+          className={`m5d-main${page === 'obi' ? ' m5d-main--fill' : ''}`}
           style={{ paddingBottom: isMobile ? 64 : undefined }}
         >
           {renderPage()}
@@ -129,7 +142,7 @@ export default function App() {
       {isMobile && (
         <BottomTabBar
           page={page}
-          onPageChange={setPage}
+          onPageChange={navigate}
           jedi={jedi}
           activity={actGate}
           onRailToggle={() => setRightOpen(o => !o)}

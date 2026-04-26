@@ -3,10 +3,10 @@
 export type TimeframePreset = '1d1m' | '5d5m' | '1m15m' | '1y1d';
 
 export const TIMEFRAME_OPTIONS: { id: TimeframePreset; label: string }[] = [
-  { id: '1d1m', label: '1D·1m' },
-  { id: '5d5m', label: '5D·5m' },
-  { id: '1m15m', label: '1M·15m' },
-  { id: '1y1d', label: '1Y·1D' },
+  { id: '1d1m', label: '1m' },
+  { id: '5d5m', label: '5m' },
+  { id: '1m15m', label: '15m' },
+  { id: '1y1d', label: '1D' },
 ];
 
 export const DEFAULT_TIMEFRAME: TimeframePreset = '1d1m';

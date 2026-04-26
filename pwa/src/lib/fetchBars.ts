@@ -343,8 +343,8 @@ async function fetchBinanceBtcBars(
     for (const b of chunk) {
       if (b.time * 1000 >= startMs) out.push(b);
     }
-    const oldest = chunk[0] as number[];
-    end = oldest[0]! - 1;
+    const oldestKline = rows[0] as number[];
+    end = oldestKline[0]! - 1;
     if (chunk.length < maxPerReq) break;
   }
   out.sort((a, b) => a.time - b.time);

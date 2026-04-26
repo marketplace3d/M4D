@@ -28,7 +28,9 @@ import { SoloMasterOrb, type SoloOrbDirection } from '../viz/SoloMasterOrb';
 import {
   computePriceTargets,
   formatTargetPrice,
+  type LiquidityThermalResult,
 } from '@pwa/lib/computePriceTargets';
+import type { HeatTarget } from '../components/BoomLwChart';
 import {
   SOLO_PARTICIPATION_FLOOR_PCT,
   TARGET_UI_KEY,
@@ -74,6 +76,7 @@ export default function TvLwChartsPage() {
     controls.showKC &&
     controls.showSqueeze &&
     controls.showPoc &&
+    controls.showLt &&
     controls.showVwap &&
     controls.showCouncilArrows &&
     controls.showIchimoku &&
@@ -87,6 +90,7 @@ export default function TvLwChartsPage() {
     controls.showOrderBlocks &&
     controls.showFvg &&
     controls.showPoc &&
+    controls.showLt &&
     controls.showVwap &&
     controls.showSwingRays &&
     controls.showSessionLevels &&
@@ -191,6 +195,7 @@ export default function TvLwChartsPage() {
           showOrderBlocks: next,
           showFvg: next,
           showPoc: next,
+          showLt: next,
           showVwap: next,
           showSwingRays: next,
           showSessionLevels: next,
@@ -272,6 +277,14 @@ export default function TvLwChartsPage() {
       : '';
 
   const targetPack = useMemo(() => computePriceTargets(bars), [bars]);
+  const lt: LiquidityThermalResult | null = targetPack.lt;
+  const ltHeatTargets = useMemo((): HeatTarget[] => {
+    if (!lt) return [];
+    const out: HeatTarget[] = [{ price: lt.poc, tier: 'POC' }];
+    lt.hvnsAbove.slice(0, 3).forEach((p, i) => out.push({ price: p, tier: `R${i + 1}` }));
+    lt.hvnsBelow.slice(0, 3).forEach((p, i) => out.push({ price: p, tier: `S${i + 1}` }));
+    return out;
+  }, [lt]);
   const filteredTargets = useMemo(() => {
     const { targets } = targetPack;
     if (targetUi.filter === 'all') return targets;
@@ -477,7 +490,7 @@ export default function TvLwChartsPage() {
               type="button"
               className={allIctOn ? 'tv-lw-pill tv-lw-pill--on' : 'tv-lw-pill'}
               onClick={toggleAllIct}
-              title="All ICT layers: OB · FVG · VP · VWAP · SWG · SESS · ICHI · MAs"
+              title="All ICT layers: OB · FVG · VP · LT · VWAP · SWG · SESS · ICHI · MAs"
             >
               ICT
             </button>
@@ -506,6 +519,14 @@ export default function TvLwChartsPage() {
               title="VP heat + VPOC line (volume-at-price)"
             >
               VP
+            </button>
+            <button
+              type="button"
+              className={controls.showLt ? 'tv-lw-pill tv-lw-pill--on' : 'tv-lw-pill'}
+              onClick={() => persist({ ...controls, showLt: !controls.showLt })}
+              title="Liquidity Thermal — 300-bar 31-bin volume heatmap (full canvas)"
+            >
+              LT
             </button>
             <button
               type="button"
@@ -625,6 +646,7 @@ export default function TvLwChartsPage() {
                   showKC: next,
                   showSqueeze: next,
                   showPoc: next,
+                  showLt: next,
                   showVwap: next,
                   showCouncilArrows: next,
                   showIchimoku: next,
@@ -635,7 +657,7 @@ export default function TvLwChartsPage() {
                   showSessionLevels: next,
                 });
               }}
-              title="Toggle all strip overlays (incl. heat + VWAP)"
+              title="Toggle all strip overlays (VP, LT, heat bases, BOOM, SIG levels)"
             >
               IND
             </button>
@@ -792,7 +814,7 @@ export default function TvLwChartsPage() {
         </div>
         {loading ? <p className="muted">Loading…</p> : null}
         {!loading && bars.length > 0 && chartKey ? (
-          <BoomLwChart key={chartKey} bars={bars} controls={controls} symbol={sym} />
+          <BoomLwChart key={chartKey} bars={bars} controls={controls} symbol={sym} heatTargets={ltHeatTargets} />
         ) : null}
       </div>
 

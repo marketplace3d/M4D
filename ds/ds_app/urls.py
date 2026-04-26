@@ -66,6 +66,12 @@ urlpatterns = [
     # Walk-Forward Validation
     path("v1/walkforward/",             views.walkforward_report, name="walkforward-report"),
     path("v1/walkforward/run/",         views.walkforward_run,    name="walkforward-run"),
+    # ICT Signal Stack Walk-Forward
+    path("v1/ict-walkforward/",             views.ict_wf_report,    name="ict-wf-report"),
+    path("v1/ict-walkforward/run/",         views.ict_wf_run,       name="ict-wf-run"),
+    path("v1/ict-walkforward/progress/",    views.ict_wf_progress,  name="ict-wf-progress"),
+    # Liquidity Walls — VAP/HVN + EQ pools + Premium/Discount
+    path("v1/liquidity/walls/",             views.liquidity_walls,  name="liquidity-walls"),
     # Trade Quality Gate
     path("v1/gate/report/",             views.gate_report,        name="gate-report"),
     path("v1/gate/run/",                views.gate_run,           name="gate-run"),

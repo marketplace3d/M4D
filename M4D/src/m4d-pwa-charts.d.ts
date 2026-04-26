@@ -114,6 +114,29 @@ declare module '@pwa/lib/computePriceTargets' {
   export function formatTargetPrice(p: number): string;
 }
 
+declare module '@pwa/lib/obiChartHeatTargets' {
+  import type { Bar } from '$indicators/boom3d-tech';
+  import type { LiquidityThermalResult, PriceTargetRow } from '@pwa/lib/computePriceTargets';
+
+  export type ObiLineDensity = 3 | 7 | 'multi';
+  export type ObiLineSpread = 'normal' | 'wide';
+  export type ObiLineOpts = { show: boolean; density: ObiLineDensity; spread: ObiLineSpread };
+  export type HeatTargetLite = { price: number; tier: string };
+
+  export function buildObiChartHeatTargets(
+    bars: Bar[],
+    lt: LiquidityThermalResult | null,
+    targetRows: PriceTargetRow[],
+    packAtr: number,
+    opts: ObiLineOpts,
+  ): HeatTargetLite[];
+}
+
+declare module '@pwa/lib/obiBoomMinimalControls' {
+  import type { ChartControls } from '@pwa/lib/chartControls';
+  export function obiBoomMinimalControls(c: ChartControls): ChartControls;
+}
+
 declare module '@pwa/lib/boomChartBuild' {
   import type { Bar } from '$indicators/boom3d-tech';
   import type { ChartControls } from '@pwa/lib/chartControls';
@@ -156,5 +179,71 @@ declare module '*.jsx' {
 declare module '../viz/SocialAlphaPulse' {
   const Component: any;
   export default Component;
+}
+
+declare module '@pwa/lib/coTraderSignal' {
+  export type CoTraderSignal = unknown;
+  export function computeCoTraderSignal(...args: any[]): any;
+}
+
+declare module '@pwa/lib/ictLiquiditySynthesis' {
+  import type { Bar } from '$indicators/boom3d-tech';
+  import type { MMPrediction } from '@pwa/lib/mmBrain';
+  import type { CoTraderSignal } from '@pwa/lib/coTraderSignal';
+  import type { PriceTargetRow } from '@pwa/lib/computePriceTargets';
+
+  export type IctLevelClass = 'ERL' | 'IRL_RANGE' | 'IRL_INNER' | 'VALUE' | 'MICRO';
+  export type IctUnifiedLevel = {
+    price: number;
+    kind: string;
+    class: IctLevelClass;
+    gravity: number;
+    proxPct: number;
+    dir: 'above' | 'below' | 'at';
+    sources: string[];
+  };
+  export type IctNextStop = {
+    price: number | null;
+    kind: string;
+    ictClass: IctLevelClass;
+    distAtr: number;
+    source: 'MM_BRAIN' | 'ERL_DRAW' | 'FALLBACK';
+  };
+  export type IctDirectionPriority = {
+    bias: 'BULL' | 'BEAR' | 'NEUTRAL';
+    rawStrength: number;
+    strength: number;
+    drivers: string[];
+  };
+  export type IctSynthesisResult = {
+    asset: string;
+    tf: string;
+    timestamp: number;
+    price: number;
+    atr: number;
+    levels: IctUnifiedLevel[];
+    primaryNextStop: IctNextStop;
+    nextErlInBias: IctNextStop;
+    direction: IctDirectionPriority;
+    snapshot: unknown;
+    mm: MMPrediction;
+    coTrader: CoTraderSignal;
+    targets: PriceTargetRow[];
+    dataGaps: string[];
+    councilContext: string;
+    councilCompact: boolean;
+    mtfLevelCount: number;
+  };
+  export type IctSynthesisOptions = {
+    asset?: string;
+    tf?: string;
+    dailyBars?: Bar[];
+    compact?: boolean;
+  };
+  /** `dailyBars` enables PWH/PWL/PMH/PML/PQH/PQL in Oracle + ERL classification */
+  export function computeIctSynthesis(
+    bars: Bar[],
+    opts?: IctSynthesisOptions,
+  ): IctSynthesisResult;
 }
 
