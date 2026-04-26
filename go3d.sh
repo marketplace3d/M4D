@@ -33,6 +33,12 @@ _GO3D_SED_DS=$'s/^/\033[0;32m[ds]\033[0m /'
 _GO3D_SED_PULSE=$'s/^/\033[0;33m[pulse]\033[0m /'
 _GO3D_SED_SITE=$'s/^/\033[0;31m[site]\033[0m /'
 
+# Cost guard: xAI pulse/news scans are OFF by default.
+# Enable explicitly with:
+#   M3D_NEWS_PULSE=1 ./go3d.sh all
+#   M3D_NEWS_PULSE=1 ./go3d.sh ds
+M3D_NEWS_PULSE="${M3D_NEWS_PULSE:-0}"
+
 # Kill whatever is LISTENing on port $1 (stale mrt-api / api / django / vite from a prior run).
 _go3d_kill_listener_on_port() {
   local p="$1"
@@ -120,10 +126,15 @@ run_ds() {
   log "DS   → http://localhost:8800/"
   mkdir -p data
   .venv/bin/python manage.py migrate --run-syncdb 2>/dev/null || true
-  # Start pulse daemon alongside Django
-  .venv/bin/python grok_pulse.py 2>&1 | sed "$_GO3D_SED_PULSE" &
-  PULSE_PID=$!
-  trap "kill $PULSE_PID 2>/dev/null" EXIT
+  # Start pulse daemon only when explicitly enabled (cost control).
+  if [ "$M3D_NEWS_PULSE" = "1" ]; then
+    .venv/bin/python grok_pulse.py 2>&1 | sed "$_GO3D_SED_PULSE" &
+    PULSE_PID=$!
+    trap "kill $PULSE_PID 2>/dev/null" EXIT
+    log "News pulse ON (M3D_NEWS_PULSE=1)"
+  else
+    warn "News pulse OFF (default). Set M3D_NEWS_PULSE=1 to enable."
+  fi
   exec .venv/bin/python manage.py runserver 0.0.0.0:8800
 }
 
@@ -252,14 +263,20 @@ run_all() {
   if [ -f "$ROOT/.env.local" ]; then
     set -a; source "$ROOT/.env.local"; set +a
   fi
-  (cd "$ROOT/ds" && \
-    .venv/bin/python grok_pulse.py 2>&1 | sed "$_GO3D_SED_PULSE") &
-  PULSE_PID=$!
+  PULSE_PID=""
+  if [ "$M3D_NEWS_PULSE" = "1" ]; then
+    (cd "$ROOT/ds" && \
+      .venv/bin/python grok_pulse.py 2>&1 | sed "$_GO3D_SED_PULSE") &
+    PULSE_PID=$!
+    log "News pulse ON (M3D_NEWS_PULSE=1)"
+  else
+    warn "News pulse OFF (default). Set M3D_NEWS_PULSE=1 to enable."
+  fi
 
   (cd "$ROOT/site" && npm run dev 2>&1 | sed "$_GO3D_SED_SITE") &
   SITE_PID=$!
 
-  trap "kill $API_PID $ENGINE_PID $DS_PID $PULSE_PID $SITE_PID ${MRT_PID:-} 2>/dev/null; exit 0" INT TERM
+  trap "kill $API_PID $ENGINE_PID $DS_PID ${PULSE_PID:-} $SITE_PID ${MRT_PID:-} 2>/dev/null; exit 0" INT TERM
   ok "All services started. Ctrl+C to stop."
   wait
 }

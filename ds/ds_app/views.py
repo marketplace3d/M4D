@@ -2492,7 +2492,9 @@ def activity_report_view(request):
 def activity_run(request):
     """POST /v1/ai/activity/run/ — trigger xaigrok_activity.py in background"""
     import subprocess, sys
-    no_grok = request.GET.get("no_grok", "0") == "1"
+    # Cost guard: default tick-only unless explicitly enabled.
+    enable_grok = request.GET.get("enable_grok", "0") == "1"
+    no_grok = request.GET.get("no_grok", "0") == "1" or not enable_grok
     script  = pathlib.Path(__file__).parent / "xaigrok_activity.py"
     cmd = [sys.executable, str(script)]
     if no_grok:

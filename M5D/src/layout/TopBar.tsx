@@ -89,47 +89,42 @@ export default function TopBar({ theme, onThemeChange, textScale, onScaleChange,
 
       <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
 
-      {/* Text scale Aa */}
-      <div style={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-        <span style={{ fontSize: 7, color: 'var(--text3)', marginRight: 2 }}>Aa</span>
-        {TEXT_SCALES.map(ts => (
-          <button
-            key={ts.val}
-            onClick={() => onScaleChange(ts.val)}
-            style={{
-              padding: '2px 5px', fontSize: 7, fontFamily: mono, fontWeight: 700,
-              background: textScale === ts.val ? 'rgba(255,255,255,0.1)' : 'transparent',
-              border: `1px solid ${textScale === ts.val ? 'var(--border2)' : 'transparent'}`,
-              borderRadius: 2,
-              color: textScale === ts.val ? 'var(--text)' : 'var(--text3)',
-              cursor: 'pointer',
-            }}
-          >{ts.label}</button>
-        ))}
+      {/* Compact text scale selector */}
+      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+        <span style={{ fontSize: 7, color: 'var(--text3)' }}>Aa</span>
+        <select
+          value={textScale}
+          onChange={e => onScaleChange(Number(e.target.value) as TextScale)}
+          style={{
+            height: 22, padding: '0 6px', fontSize: 8, fontFamily: mono,
+            background: 'var(--bg3)', color: 'var(--text2)',
+            border: '1px solid var(--border)', borderRadius: 2,
+          }}
+        >
+          {TEXT_SCALES.map(ts => (
+            <option key={ts.val} value={ts.val}>{ts.label.toUpperCase()}</option>
+          ))}
+        </select>
       </div>
 
       <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
 
-      {/* Theme selector */}
-      <div style={{ display: 'flex', gap: 3 }}>
-        {THEMES.map(t => (
-          <button
-            key={t.id}
-            onClick={() => onThemeChange(t.id)}
-            style={{
-              padding: '3px 8px', fontSize: 8, fontFamily: mono, fontWeight: 700, letterSpacing: '0.08em',
-              background: theme === t.id ? 'rgba(255,255,255,0.1)' : 'transparent',
-              border: `1px solid ${theme === t.id ? 'var(--border2)' : 'transparent'}`,
-              borderRadius: 2,
-              color: theme === t.id ? 'var(--text)' : 'var(--text3)',
-              cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: 4,
-            }}
-          >
-            <span style={{ width: 5, height: 5, borderRadius: '50%', background: t.dot, display: 'inline-block' }} />
-            {t.label}
-          </button>
-        ))}
+      {/* Compact theme selector */}
+      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: THEMES.find(t => t.id === theme)?.dot ?? '#3a8fff', display: 'inline-block' }} />
+        <select
+          value={theme}
+          onChange={e => onThemeChange(e.target.value as Theme)}
+          style={{
+            height: 22, padding: '0 6px', fontSize: 8, fontFamily: mono, letterSpacing: '0.06em',
+            background: 'var(--bg3)', color: 'var(--text2)',
+            border: '1px solid var(--border)', borderRadius: 2,
+          }}
+        >
+          {THEMES.map(t => (
+            <option key={t.id} value={t.id}>{t.label}</option>
+          ))}
+        </select>
       </div>
     </div>
   )

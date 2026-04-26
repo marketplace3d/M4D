@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import type { CouncilSnapshot, CrossAssetReport, ActivityReport } from '../types'
+import { useEffect, useState } from 'react'
+import type { CouncilSnapshot, CrossAssetReport, ActivityReport, GateReport } from '../types'
 
 const EUPHORIA_PARAMS = [
   { key: 'entry_thr',  label: 'ENTRY THR',   val: '0.12'  },
@@ -29,17 +29,21 @@ interface Props {
   council:         CouncilSnapshot | null
   crossAsset:      CrossAssetReport | null
   activity:        ActivityReport  | null
+  gateReport:      GateReport | null
   open?:           boolean
   onOpenChange?:   (v: boolean) => void
 }
 
-export default function RightRail({ council, crossAsset, activity, open: openProp, onOpenChange }: Props) {
+export default function RightRail({ council, crossAsset, activity, gateReport, open: openProp, onOpenChange }: Props) {
   const [openLocal, setOpenLocal]   = useState(false)
   const [gatesOpen, setGatesOpen]   = useState(true)
-  const [paramsOpen, setParamsOpen] = useState(true)
-  const [paramsLocked, setParamsLocked] = useState(true)
-  const [gates, setGates]           = useState(GATES)
+  const [nowMs, setNowMs]           = useState(() => Date.now())
   const mono = "var(--font-mono)"
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNowMs(Date.now()), 1000)
+    return () => window.clearInterval(id)
+  }, [])
 
   const open    = openProp !== undefined ? openProp : openLocal
   const setOpen = (v: boolean) => { setOpenLocal(v); onOpenChange?.(v) }
@@ -53,8 +57,26 @@ export default function RightRail({ council, crossAsset, activity, open: openPro
   const caColor    = ca === 'RISK_ON' ? 'var(--greenB)' : ca === 'RISK_OFF' ? 'var(--redB)' : 'var(--text2)'
   const actColor   = act === 'HOT' ? 'var(--greenB)' : act === 'ALIVE' ? 'var(--green)' : act === 'SLOW' ? 'var(--goldB)' : 'var(--redB)'
   const regColor   = regime === 'TRENDING' ? 'var(--greenB)' : regime === 'BREAKOUT' ? 'var(--accent)' : regime === 'RISK-OFF' ? 'var(--redB)' : 'var(--text3)'
-  const activeGates = gates.filter(g => g.on).length
+  const liveGates = gateReport?.gates ?? []
+  const activeGates = liveGates.filter(g => g.enabled).length
   const gatesColor  = activeGates >= 7 ? 'var(--greenB)' : activeGates >= 5 ? 'var(--goldB)' : 'var(--redB)'
+  const councilTsMs = council?.timestamp ? Date.parse(council.timestamp) : null
+  const councilAgeS = councilTsMs ? Math.max(0, Math.floor((nowMs - councilTsMs) / 1000)) : null
+  const councilFresh = councilAgeS !== null && councilAgeS <= 30
+
+  const dataHealth = {
+    council: council !== null,
+    crossAsset: crossAsset !== null,
+    activity: activity !== null,
+  }
+
+  function ageLabel(s: number | null): string {
+    if (s === null) return '—'
+    if (s < 60) return `${s}s`
+    const m = Math.floor(s / 60)
+    const rem = s % 60
+    return `${m}m ${rem}s`
+  }
 
   // ── Collapsed indicator strip ───────────────────────────────────────────────
   if (!open) {
@@ -179,6 +201,22 @@ export default function RightRail({ council, crossAsset, activity, open: openPro
 
       {/* Quick stats */}
       <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--border)', background: 'var(--bg2)' }}>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:4, marginBottom:8 }}>
+          {[
+            { label:'COUNCIL', ok:dataHealth.council, hint:dataHealth.council ? (councilFresh ? 'LIVE' : `STALE ${ageLabel(councilAgeS)}`) : 'OFFLINE' },
+            { label:'CROSS', ok:dataHealth.crossAsset, hint:dataHealth.crossAsset ? 'LIVE' : 'OFFLINE' },
+            { label:'ACT', ok:dataHealth.activity, hint:dataHealth.activity ? 'LIVE' : 'OFFLINE' },
+          ].map(s => (
+            <div key={s.label} style={{ border:'1px solid var(--border)', borderRadius:2, padding:'3px 4px', background:'var(--bg3)' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:4 }}>
+                <span className={`status-dot ${s.ok ? 'live' : 'dead'}`} />
+                <span style={{ fontSize:7, color:'var(--text3)' }}>{s.label}</span>
+              </div>
+              <div style={{ fontSize:8, fontWeight:700, color:s.ok ? 'var(--greenB)' : 'var(--redB)', marginTop:2 }}>{s.hint}</div>
+            </div>
+          ))}
+        </div>
+
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
           <span style={{ fontSize: 7, color: 'var(--text3)', alignSelf: 'flex-end' }}>JEDI</span>
           <span style={{ fontSize: 20, fontWeight: 800, color: jediColor, lineHeight: 1 }}>
@@ -214,90 +252,37 @@ export default function RightRail({ council, crossAsset, activity, open: openPro
       {/* Scrollable sections */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
         <Section
-          title="GATE CONTROLS"
+          title="LIVE GATE SNAPSHOT"
           open={gatesOpen}
           onToggle={() => setGatesOpen(o => !o)}
-          badge={<span className={`m5d-badge ${activeGates >= 7 ? 'green' : 'gold'}`}>{activeGates} ON</span>}
-        >
-          {gates.map(g => (
-            <div key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 0', borderBottom: '1px solid var(--border)' }}>
-              <span style={{ flex: 1, color: 'var(--text2)', fontSize: 8 }}>{g.label}</span>
-              <span className={`m5d-badge ${g.on ? 'green' : 'gray'}`} style={{ fontSize: 7 }}>{g.delta}</span>
-              <div className={`m5d-toggle ${g.on ? 'on' : 'off'}`} onClick={() => setGates(gs => gs.map(x => x.id === g.id ? { ...x, on: !x.on } : x))} />
-            </div>
-          ))}
-        </Section>
-
-        <Section title="KELLY SIZING" open={true} onToggle={() => {}}>
-          <div style={{ textAlign: 'center', padding: '4px 0 8px' }}>
-            <div style={{ fontSize: 7, color: 'var(--text3)', marginBottom: 2 }}>HALF-KELLY ACTIVE</div>
-            <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--greenB)' }}>9.56%</div>
-            <div style={{ fontSize: 8, color: 'var(--text2)', marginTop: 2 }}>× 1.20 CA (RISK_ON) = 11.47%</div>
-          </div>
-          <div style={{ height: 6, background: 'var(--border)', borderRadius: 3, overflow: 'hidden', marginBottom: 6 }}>
-            <div style={{ width: '50%', height: '100%', background: 'linear-gradient(90deg, var(--accentD), var(--greenB))', borderRadius: 3 }} />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 8, color: 'var(--text2)' }}>
-            <span>FULL: 19.12%</span>
-            <span>EUPHORIA: 2-3×</span>
-          </div>
-        </Section>
-
-        <Section
-          title="EUPHORIA PARAMS"
-          open={paramsOpen}
-          onToggle={() => setParamsOpen(o => !o)}
           badge={
-            <button
-              onClick={e => { e.stopPropagation(); setParamsLocked(l => !l) }}
-              style={{
-                padding: '1px 6px', fontSize: 7, fontFamily: mono, cursor: 'pointer',
-                background: paramsLocked ? 'rgba(255,74,90,0.1)' : 'rgba(29,255,122,0.1)',
-                border: `1px solid ${paramsLocked ? 'var(--red)' : 'var(--green)'}`,
-                color: paramsLocked ? 'var(--redB)' : 'var(--greenB)',
-                borderRadius: 2,
-              }}
-            >
-              {paramsLocked ? '🔒' : '🔓 EDIT'}
-            </button>
+            <div style={{ display:'flex', gap:4 }}>
+              <span className={`m5d-badge ${activeGates >= 7 ? 'green' : 'gold'}`}>{activeGates}/10 ON</span>
+              <span className={`m5d-badge ${gateReport?.ok ? 'green' : 'gold'}`}>{gateReport?.ok ? 'LIVE' : 'CACHED'}</span>
+            </div>
           }
         >
-          {EUPHORIA_PARAMS.map(p => (
-            <div key={p.key} className="stat-row">
-              <span className="stat-label">{p.label}</span>
-              {paramsLocked ? (
-                <span className="stat-val gold">{p.val}</span>
-              ) : (
-                <input
-                  defaultValue={p.val}
-                  style={{
-                    background: 'var(--bg3)', border: '1px solid var(--accent)', color: 'var(--goldB)',
-                    fontSize: 9, fontFamily: mono, padding: '1px 4px', borderRadius: 2, width: 64, textAlign: 'right',
-                  }}
-                />
-              )}
+          {liveGates.length === 0 && (
+            <div style={{ fontSize: 8, color: 'var(--text3)', lineHeight: 1.6 }}>
+              No live gate report yet. Open `#pulse` for full controls once feed returns.
+            </div>
+          )}
+          {liveGates.map(g => (
+            <div key={g.gate} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 0', borderBottom: '1px solid var(--border)' }}>
+              <span style={{ flex: 1, color: 'var(--text2)', fontSize: 8 }}>{g.gate.toUpperCase()}</span>
+              <span className={`m5d-badge ${g.enabled ? 'green' : 'gray'}`} style={{ fontSize: 7 }}>{g.enabled ? 'ON' : 'OFF'}</span>
+              <span className={`status-dot ${g.enabled ? 'live' : 'dead'}`} />
             </div>
           ))}
         </Section>
 
-        <Section title="SHARPE STACK" open={true} onToggle={() => {}}>
-          {[
-            { label: 'BASELINE',     val: 1.36,  color: 'var(--text2)' },
-            { label: '+ROUTING',     val: 5.94,  color: 'var(--text)' },
-            { label: '+REGIME',      val: 6.61,  color: 'var(--accent)' },
-            { label: '+GATES',       val: 15.86, color: 'var(--greenB)' },
-            { label: 'EUPHORIA',     val: 19.83, color: 'var(--goldB)' },
-            { label: '★ RE-ENTRY',  val: 29.72, color: 'var(--greenB)' },
-          ].map(r => (
-            <div key={r.label} style={{ display: 'flex', gap: 6, alignItems: 'center', padding: '2px 0', borderBottom: '1px solid var(--border)' }}>
-              <span style={{ flex: 1, fontSize: 8, color: 'var(--text2)' }}>{r.label}</span>
-              <div style={{ width: 50, height: 3, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
-                <div style={{ width: `${(r.val / 29.72) * 100}%`, height: '100%', background: r.color }} />
-              </div>
-              <span style={{ width: 32, textAlign: 'right', fontWeight: 700, color: r.color, fontSize: 9 }}>{r.val}</span>
-            </div>
-          ))}
-        </Section>
+        <div style={{ padding:'8px 10px', borderTop:'1px solid var(--border)', background:'var(--bg2)' }}>
+          <div style={{ fontSize:7, color:'var(--text3)', marginBottom:4, letterSpacing:'0.1em' }}>VISIBILITY NOTE</div>
+          <div style={{ fontSize:8, color:'var(--text2)', lineHeight:1.6 }}>
+            LIVE: Council/Cross/Activity + Gate Snapshot.<br/>
+            Use `#pulse` for full execution controls.
+          </div>
+        </div>
       </div>
     </div>
   )

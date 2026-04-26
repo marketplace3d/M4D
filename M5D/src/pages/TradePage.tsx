@@ -1,5 +1,6 @@
-import { useState } from 'react'
-import type { CouncilSnapshot } from '../types'
+import { useMemo, useState } from 'react'
+import { usePoll } from '../api/client'
+import type { ActivityReport, CouncilSnapshot } from '../types'
 
 const PRELOAD = [
   { label: 'ENTRY THR',  val: '0.12',    key: 'entry_thr' },
@@ -10,23 +11,87 @@ const PRELOAD = [
   { label: 'MODE',       val: 'EUPHORIA',key: 'mode'      },
 ]
 
-interface Props { council: CouncilSnapshot | null }
+interface OrderIntentRecord {
+  ts?: string
+  symbol?: string
+  side?: string
+  broker?: string
+  status?: string
+  qty?: number
+}
 
-export default function TradePage({ council }: Props) {
+interface OrderIntentResponse {
+  ok?: boolean
+  results?: OrderIntentRecord[]
+  data?: OrderIntentRecord[]
+}
+
+interface Props {
+  council: CouncilSnapshot | null
+  activity: ActivityReport | null
+}
+
+export default function TradePage({ council, activity }: Props) {
   const [fireReady, setFireReady] = useState(false)
-  const [reasoning] = useState([
-    { role: 'sys',    text: 'All gates clear. JEDI +14. EUPHORIA conditions: checking…' },
-    { role: 'claude', text: 'Regime: TRENDING. OBI: BID_HEAVY (0.58). Cross-asset: RISK_ON. Activity: HOT. All 7 gates ON. Entry threshold met.' },
-    { role: 'sys',    text: 'Pre-trade checklist: ✓ SQUEEZE clear ✓ ATR rank 72pct ✓ RVOL 1.47× ✓ Hour OK ✓ MTF AGREE' },
-    { role: 'claude', text: 'RECOMMENDATION: LONG BTC. EUPHORIA trigger criteria MET. Kelly: 9.56% × 1.20 CA = 11.47%. CIS horizon: 6 bars.' },
-  ])
+  const [mode, setMode] = useState<'PADAWAN' | 'NORMAL' | 'EUPHORIA' | 'MAX'>('PADAWAN')
+  const [symbol, setSymbol] = useState('BTC')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitMsg, setSubmitMsg] = useState<string | null>(null)
+  const [submitOk, setSubmitOk] = useState<boolean | null>(null)
+  const blotter = usePoll<OrderIntentResponse>('/v1/audit/order-intent/?broker=all&limit=20', 20_000)
 
   const jedi   = council?.jedi_score ?? 0
   const regime = council?.regime ?? 'NEUTRAL'
   const longs  = council?.total_long  ?? 0
   const shorts = council?.total_short ?? 0
+  const gateStatus = activity?.gate_status ?? 'DEAD'
+  const activityScore = activity?.activity_score ?? 0
 
-  const canFire = jedi > 10 && regime !== 'RISK-OFF'
+  const canFire = jedi > 10 && regime !== 'RISK-OFF' && (gateStatus === 'HOT' || gateStatus === 'ALIVE')
+  const blotterRows = useMemo(() => {
+    if (!blotter) return []
+    return blotter.results ?? blotter.data ?? []
+  }, [blotter])
+  const hasBlotterFeed = blotter !== null
+  const knownSymbols = useMemo(() => {
+    const fromBlotter = blotterRows.map(r => (r.symbol ?? '').replace('/USDT', '').toUpperCase()).filter(Boolean)
+    const merged = Array.from(new Set(['BTC', 'ETH', 'SOL', ...fromBlotter]))
+    return merged.slice(0, 10)
+  }, [blotterRows])
+
+  async function submitTrade() {
+    if (!canFire || isSubmitting) return
+    setIsSubmitting(true)
+    setSubmitMsg(null)
+    setSubmitOk(null)
+    try {
+      const r = await fetch('/ds/v1/paper/approve/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol, mode }),
+      })
+      const j = await r.json() as { ok?: boolean; error?: string; message?: string; symbol?: string; mode?: string }
+      if (!r.ok || !j.ok) {
+        setSubmitOk(false)
+        setSubmitMsg(j.error ?? `submit failed (${r.status})`)
+        return
+      }
+      setSubmitOk(true)
+      setSubmitMsg(`cycle launched: ${j.symbol ?? symbol} · ${j.mode ?? mode}`)
+      setFireReady(false)
+    } catch (e) {
+      setSubmitOk(false)
+      setSubmitMsg(`submit error: ${String(e)}`)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const reasoning = useMemo(() => ([
+    { role: 'sys', text: `Council status: ${council ? 'LIVE' : 'OFFLINE'} · JEDI ${jedi > 0 ? '+' : ''}${jedi.toFixed(0)} · Regime ${regime}` },
+    { role: 'sys', text: `Activity gate: ${gateStatus} (${(activityScore * 100).toFixed(0)}%) · Fire gate ${canFire ? 'OPEN' : 'BLOCKED'}` },
+    { role: 'claude', text: canFire ? 'Recommendation state: setup qualifies for paper execution guardrails.' : 'Recommendation state: waiting for gate alignment before arming trade.' },
+  ]), [activityScore, canFire, council, gateStatus, jedi, regime])
   const mono = "var(--font-mono)"
 
   return (
@@ -41,7 +106,8 @@ export default function TradePage({ council }: Props) {
           <span style={{ fontSize: 9, color: 'var(--text3)', marginLeft: 12 }}>ARB SCORE · FIRE · BLOTTER · AI REASONING</span>
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
-          <span className={`m5d-badge ${canFire ? 'green' : 'gray'}`}>{canFire ? '✓ CONDITIONS MET' : '○ AWAITING SIGNAL'}</span>
+          <span className={`m5d-badge ${council ? 'green' : 'red'}`}>{council ? 'LIVE: COUNCIL' : 'OFFLINE: COUNCIL'}</span>
+          <span className={`m5d-badge ${activity ? 'green' : 'gold'}`}>{activity ? `LIVE: ACTIVITY ${gateStatus}` : 'CACHED: ACTIVITY'}</span>
           <span className="m5d-badge gray">PAPER MODE</span>
         </div>
       </div>
@@ -70,36 +136,77 @@ export default function TradePage({ council }: Props) {
             </div>
             {/* Fire button */}
             <button
-              onClick={() => setFireReady(r => !r)}
-              disabled={!canFire}
+              onClick={() => {
+                if (!canFire || isSubmitting) return
+                if (!fireReady) { setFireReady(true); return }
+                void submitTrade()
+              }}
+              disabled={!canFire || isSubmitting}
               style={{
                 width: '100%', padding: '10px', borderRadius: 2,
                 fontFamily: mono, fontSize: 11, fontWeight: 700, letterSpacing: '0.15em',
-                cursor: canFire ? 'pointer' : 'not-allowed',
+                cursor: canFire && !isSubmitting ? 'pointer' : 'not-allowed',
                 background: canFire ? (fireReady ? 'rgba(255,100,0,0.15)' : 'rgba(29,255,122,0.1)') : 'transparent',
                 border: `1px solid ${canFire ? (fireReady ? '#ff6600' : 'var(--green)') : 'var(--border)'}`,
                 color: canFire ? (fireReady ? '#ff8800' : 'var(--greenB)') : 'var(--text3)',
                 transition: 'all 0.2s',
               }}
             >
-              {!canFire ? '○ WAITING FOR SIGNAL' : fireReady ? '▶ CONFIRM FIRE ORDER' : '● ARM TRADE'}
+              {!canFire ? '○ WAITING FOR SIGNAL' : isSubmitting ? '◌ SUBMITTING…' : fireReady ? '▶ CONFIRM PAPER ORDER' : '● ARM TRADE'}
             </button>
+            {submitMsg && (
+              <div style={{
+                marginTop: 8, fontSize: 8, lineHeight: 1.5, borderRadius: 2, padding: '4px 6px',
+                background: submitOk ? 'rgba(29,255,122,0.08)' : 'rgba(255,74,90,0.08)',
+                border: `1px solid ${submitOk ? 'var(--green)' : 'var(--red)'}`,
+                color: submitOk ? 'var(--greenB)' : 'var(--redB)',
+              }}>
+                {submitMsg}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Preloaded values */}
+        {/* Execution payload */}
         <div className="m5d-panel">
           <div className="m5d-panel-head" style={{ background: 'rgba(58,143,255,0.06)' }}>
-            <span className="panel-title" style={{ color: 'var(--accent)' }}>PRELOADED PARAMS</span>
-            <span className="m5d-badge blue">EUPHORIA</span>
+            <span className="panel-title" style={{ color: 'var(--accent)' }}>EXECUTION PAYLOAD</span>
+            <span className="m5d-badge green">LIVE: /ds/v1/paper/approve/</span>
           </div>
           <div className="m5d-panel-body">
-            {PRELOAD.map(p => (
-              <div key={p.key} className="stat-row">
-                <span className="stat-label">{p.label}</span>
-                <span className="stat-val gold">{p.val}</span>
-              </div>
-            ))}
+            <div className="stat-row">
+              <span className="stat-label">SYMBOL</span>
+              <select
+                value={symbol}
+                onChange={(e) => setSymbol(e.target.value)}
+                style={{
+                  background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text)',
+                  fontFamily: mono, fontSize: 9, borderRadius: 2, padding: '2px 4px',
+                }}
+              >
+                {knownSymbols.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div className="stat-row">
+              <span className="stat-label">MODE</span>
+              <select
+                value={mode}
+                onChange={(e) => setMode(e.target.value as typeof mode)}
+                style={{
+                  background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text)',
+                  fontFamily: mono, fontSize: 9, borderRadius: 2, padding: '2px 4px',
+                }}
+              >
+                {(['PADAWAN', 'NORMAL', 'EUPHORIA', 'MAX'] as const).map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </div>
+            <div className="stat-row"><span className="stat-label">ENDPOINT</span><span className="stat-val blue">POST /ds/v1/paper/approve/</span></div>
+            <div className="stat-row"><span className="stat-label">BROKER</span><span className="stat-val">ALPACA PAPER</span></div>
+            <div className="stat-row"><span className="stat-label">EXECUTION</span><span className={`stat-val ${canFire ? 'green' : 'red'}`}>{canFire ? 'GATE OPEN' : 'BLOCKED'}</span></div>
+            <div style={{ height: 1, background: 'var(--border)', margin: '6px 0' }} />
+            <div style={{ fontSize: 8, color: 'var(--text3)', lineHeight: 1.6 }}>
+              Flow: Arm trade → confirm submit → DS launches paper cycle for selected symbol.
+            </div>
             <div style={{ height: 1, background: 'var(--border)', margin: '6px 0' }} />
             {[
               { label: 'IOPT Sharpe',   val: '21.7', color: 'var(--goldB)' },
@@ -120,7 +227,7 @@ export default function TradePage({ council }: Props) {
         <div className="m5d-panel">
           <div className="m5d-panel-head" style={{ background: 'rgba(176,122,255,0.06)' }}>
             <span className="panel-title" style={{ color: 'var(--purpleB)' }}>AI REASONING</span>
-            <span className="m5d-badge purple">CLAUDE</span>
+            <span className={`m5d-badge ${activity ? 'green' : 'gold'}`}>{activity ? 'LIVE INPUTS' : 'CACHED INPUTS'}</span>
           </div>
           <div className="m5d-panel-body" style={{ padding: '6px 8px' }}>
             {reasoning.map((m, i) => (
@@ -142,10 +249,27 @@ export default function TradePage({ council }: Props) {
       <div className="m5d-panel fullspan">
         <div className="m5d-panel-head" style={{ background: 'rgba(58,143,255,0.06)' }}>
           <span className="panel-title" style={{ color: 'var(--accent)' }}>PAPER BLOTTER</span>
-          <span className="m5d-badge blue">ALPACA + IBKR</span>
+          <span className={`m5d-badge ${hasBlotterFeed ? 'green' : 'gold'}`}>{hasBlotterFeed ? 'LIVE FEED' : 'CACHED/LOADING'}</span>
         </div>
-        <div className="m5d-panel-body" style={{ padding: '10px', color: 'var(--text3)', fontSize: 9, textAlign: 'center' }}>
-          Paper blotter — wire to /v1/audit/order-intent/?broker=all
+        <div className="m5d-panel-body" style={{ padding: '8px 10px' }}>
+          {!blotterRows.length ? (
+            <div style={{ color: 'var(--text3)', fontSize: 9, textAlign: 'center' }}>
+              No order intents yet from `/v1/audit/order-intent/`.
+            </div>
+          ) : (
+            blotterRows.slice(0, 8).map((row, idx) => (
+              <div key={`${row.ts ?? 'na'}-${row.symbol ?? 'na'}-${idx}`} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '3px 0', borderBottom: '1px solid var(--border)', fontSize: 8 }}>
+                <span style={{ width: 44, color: 'var(--text3)' }}>{row.ts?.slice(11, 16) ?? '—'}</span>
+                <span style={{ width: 72, color: 'var(--accent)', fontWeight: 700 }}>{row.symbol ?? '—'}</span>
+                <span className={`m5d-badge ${(row.side ?? '').toLowerCase() === 'buy' || (row.side ?? '').toLowerCase() === 'long' ? 'green' : 'red'}`} style={{ fontSize: 7 }}>
+                  {(row.side ?? '—').toUpperCase()}
+                </span>
+                <span style={{ width: 56, color: 'var(--text2)', textAlign: 'right' }}>{row.qty ?? '—'}</span>
+                <span style={{ marginLeft: 'auto', color: 'var(--text3)' }}>{row.broker ?? '—'}</span>
+                <span style={{ color: 'var(--text2)', minWidth: 54, textAlign: 'right' }}>{row.status ?? '—'}</span>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>

@@ -3,9 +3,9 @@ ds_app/xaigrok_activity.py — XAIGROK Market Activity Gate
 
 Single data-point: is the market ALIVE or DEAD?
 
-Two inputs:
-  1. tick_score  — RVOL × ATR percentile rank from signal_log.db (pure price/volume)
-  2. grok_score  — Grok/xAI query: current market engagement level
+Input priority (day-trade safe mode):
+  1) tick_score  — RVOL × ATR percentile rank from signal_log.db (primary signal)
+  2) grok_score  — optional weak overlay (low weight, disabled by default)
 
 Combined activity_score (0–1):
   ≥ 0.55  → ALIVE  (gate OPEN,  trade normally)
@@ -44,9 +44,14 @@ SLOW_THRESH  = 0.55
 ANNUAL_5M    = 252 * 288   # 5m bars per year
 ANNUAL_4H    = 252 * 6
 
-# Grok weights
-W_TICK  = 0.70
-W_GROK  = 0.30
+# Day-trade weighting: algorithmic market inputs dominate.
+# Sentiment is capped as a weak, optional overlay (hallucination + latency risk).
+W_TICK  = 0.96
+W_GROK  = 0.04
+# When vol/liquidity regime is confirmed, sentiment can contribute more,
+# but only as a directional amplifier on top of strong market participation.
+W_GROK_CONFIRMED = 0.20
+W_TICK_CONFIRMED = 0.80
 
 
 # ── env / Grok key ────────────────────────────────────────────────────────────
@@ -65,6 +70,7 @@ def _load_env():
 _load_env()
 XAI_KEY  = os.environ.get("API_XAI_YODA_KEY", "")
 XAI_URL  = "https://api.x.ai/v1/responses"
+XAI_NEWS_ENABLED = os.environ.get("M3D_NEWS_PULSE", "0") == "1"
 
 # Fast cheap model for high-frequency pulse (~$0.05/day at 5-min cadence)
 PULSE_MODEL    = "grok-4-1-fast-non-reasoning"
@@ -72,6 +78,8 @@ PULSE_MODEL    = "grok-4-1-fast-non-reasoning"
 NARRATIVE_MODEL = "grok-4.20-0309-non-reasoning"
 
 SENTIMENT_DB = _DS_ROOT / "data" / "sentiment_pulse.db"
+SENTIMENT_MA_WINDOW = 9      # ~9 minutes when sampled each minute
+SENTIMENT_LOOKBACK = 15      # robust smoothing context
 
 # ── Prompt: sentiment TREND not precision ─────────────────────────────────────
 # Goal: build a time series of direction readings. WE compute the trend.
@@ -86,6 +94,8 @@ Return ONLY this JSON, nothing else:
 
 # ── Responses API caller (correct format for xAI) ─────────────────────────────
 def _grok_call(prompt: str, model: str, max_tokens: int = 80) -> Optional[dict]:
+    if not XAI_NEWS_ENABLED:
+        return None
     if not XAI_KEY:
         return None
     import requests
@@ -221,6 +231,44 @@ def pulse_grok() -> Optional[dict]:
     return raw
 
 
+def _smoothed_sentiment_score(fallback_score: float) -> float:
+    """
+    Smooth minute-cadence sentiment to weed out anomalies.
+    Uses recent direction/pace readings from sentiment_pulse.db and an EWMA.
+    """
+    if not SENTIMENT_DB.exists():
+        return fallback_score
+    try:
+        conn = sqlite3.connect(SENTIMENT_DB)
+        rows = conn.execute(
+            "SELECT direction, pace FROM sentiment_pulse ORDER BY ts DESC LIMIT ?",
+            (SENTIMENT_LOOKBACK,),
+        ).fetchall()
+        conn.close()
+        if len(rows) < 5:
+            return fallback_score
+
+        # oldest -> newest
+        rows = list(reversed(rows))
+        alpha = 2.0 / (SENTIMENT_MA_WINDOW + 1.0)
+        ewma = float(rows[0][0]) * (1.0 + 0.25 * max(0, int(rows[0][1]) - 1))
+        for d, p in rows[1:]:
+            val = float(d) * (1.0 + 0.25 * max(0, int(p) - 1))
+            ewma = alpha * val + (1.0 - alpha) * ewma
+
+        latest = float(rows[-1][0]) * (1.0 + 0.25 * max(0, int(rows[-1][1]) - 1))
+        # Anomaly guard: if latest print jumps too far from the MA, damp it.
+        if abs(latest - ewma) > 0.9:
+            ewma = 0.75 * ewma + 0.25 * latest
+
+        # map [-1.5..1.5] -> [0..1], then clamp to sentiment safety bounds
+        mapped = 0.5 + (ewma / 3.0)
+        mapped = max(0.40, min(0.60, mapped))
+        return mapped
+    except Exception:
+        return fallback_score
+
+
 def query_grok_activity() -> Optional[dict]:
     """Compatibility wrapper — returns grok_score for activity gate."""
     raw = pulse_grok()
@@ -231,11 +279,15 @@ def query_grok_activity() -> Optional[dict]:
     pace_val = PACE_MAP.get(raw.get("pace", "SLOW"), 1)
     score = 0.5 + dir_val * 0.25 + (pace_val - 1) * 0.10
     score = max(0.0, min(1.0, score))
+    # Additional hard cap to prevent sentiment from becoming a dominant signal.
+    score = max(0.40, min(0.60, score))
+    score = _smoothed_sentiment_score(score)
     return {
         "activity": score,
         "status":   raw.get("direction", "FLAT"),
         "reason":   raw.get("note", ""),
         "raw":      raw,
+        "ma_window": SENTIMENT_MA_WINDOW,
     }
 
 
@@ -443,7 +495,7 @@ def activity_hour_profile(conn: sqlite3.Connection) -> list[dict]:
 
 # ── main entry point ──────────────────────────────────────────────────────────
 def run(
-    skip_grok: bool = False,
+    skip_grok: bool = True,
     skip_historical: bool = False,
     symbols: list[str] | None = None,
 ) -> dict:
@@ -457,12 +509,28 @@ def run(
 
     grok_raw   = None
     grok_score = tick_score  # fallback
-    if not skip_grok:
+    if not skip_grok and XAI_NEWS_ENABLED:
         grok_raw = query_grok_activity()
         if grok_raw and "activity" in grok_raw:
             grok_score = float(grok_raw["activity"])
 
-    activity = round(W_TICK * tick_score + W_GROK * grok_score, 4) if grok_raw else tick_score
+    # Confirmation regime: only allow stronger sentiment contribution when
+    # both volatility and participation are clearly present.
+    vol_confirmed = tick["atr_prank"] >= 0.65
+    liq_confirmed = tick["rvol_prank"] >= 0.70
+    market_confirmed = vol_confirmed and liq_confirmed and tick_score >= 0.60
+
+    # Sentiment is only "strong" if clearly directional after safety clamp.
+    sentiment_extreme = (grok_score >= 0.58) or (grok_score <= 0.42)
+    sentiment_boost_on = bool(grok_raw) and market_confirmed and sentiment_extreme
+
+    if grok_raw:
+        if sentiment_boost_on:
+            activity = round(W_TICK_CONFIRMED * tick_score + W_GROK_CONFIRMED * grok_score, 4)
+        else:
+            activity = round(W_TICK * tick_score + W_GROK * grok_score, 4)
+    else:
+        activity = tick_score
     status   = _gate_label(activity)
     gate     = _gate_status(activity)
     mult     = _kelly_size_mult(activity)
@@ -479,7 +547,18 @@ def run(
             "status": status,
             "gate": gate,
             "kelly_size_mult": mult,
-            "reason": (grok_raw or {}).get("reason", "tick-only mode"),
+            "reason": (grok_raw or {}).get("reason", "algo-first (tick-only) mode"),
+            "weights": {
+                "tick": W_TICK_CONFIRMED if sentiment_boost_on else W_TICK,
+                "sentiment": W_GROK_CONFIRMED if sentiment_boost_on else W_GROK,
+            },
+            "confirmation": {
+                "vol_confirmed": vol_confirmed,
+                "liquidity_confirmed": liq_confirmed,
+                "market_confirmed": market_confirmed,
+                "sentiment_extreme": sentiment_extreme,
+                "sentiment_boost_on": sentiment_boost_on,
+            },
         },
         "thresholds": {
             "dead":  DEAD_THRESH,

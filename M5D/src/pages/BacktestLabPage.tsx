@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { usePoll } from '../api/client'
+import { useBreakpoint } from '../hooks/useBreakpoint'
 
 const DS = '/ds'
 
@@ -111,7 +112,7 @@ function Stat({ label, value, color, sub }: { label: string; value: string; colo
 
 function SectionHeader({ label, right }: { label: string; right?: React.ReactNode }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, borderBottom: '1px solid rgba(255,255,255,0.07)', paddingBottom: 6 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 12, borderBottom: '1px solid rgba(255,255,255,0.07)', paddingBottom: 6 }}>
       <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', color: 'var(--text3)' }}>{label}</span>
       {right && <div style={{ marginLeft: 'auto' }}>{right}</div>}
     </div>
@@ -600,9 +601,28 @@ function ProgressBar({ progress, running }: { progress: Progress | null; running
 
 export default function BacktestLabPage() {
   const report   = usePoll<WFReport>(`${DS}/v1/ict-walkforward/`, 60_000)
+  const bp = useBreakpoint()
+  const isMobile = bp === 'mobile'
+  const isTablet = bp === 'tablet'
   const [running, setRunning] = useState(false)
   const [progPoll, setProgPoll] = useState(true)   // always poll at startup to detect in-flight runs
   const progress = usePoll<Progress>(`${DS}/v1/ict-walkforward/progress/`, progPoll ? 2_000 : 30_000)
+  const [showHistory, setShowHistory] = useState(false)
+  const [history, setHistory] = useState<Array<{
+    generated_at: string
+    winner: string
+    winner_sharpe: number | null
+    folds: number
+    rows: number
+  }>>(() => {
+    try {
+      const raw = localStorage.getItem('m5d.backtest.history')
+      const parsed = raw ? JSON.parse(raw) : []
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  })
 
   // Sync running state from server progress — auto-detect in-flight runs on page load
   useEffect(() => {
@@ -632,15 +652,50 @@ export default function BacktestLabPage() {
     return [...report.waterfall].sort((a, b) => (b.mean_oos_sharpe ?? -99) - (a.mean_oos_sharpe ?? -99))[0]
   }, [report])
 
+  useEffect(() => {
+    if (!report?.generated_at) return
+    setHistory(prev => {
+      if (prev.some(h => h.generated_at === report.generated_at)) return prev
+      const next = [
+        {
+          generated_at: report.generated_at,
+          winner: topWinner ? (LAYER_SHORT[topWinner.layer] ?? topWinner.layer) : '—',
+          winner_sharpe: topWinner?.mean_oos_sharpe ?? null,
+          folds: report.n_folds,
+          rows: report.data_range.rows,
+        },
+        ...prev,
+      ].slice(0, 20)
+      try { localStorage.setItem('m5d.backtest.history', JSON.stringify(next)) } catch {}
+      return next
+    })
+  }, [report?.generated_at, report?.n_folds, report?.data_range.rows, topWinner?.layer, topWinner?.mean_oos_sharpe])
+
   const s = (n: number | null | undefined, dp = 2) =>
     n != null ? (n >= 0 ? '+' : '') + n.toFixed(dp) : '—'
+
+  const downloadReport = () => {
+    if (!report) return
+    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `ict-walkforward-${report.generated_at.replace(/[: ]/g, '-').slice(0, 19)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const exportPdf = () => {
+    // Uses browser print dialog; "Save as PDF" produces tearsheet PDF immediately.
+    window.print()
+  }
 
   return (
     <div style={{
       width: '100%',
-      background: 'var(--bg)',
+      background: 'var(--bg0)',
       fontFamily: MONO,
-      padding: '12px 16px 32px',
+      padding: isMobile ? '10px 10px 22px' : '12px 16px 32px',
       boxSizing: 'border-box',
     }}>
 
@@ -650,6 +705,9 @@ export default function BacktestLabPage() {
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.16em', color: 'var(--text)' }}>BACKTEST LAB</div>
           <div style={{ fontSize: 8, color: 'var(--text3)', letterSpacing: '0.1em', marginTop: 2 }}>
             ICT SIGNAL STACK · WALK-FORWARD VALIDATION · ES1 FUTURES
+          </div>
+          <div style={{ fontSize: 7, color: 'var(--text3)', marginTop: 4 }}>
+            TEARSHEET ENGINE: Python `backtesting.py` + walk-forward (modern Zipline-equivalent workflow)
           </div>
         </div>
 
@@ -693,15 +751,97 @@ export default function BacktestLabPage() {
           >
             {running ? 'RUNNING…' : '▶ RUN BACKTEST'}
           </button>
+          <button
+            onClick={exportPdf}
+            style={{
+              padding: '7px 12px',
+              background: 'rgba(58,143,255,0.1)',
+              border: '1px solid rgba(58,143,255,0.35)',
+              borderRadius: 4,
+              cursor: 'pointer',
+              fontSize: 9,
+              fontFamily: MONO,
+              fontWeight: 700,
+              color: 'var(--accent)',
+              letterSpacing: '0.08em',
+            }}
+          >
+            PDF
+          </button>
+          <button
+            onClick={downloadReport}
+            disabled={!report}
+            style={{
+              padding: '7px 12px',
+              background: report ? 'rgba(255,204,58,0.1)' : 'rgba(255,255,255,0.04)',
+              border: `1px solid ${report ? 'rgba(255,204,58,0.35)' : 'rgba(255,255,255,0.1)'}`,
+              borderRadius: 4,
+              cursor: report ? 'pointer' : 'not-allowed',
+              fontSize: 9,
+              fontFamily: MONO,
+              fontWeight: 700,
+              color: report ? 'var(--goldB)' : 'var(--text3)',
+              letterSpacing: '0.08em',
+            }}
+          >
+            DOWNLOAD
+          </button>
+          <button
+            onClick={() => setShowHistory(v => !v)}
+            style={{
+              padding: '7px 12px',
+              background: showHistory ? 'rgba(176,122,255,0.16)' : 'rgba(176,122,255,0.08)',
+              border: '1px solid rgba(176,122,255,0.35)',
+              borderRadius: 4,
+              cursor: 'pointer',
+              fontSize: 9,
+              fontFamily: MONO,
+              fontWeight: 700,
+              color: 'var(--purpleB)',
+              letterSpacing: '0.08em',
+            }}
+          >
+            HISTORY
+          </button>
         </div>
       </div>
+
+      {showHistory && (
+        <div style={{
+          marginBottom: 12,
+          background: 'rgba(255,255,255,0.02)',
+          border: '1px solid var(--border)',
+          borderRadius: 6,
+          padding: '10px 12px',
+        }}>
+          <SectionHeader label="REPORT HISTORY (LOCAL)" />
+          {!history.length ? (
+            <div style={{ fontSize: 8, color: 'var(--text3)' }}>No saved history yet.</div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: '170px 120px 90px 70px 90px', gap: 8, alignItems: 'center' }}>
+              {['GENERATED', 'WINNER', 'SHARPE', 'FOLDS', 'ROWS'].map(h => (
+                <div key={h} style={{ fontSize: 7, color: 'var(--text3)', letterSpacing: '0.08em', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 4 }}>{h}</div>
+              ))}
+              {history.map((h) => (
+                <>
+                  <div key={`${h.generated_at}-t`} style={{ fontSize: 8, color: 'var(--text2)', fontFamily: MONO }}>{h.generated_at.slice(0, 19).replace('T', ' ')}</div>
+                  <div key={`${h.generated_at}-w`} style={{ fontSize: 8, color: '#00ff88' }}>{h.winner}</div>
+                  <div key={`${h.generated_at}-s`} style={{ fontSize: 8, color: h.winner_sharpe != null && h.winner_sharpe > 0 ? '#00d4b0' : '#ff5c5c' }}>{s(h.winner_sharpe, 2)}</div>
+                  <div key={`${h.generated_at}-f`} style={{ fontSize: 8, color: 'var(--text2)' }}>{h.folds}</div>
+                  <div key={`${h.generated_at}-r`} style={{ fontSize: 8, color: 'var(--text2)' }}>{(h.rows / 1e6).toFixed(2)}M</div>
+                </>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Progress ───────────────────────────────────────────────────────── */}
       {(running || progress?.running) && <ProgressBar progress={progress} running={running} />}
 
       {!report && !running && (
         <div style={{
-          border: '1px solid var(--border)', borderRadius: 8, padding: 32,
+          border: '1px solid var(--border)', borderRadius: 8, padding: isMobile ? 18 : 32,
           textAlign: 'center', color: 'var(--text3)', fontSize: 10,
         }}>
           No backtest report yet.
@@ -718,12 +858,16 @@ export default function BacktestLabPage() {
         <div style={{ display: 'grid', gap: 12, gridTemplateColumns: '1fr', maxWidth: '100%' }}>
 
           {/* ── Row 1: Data Timeline + RenTech gates ──────────────────────── */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,2fr) minmax(0,1fr)', gap: 12, alignItems: 'start' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile || isTablet ? '1fr' : 'minmax(0,2fr) minmax(0,1fr)', gap: 12, alignItems: 'start' }}>
 
             {/* Data Timeline */}
             <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: 6, padding: '12px 16px' }}>
               <SectionHeader label={`DATA COVERAGE  ·  ${report.data_range.rows.toLocaleString()} BARS  ·  ${report.data_range.days.toFixed(0)} DAYS`} />
-              <DataTimeline report={report} />
+              <div style={{ overflowX: 'auto' }}>
+                <div style={{ minWidth: isMobile ? 780 : 900 }}>
+                  <DataTimeline report={report} />
+                </div>
+              </div>
               <div style={{ display: 'flex', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 7, color: '#00ff88' }}>■ ES (focus)</span>
                 <span style={{ fontSize: 7, color: '#4a9eff' }}>■ Futures</span>
@@ -773,7 +917,11 @@ export default function BacktestLabPage() {
                 </span>
               }
             />
-            <WaterfallChart waterfall={report.waterfall} />
+            <div style={{ overflowX: 'auto' }}>
+              <div style={{ minWidth: isMobile ? 820 : 900 }}>
+                <WaterfallChart waterfall={report.waterfall} />
+              </div>
+            </div>
 
             {/* Delta annotations */}
             <div style={{ display: 'flex', gap: 14, marginTop: 10, flexWrap: 'wrap' }}>
@@ -791,7 +939,7 @@ export default function BacktestLabPage() {
           </div>
 
           {/* ── Row 3: Fold scatter + Signal IC ───────────────────────────── */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,3fr) minmax(0,2fr)', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile || isTablet ? '1fr' : 'minmax(0,3fr) minmax(0,2fr)', gap: 12 }}>
 
             {/* Fold Scatter */}
             <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: 6, padding: '12px 16px' }}>
@@ -803,7 +951,11 @@ export default function BacktestLabPage() {
                 </div>
               } />
               {report.folds.length > 0 ? (
-                <FoldScatter folds={report.folds} layers={foldScatterLayers} />
+                <div style={{ overflowX: 'auto' }}>
+                  <div style={{ minWidth: 580 }}>
+                    <FoldScatter folds={report.folds} layers={foldScatterLayers} />
+                  </div>
+                </div>
               ) : (
                 <div style={{ color: 'var(--text3)', fontSize: 9, textAlign: 'center', padding: 20 }}>No fold detail available</div>
               )}
@@ -838,7 +990,7 @@ export default function BacktestLabPage() {
           </div>
 
           {/* ── Row 4: Correlation heatmap + KZ overlap + Devils ─────────── */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,2fr) minmax(0,1fr) minmax(0,1fr)', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : isTablet ? '1fr 1fr' : 'minmax(0,2fr) minmax(0,1fr) minmax(0,1fr)', gap: 12 }}>
 
             {/* Correlation heatmap */}
             <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: 6, padding: '12px 16px' }}>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { PageId } from '../types'
+import type { PageId, Theme } from '../types'
 
 interface NavSection {
   id: PageId
@@ -13,16 +13,18 @@ interface NavSection {
 interface TickerItem { sym: string; price: number; pct: number }
 
 const PRIMARY: NavSection[] = [
-  { id: 'market',  icon: '①', label: 'MARKET',    sublabel: 'Regime · OBI · Signals',   status: 'live', group: 'primary' },
-  { id: 'pulse',   icon: '②', label: 'PULSE',     sublabel: 'Gates · Kelly · Risk',      status: 'live', group: 'primary' },
-  { id: 'trade',   icon: '③', label: 'TRADE',     sublabel: 'Fire · Blotter · AI',       status: 'idle', group: 'primary' },
-  { id: 'starray', icon: '④', label: 'STAR RAY',  sublabel: 'Opts · IOPT · Pipeline',   status: 'idle', group: 'primary' },
-  { id: 'perf',    icon: '⑤', label: 'PERF',      sublabel: 'Sharpe · Stack · IC',       status: 'live', group: 'primary' },
+  { id: 'market',  icon: '①', label: 'MARKET', sublabel: 'Clean Context · Live Widgets', status: 'live', group: 'primary' },
+  { id: 'pulse',   icon: '②', label: 'PULSE',     sublabel: 'Gates · Kelly · Risk',       status: 'live', group: 'primary' },
+  { id: 'trade',   icon: '③', label: 'TRADE',     sublabel: 'Fire · Blotter · AI',        status: 'idle', group: 'primary' },
+  { id: 'ict-smc', icon: '⑥', label: 'ICT-SMC',   sublabel: 'Liquidity Warfare · 7-Layer', status: 'live', group: 'primary' },
+  { id: 'obi',     icon: '◉', label: 'OBI',       sublabel: '8-Engine · Targets',         status: 'live', group: 'primary' },
+  { id: 'starray', icon: '④', label: 'OPTIMIZER', sublabel: 'IOPT · Pipeline',            status: 'idle', group: 'primary' },
+  { id: 'perf',    icon: '⑤', label: 'PERFORMANCE', sublabel: 'Sharpe · Stack · IC',      status: 'live', group: 'primary' },
 ]
 const RESEARCH: NavSection[] = [
+  { id: 'market-audit', icon: '⌁', label: 'MARKET AUDIT', sublabel: 'Regime · Signals · Diagnostics', status: 'warn', group: 'research' },
   { id: 'alphaseek',    icon: '⟡', label: 'ALPHASEEK',    sublabel: '27 Algos · IC · WF',      status: 'idle', group: 'research' },
   { id: 'medallion',   icon: '✦', label: 'MEDALLION',    sublabel: 'RenTech · Run Lab',        status: 'idle', group: 'research' },
-  { id: 'obi',         icon: '◉', label: 'OBI',          sublabel: '8-Engine · Targets',       status: 'live', group: 'research' },
   { id: 'backtest-lab',icon: '⧉', label: 'BACKTEST LAB', sublabel: 'ICT Stack · WF · Sharpe',  status: 'idle', group: 'research' },
 ]
 
@@ -38,16 +40,61 @@ interface Props {
   jedi:         number | null
   regime:       string | null
   activity:     string | null
+  theme:        Theme
+}
+
+const ICON_BY_PAGE: Record<PageId, string> = {
+  market: '◈',
+  'market-audit': '⌁',
+  pulse: '◉',
+  trade: '⚔',
+  'ict-smc': '⟁',
+  starray: '✶',
+  perf: '◍',
+  alphaseek: '⟡',
+  medallion: '✦',
+  obi: '◉',
+  'backtest-lab': '⧉',
+}
+
+const ICON_COLOUR: Record<PageId, string> = {
+  market: 'var(--goldB)',
+  'market-audit': 'var(--gold)',
+  pulse: 'var(--tealB)',
+  trade: 'var(--redB)',
+  'ict-smc': '#22d3ee',
+  starray: 'var(--purpleB)',
+  perf: 'var(--greenB)',
+  alphaseek: 'var(--accent)',
+  medallion: '#c084fc',
+  obi: '#f43f5e',
+  'backtest-lab': '#38bdf8',
+}
+
+const ICON_NAVY_BLUE: Record<PageId, string> = {
+  market: '#7ec4ff',
+  'market-audit': '#5ea7f8',
+  pulse: '#80d5ff',
+  trade: '#4a9fff',
+  'ict-smc': '#6cc8ff',
+  starray: '#70b7ff',
+  perf: '#86cfff',
+  alphaseek: '#5fb0ff',
+  medallion: '#7abfff',
+  obi: '#66b4ff',
+  'backtest-lab': '#8ad8ff',
 }
 
 function contextSublabel(id: PageId, activePage: PageId, jedi: number|null, regime: string|null, activity: string|null, gates: number, equity: number|null): string {
   if (id !== activePage) return PRIMARY.find(s => s.id === id)?.sublabel ?? RESEARCH.find(s => s.id === id)?.sublabel ?? ''
   const j = jedi !== null ? (jedi > 0 ? `+${Math.round(jedi)}` : String(Math.round(jedi))) : '—'
   switch (id) {
-    case 'market':    return `${regime ?? '—'} · JEDI ${j}`
+    case 'market':       return 'CLEAN CONTEXT · LIVE WIDGETS'
+    case 'market-audit': return `${regime ?? '—'} · JEDI ${j}`
     case 'pulse':     return `${gates}/10 GATES · KELLY ON`
     case 'trade':     return `${activity ?? '—'} · ${equity !== null ? `$${Math.round(equity / 1000)}k` : 'PAPER'}`
-    case 'starray':   return 'IOPT · PIPELINE READY'
+    case 'ict-smc':   return '7-LAYER · ITER-OPT · LIQUIDITY'
+    case 'starray':   return 'OPTIMIZER · PIPELINE READY'
     case 'perf':      return 'SHARPE 29.72 · LIVE'
     case 'alphaseek': return `27 ALGOS · JEDI ${j}`
     case 'medallion': return 'SIGNAL CIVILISATION'
@@ -57,13 +104,17 @@ function contextSublabel(id: PageId, activePage: PageId, jedi: number|null, regi
   }
 }
 
-function NavItem({ s, active, collapsed, page, jedi, regime, activity, gates, equity, onPageChange }: {
+function NavItem({ s, active, collapsed, page, jedi, regime, activity, gates, equity, onPageChange, theme }: {
   s: NavSection; active: boolean; collapsed: boolean; page: PageId
   jedi: number|null; regime: string|null; activity: string|null; gates: number; equity: number|null
   onPageChange: (p: PageId) => void
+  theme: Theme
 }) {
   const sub = contextSublabel(s.id, page, jedi, regime, activity, gates, equity)
   const dotColor = s.status === 'live' ? 'var(--greenB)' : s.status === 'run' ? 'var(--accent)' : s.status === 'warn' ? 'var(--goldB)' : 'var(--text3)'
+  const isNavyTheme = theme.startsWith('navy-')
+  const iconGlyph = ICON_BY_PAGE[s.id]
+  const iconColor = isNavyTheme ? ICON_NAVY_BLUE[s.id] : ICON_COLOUR[s.id]
 
   return (
     <div
@@ -88,9 +139,10 @@ function NavItem({ s, active, collapsed, page, jedi, regime, activity, gates, eq
 
       <span style={{
         fontSize: collapsed ? 14 : 11,
-        color: active ? 'var(--accent)' : 'var(--text2)',
+        color: active ? 'var(--accent)' : iconColor,
         fontWeight: 700, flexShrink: 0,
         width: collapsed ? 24 : 16, textAlign: 'center',
+        textShadow: active ? '0 0 10px var(--accent)' : `0 0 8px ${iconColor}44`,
       }}>{s.icon}</span>
 
       {!collapsed && (
@@ -99,6 +151,38 @@ function NavItem({ s, active, collapsed, page, jedi, regime, activity, gates, eq
             <span style={{ fontSize: 10, fontWeight: 700, color: active ? 'var(--text)' : 'var(--text2)', letterSpacing: '0.08em' }}>
               {s.label}
             </span>
+            {s.id === 'obi' && (
+              <span
+                aria-hidden
+                style={{
+                  display: 'inline-block',
+                  width: 14,
+                  height: 2,
+                  borderRadius: 999,
+                  background: '#f43f5e',
+                  boxShadow: '0 0 6px rgba(244,63,94,0.95), 0 0 14px rgba(244,63,94,0.75)',
+                  marginLeft: 1,
+                  transform: 'translateY(0.5px)',
+                }}
+                title="OBI sabre marker"
+              />
+            )}
+            {s.id === 'ict-smc' && (
+              <span
+                aria-hidden
+                style={{
+                  display: 'inline-block',
+                  width: 14,
+                  height: 2,
+                  borderRadius: 999,
+                  background: '#3a8fff',
+                  boxShadow: '0 0 6px rgba(58,143,255,0.95), 0 0 14px rgba(58,143,255,0.75)',
+                  marginLeft: 1,
+                  transform: 'translateY(0.5px)',
+                }}
+                title="ICT-SMC sabre marker"
+              />
+            )}
             <div style={{ marginLeft: 'auto', width: 5, height: 5, borderRadius: '50%', background: dotColor, flexShrink: 0 }} />
           </div>
           <div style={{ fontSize: 7, color: active ? 'var(--text3)' : 'var(--text3)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</div>
@@ -141,7 +225,7 @@ function IndicesTicker({ collapsed, tickers }: { collapsed: boolean; tickers: Ti
   )
 }
 
-export default function LeftNav({ page, onPageChange, gates, equity, pnl, running, collapsed, onCollapse, jedi, regime, activity }: Props) {
+export default function LeftNav({ page, onPageChange, gates, equity, pnl, running, collapsed, onCollapse, jedi, regime, activity, theme }: Props) {
   const mono = "var(--font-mono)"
   const w = collapsed ? 'var(--left-nav-col-w)' : 'var(--left-nav-w)'
   const [tickers, setTickers] = useState<TickerItem[]>([])
@@ -165,7 +249,7 @@ export default function LeftNav({ page, onPageChange, gates, equity, pnl, runnin
     return () => window.clearInterval(id)
   }, [])
 
-  const navItemProps = { page, jedi, regime, activity, gates, equity, onPageChange }
+  const navItemProps = { page, jedi, regime, activity, gates, equity, onPageChange, theme }
 
   return (
     <div style={{
@@ -183,7 +267,28 @@ export default function LeftNav({ page, onPageChange, gates, equity, pnl, runnin
       )}
       {collapsed && <div style={{ height: 6 }} />}
 
-      {PRIMARY.map(s => <NavItem key={s.id} s={s} active={page === s.id} collapsed={collapsed} {...navItemProps} />)}
+      {PRIMARY.map(s => (
+        <div key={s.id}>
+          <NavItem s={{ ...s, icon: ICON_BY_PAGE[s.id] }} active={page === s.id} collapsed={collapsed} {...navItemProps} />
+          {(s.id === 'ict-smc' || s.id === 'obi') && (
+            <div
+              style={{
+                height: 1,
+                margin: collapsed ? '3px 8px 5px' : '3px 10px 5px',
+                borderRadius: 999,
+                background: s.id === 'obi'
+                  ? 'linear-gradient(90deg, rgba(244,63,94,0.15) 0%, rgba(244,63,94,0.95) 50%, rgba(244,63,94,0.15) 100%)'
+                  : 'linear-gradient(90deg, rgba(58,143,255,0.2) 0%, rgba(58,143,255,1) 50%, rgba(58,143,255,0.2) 100%)',
+                boxShadow: s.id === 'obi'
+                  ? '0 0 6px rgba(244,63,94,0.7), 0 0 14px rgba(244,63,94,0.35)'
+                  : '0 0 6px rgba(58,143,255,0.75), 0 0 14px rgba(58,143,255,0.35)',
+                opacity: 0.9,
+              }}
+              aria-hidden
+            />
+          )}
+        </div>
+      ))}
 
       <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
 
@@ -191,7 +296,11 @@ export default function LeftNav({ page, onPageChange, gates, equity, pnl, runnin
         <div style={{ fontSize: 7, color: 'var(--text3)', padding: '4px 12px 2px', letterSpacing: '0.1em' }}>RESEARCH</div>
       )}
 
-      {RESEARCH.map(s => <NavItem key={s.id} s={s} active={page === s.id} collapsed={collapsed} {...navItemProps} />)}
+      {RESEARCH.map(s => (
+        <div key={s.id}>
+          <NavItem s={{ ...s, icon: ICON_BY_PAGE[s.id] }} active={page === s.id} collapsed={collapsed} {...navItemProps} />
+        </div>
+      ))}
 
       {/* System stats (expanded) */}
       {!collapsed && (

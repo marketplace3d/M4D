@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import type { PaperStatus } from '../types'
+import { useMemo, useState } from 'react'
+import type { ActivityReport, CrossAssetReport, GateReport, PaperStatus } from '../types'
 
 const SHARPE_STACK = [
   { label: 'BASELINE equal-weight',     sharpe: 1.36,  delta: null,       color: 'var(--text2)'   },
@@ -45,10 +45,14 @@ const CIRCUIT = [
   { label: 'Paper mode',             val: 'ACTIVE', status: 'ok'   },
 ]
 
-interface Props { paper: PaperStatus | null }
+interface Props {
+  paper: PaperStatus | null
+  gateReport: GateReport | null
+  activity: ActivityReport | null
+  crossAsset: CrossAssetReport | null
+}
 
-export default function PulsePage({ paper }: Props) {
-  const [gates, setGates] = useState(GATES)
+export default function PulsePage({ paper, gateReport, activity, crossAsset }: Props) {
   const [hours, setHours] = useState(HOUR_DATA)
   const [days, setDays] = useState(DAYS_INIT)
   const [kellyMult, setKellyMult] = useState(0.5)
@@ -61,7 +65,22 @@ export default function PulsePage({ paper }: Props) {
   const fullKelly = 19.12
   const halfKelly = 9.56
   const activeKelly = kellyMult === 1 ? fullKelly : kellyMult === 0.5 ? halfKelly : halfKelly * 0.5
-  const activeGates = gates.filter(g => g.on).length
+  const gateLabelById = useMemo(
+    () => Object.fromEntries(GATES.map(g => [g.id, g.label])),
+    []
+  )
+  const liveGates = useMemo(() => {
+    if (!gateReport?.gates?.length) return GATES
+    return gateReport.gates.map(g => ({
+      id: g.gate,
+      label: gateLabelById[g.gate] ?? g.gate.toUpperCase(),
+      delta: g.enabled ? 'LIVE ON' : 'LIVE OFF',
+      on: g.enabled,
+      color: g.enabled ? 'green' : 'gray',
+    }))
+  }, [gateReport, gateLabelById])
+  const activeGates = liveGates.filter(g => g.on).length
+  const liveGateFeed = Boolean(gateReport?.ok && gateReport?.gates?.length)
 
   const hourColor: Record<string, string> = { good: 'var(--greenB)', meh: 'var(--text3)', bad: 'var(--redB)' }
   const hourBg:    Record<string, string> = { good: 'rgba(29,255,122,0.1)', meh: 'var(--bg3)', bad: 'rgba(255,74,90,0.1)' }
@@ -82,6 +101,7 @@ export default function PulsePage({ paper }: Props) {
         <div style={{ display: 'flex', gap: 6 }}>
           <span className="m5d-badge green">● LIVE</span>
           <span className={`m5d-badge ${activeGates >= 7 ? 'green' : 'gold'}`}>{activeGates}/10 GATES ON</span>
+          <span className={`m5d-badge ${liveGateFeed ? 'green' : 'gold'}`}>{liveGateFeed ? 'LIVE: GATE REPORT' : 'CACHED: GATE REPORT'}</span>
           <span className="m5d-badge gray">PAPER MODE</span>
         </div>
       </div>
@@ -159,7 +179,13 @@ export default function PulsePage({ paper }: Props) {
             <span className="panel-title" style={{ color: 'var(--redB)' }}>CIRCUIT BREAKERS</span>
           </div>
           <div className="m5d-panel-body">
-            {CIRCUIT.map(c => (
+            {[
+              { label: 'Daily DD limit (5%)', val: 'LIVE', status: pnl !== null && pnl < -0.05 * (equity ?? 1) ? 'warn' : 'ok' },
+              { label: 'Max open positions (5)', val: `${positions.length}/5`, status: positions.length > 5 ? 'warn' : 'ok' },
+              { label: 'Cross-asset regime', val: crossAsset?.regime ?? '—', status: crossAsset?.regime === 'RISK_OFF' ? 'warn' : 'ok' },
+              { label: 'Activity gate', val: activity?.gate_status ?? '—', status: activity?.gate_status === 'DEAD' ? 'warn' : 'ok' },
+              ...CIRCUIT.slice(4),
+            ].map(c => (
               <div key={c.label} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 0', borderBottom: '1px solid var(--border)', fontSize: 9 }}>
                 <span className={`status-dot ${c.status === 'ok' ? 'live' : 'warn'}`} />
                 <span style={{ flex: 1, fontSize: 8, color: 'var(--text2)' }}>{c.label}</span>
@@ -221,14 +247,11 @@ export default function PulsePage({ paper }: Props) {
             <span className="m5d-badge blue">APPLY / SUSPEND</span>
           </div>
           <div className="m5d-panel-body">
-            {gates.map(g => (
+            {liveGates.map(g => (
               <div key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 0', borderBottom: '1px solid var(--border)', fontSize: 9 }}>
                 <span style={{ flex: 1, color: 'var(--text2)', fontSize: 8 }}>{g.label}</span>
                 <span className={`m5d-badge ${g.on ? g.color : 'gray'}`} style={{ fontSize: 7 }}>{g.delta}</span>
-                <div
-                  className={`m5d-toggle ${g.on ? 'on' : 'off'}`}
-                  onClick={() => setGates(gs => gs.map(x => x.id === g.id ? { ...x, on: !x.on } : x))}
-                />
+                <span className={`status-dot ${g.on ? 'live' : 'dead'}`} />
               </div>
             ))}
           </div>

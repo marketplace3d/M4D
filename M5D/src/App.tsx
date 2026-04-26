@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import './theme.scss'
 import type { Theme, PageId } from './types'
 import type { TextScale } from './layout/TopBar'
-import { useCouncil, useCrossAsset, useActivity, usePaperStatus } from './api/client'
+import { useCouncil, useCrossAsset, useActivity, usePaperStatus, useGateReport } from './api/client'
 import { useBreakpoint } from './hooks/useBreakpoint'
 import TopBar from './layout/TopBar'
 import LeftNav from './layout/LeftNav'
@@ -10,8 +10,10 @@ import RightRail from './layout/RightRail'
 import BottomTabBar from './layout/BottomTabBar'
 import SurfacingPanel from './components/SurfacingPanel'
 import MarketPage from './pages/MarketPage'
+import MarketContextPage from './pages/MarketContextPage'
 import PulsePage from './pages/PulsePage'
 import TradePage from './pages/TradePage'
+import IctSmcPage from './pages/IctSmcPage'
 import StarRayPage from './pages/StarRayPage'
 import PerfPage from './pages/PerfPage'
 import AlphaSeekPage from './pages/AlphaSeekPage'
@@ -19,9 +21,18 @@ import MedallionPage from './pages/MedallionPage'
 import ObiPage from './pages/ObiPage'
 import BacktestLabPage from './pages/BacktestLabPage'
 
+function defaultTextScaleForViewport(): TextScale {
+  const w = window.innerWidth
+  const h = window.innerHeight
+  // 1080/laptop screens: default compact.
+  if (h <= 1100 || w <= 1600) return 0.85
+  // 4K and ultra-wide: keep standard baseline.
+  return 1.0
+}
+
 export default function App() {
   const [theme, setTheme]           = useState<Theme>('navy-subtle')
-  const VALID_PAGES: PageId[] = ['market','pulse','trade','starray','perf','alphaseek','medallion','obi','backtest-lab']
+  const VALID_PAGES: PageId[] = ['market','market-audit','pulse','trade','ict-smc','starray','perf','alphaseek','medallion','obi','backtest-lab']
   const [page, setPage] = useState<PageId>(() => {
     const hash = window.location.hash.slice(1) as PageId
     if (VALID_PAGES.includes(hash)) return hash
@@ -34,7 +45,8 @@ export default function App() {
     localStorage.setItem('m5d.page', next)
   }, [])
   const [textScale, setTextScale]   = useState<TextScale>(() => {
-    const s = parseFloat(localStorage.getItem('m5d.textScale') ?? '1')
+    const raw = localStorage.getItem('m5d.textScale')
+    const s = parseFloat(raw ?? String(defaultTextScaleForViewport()))
     return ([0.85, 1.0, 1.2, 1.5] as TextScale[]).includes(s as TextScale) ? s as TextScale : 1.0
   })
   const [leftCollapsed, setLeftCollapsed] = useState(() => window.innerWidth < 1200)
@@ -52,6 +64,7 @@ export default function App() {
   const crossAsset = useCrossAsset()
   const activity   = useActivity()
   const paper      = usePaperStatus()
+  const gateReport = useGateReport()
 
   const services = {
     api:   council !== null,
@@ -69,9 +82,11 @@ export default function App() {
 
   function renderPage() {
     switch (page) {
-      case 'market':    return <MarketPage council={council} crossAsset={crossAsset} activity={activity} />
-      case 'pulse':     return <PulsePage paper={paper} />
-      case 'trade':     return <TradePage council={council} />
+      case 'market':       return <MarketContextPage council={council} activity={activity} gateReport={gateReport} />
+      case 'market-audit': return <MarketPage council={council} crossAsset={crossAsset} activity={activity} />
+      case 'pulse':     return <PulsePage paper={paper} gateReport={gateReport} activity={activity} crossAsset={crossAsset} />
+      case 'trade':     return <TradePage council={council} activity={activity} />
+      case 'ict-smc':   return <IctSmcPage council={council} activity={activity} crossAsset={crossAsset} gateReport={gateReport} />
       case 'starray':   return <StarRayPage />
       case 'perf':      return <PerfPage />
       case 'alphaseek': return <AlphaSeekPage onPageChange={navigate} />
@@ -102,6 +117,7 @@ export default function App() {
           <LeftNav
             page={page}
             onPageChange={navigate}
+            theme={theme}
             gates={7}
             equity={equity}
             pnl={pnl}
@@ -125,7 +141,7 @@ export default function App() {
           <>
             {rightOpen && <div className="m5d-rail-backdrop" onClick={() => setRightOpen(false)} />}
             <div className={`m5d-rail-drawer ${rightOpen ? 'open' : ''}`}>
-              <RightRail council={council} crossAsset={crossAsset} activity={activity} />
+              <RightRail council={council} crossAsset={crossAsset} activity={activity} gateReport={gateReport} />
             </div>
           </>
         ) : (
@@ -133,6 +149,7 @@ export default function App() {
             council={council}
             crossAsset={crossAsset}
             activity={activity}
+            gateReport={gateReport}
             open={rightOpen}
             onOpenChange={setRightOpen}
           />
@@ -143,6 +160,7 @@ export default function App() {
         <BottomTabBar
           page={page}
           onPageChange={navigate}
+          theme={theme}
           jedi={jedi}
           activity={actGate}
           onRailToggle={() => setRightOpen(o => !o)}

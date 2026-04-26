@@ -122,7 +122,7 @@ export default function StarRayPage() {
         display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6,
       }}>
         <div>
-          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', letterSpacing: '0.14em' }}>④ STAR RAY</span>
+          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', letterSpacing: '0.14em' }}>④ OPTIMIZER</span>
           <span style={{ fontSize: 9, color: 'var(--text3)', marginLeft: 12 }}>OPTS · IOPT · PCA · IC MATRIX · SANITY · PIPELINE</span>
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>

@@ -1,28 +1,59 @@
-import type { PageId } from '../types'
+import type { PageId, Theme } from '../types'
 
 const TABS: { id: PageId; icon: string; label: string }[] = [
-  { id: 'market',    icon: '①', label: 'MKT'  },
-  { id: 'pulse',     icon: '②', label: 'PULSE' },
-  { id: 'trade',     icon: '③', label: 'TRADE' },
-  { id: 'starray',   icon: '④', label: 'STAR'  },
-  { id: 'perf',      icon: '⑤', label: 'PERF'  },
+  { id: 'market',    icon: '◈', label: 'MKT'   },
+  { id: 'pulse',     icon: '◉', label: 'PULSE' },
+  { id: 'trade',     icon: '⚔', label: 'TRADE' },
+  { id: 'ict-smc',   icon: '⟁', label: 'ICT-SMC' },
+  { id: 'obi',       icon: '◉', label: 'OBI'   },
+  { id: 'starray',   icon: '✶', label: 'OPT'   },
+  { id: 'perf',      icon: '◍', label: 'PERFORMANCE'  },
   { id: 'alphaseek', icon: '⟡', label: 'SEEK'  },
   { id: 'medallion', icon: '✦', label: 'MED'   },
-  { id: 'obi',       icon: '◉', label: 'OBI'   },
 ]
+
+const ICON_COLOUR: Record<PageId, string> = {
+  market: 'var(--goldB)',
+  'market-audit': 'var(--gold)',
+  pulse: 'var(--tealB)',
+  trade: 'var(--redB)',
+  'ict-smc': '#22d3ee',
+  starray: 'var(--purpleB)',
+  perf: 'var(--greenB)',
+  alphaseek: 'var(--accent)',
+  medallion: '#c084fc',
+  obi: '#f43f5e',
+  'backtest-lab': '#38bdf8',
+}
+
+const ICON_NAVY_BLUE: Record<PageId, string> = {
+  market: '#7ec4ff',
+  'market-audit': '#5ea7f8',
+  pulse: '#80d5ff',
+  trade: '#4a9fff',
+  'ict-smc': '#6cc8ff',
+  starray: '#70b7ff',
+  perf: '#86cfff',
+  alphaseek: '#5fb0ff',
+  medallion: '#7abfff',
+  obi: '#66b4ff',
+  'backtest-lab': '#8ad8ff',
+}
 
 interface Props {
   page: PageId
   onPageChange: (p: PageId) => void
   jedi: number | null
   activity: string | null
+  theme: Theme
   onRailToggle: () => void
   railOpen: boolean
 }
 
-export default function BottomTabBar({ page, onPageChange, jedi, activity, onRailToggle, railOpen }: Props) {
+export default function BottomTabBar({ page, onPageChange, jedi, activity, theme, onRailToggle, railOpen }: Props) {
   const jediColor = jedi === null ? 'var(--text3)' : Math.abs(jedi) >= 18 ? 'var(--greenB)' : jedi > 0 ? 'var(--goldB)' : jedi < 0 ? 'var(--redB)' : 'var(--text3)'
   const actColor  = activity === 'HOT' ? 'var(--greenB)' : activity === 'ALIVE' ? 'var(--green)' : activity === 'SLOW' ? 'var(--goldB)' : 'var(--redB)'
+  const isNavyTheme = theme.startsWith('navy-')
 
   return (
     <div style={{
@@ -36,6 +67,7 @@ export default function BottomTabBar({ page, onPageChange, jedi, activity, onRai
     }}>
       {TABS.map(t => {
         const active = page === t.id
+        const iconColor = active ? 'var(--accent)' : (isNavyTheme ? ICON_NAVY_BLUE[t.id] : ICON_COLOUR[t.id])
         return (
           <button
             key={t.id}
@@ -48,7 +80,7 @@ export default function BottomTabBar({ page, onPageChange, jedi, activity, onRai
               borderTop: `2px solid ${active ? 'var(--accent)' : 'transparent'}`,
             }}
           >
-            <span style={{ fontSize: 12, color: active ? 'var(--accent)' : 'var(--text3)', fontWeight: 700 }}>{t.icon}</span>
+            <span style={{ fontSize: 12, color: iconColor, fontWeight: 700, textShadow: `0 0 8px ${iconColor}66` }}>{t.icon}</span>
             <span style={{ fontSize: 6, color: active ? 'var(--text)' : 'var(--text3)', letterSpacing: '0.04em', fontWeight: active ? 700 : 400 }}>{t.label}</span>
           </button>
         )

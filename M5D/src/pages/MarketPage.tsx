@@ -79,9 +79,10 @@ export default function MarketPage({ council, crossAsset, activity }: Props) {
           <span style={{ fontSize: 9, color: 'var(--text3)', marginLeft: 12 }}>PRICE · REGIME · OBI · SIGNALS · CROSS-ASSET</span>
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
-          <span className="m5d-badge green">● LIVE</span>
+          <span className={`m5d-badge ${council ? 'green' : 'red'}`}>{council ? 'LIVE: COUNCIL' : 'OFFLINE: COUNCIL'}</span>
+          <span className={`m5d-badge ${crossAsset ? 'green' : 'gold'}`}>{crossAsset ? 'LIVE: DS' : 'CACHED: DS'}</span>
           <span className="m5d-badge gray">BINANCE 5M</span>
-          {council ? <span className="m5d-badge blue">COUNCIL ✓</span> : <span className="m5d-badge red">NO FEED</span>}
+          {!council && <span className="m5d-badge red">NO FEED</span>}
         </div>
       </div>
 
@@ -274,7 +275,7 @@ export default function MarketPage({ council, crossAsset, activity }: Props) {
         <div className="m5d-panel">
           <div className="m5d-panel-head" style={{ background: 'rgba(42,232,232,0.06)' }}>
             <span className="panel-title" style={{ color: 'var(--tealB)' }}>ORDER BOOK IMBALANCE</span>
-            <span className="m5d-badge teal">L2</span>
+            <span className="m5d-badge gold">MOCK</span>
           </div>
           <div className="m5d-panel-body">
             <div style={{ textAlign: 'center', padding: '8px 0' }}>
@@ -307,7 +308,7 @@ export default function MarketPage({ council, crossAsset, activity }: Props) {
         <div className="m5d-panel">
           <div className="m5d-panel-head" style={{ background: 'rgba(58,143,255,0.06)' }}>
             <span className="panel-title" style={{ color: 'var(--accent)' }}>SIGNAL HEALTH</span>
-            <span className="m5d-badge blue">IC DECAY</span>
+            <span className="m5d-badge gold">MOCK</span>
           </div>
           <div className="m5d-panel-body">
             <div style={{ fontSize: 7, color: 'var(--text3)', marginBottom: 4 }}>LIFECYCLE STATUS</div>

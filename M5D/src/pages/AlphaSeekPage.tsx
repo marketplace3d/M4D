@@ -108,6 +108,16 @@ export default function AlphaSeekPage({ onPageChange }: Props) {
 
   const bankColor = (b: string) => b === 'A' ? 'var(--accent)' : b === 'B' ? 'var(--goldB)' : 'var(--purpleB)'
 
+  useEffect(() => {
+    if (!filtered.length) {
+      if (selected !== null) setSelected(null)
+      return
+    }
+    if (!selected || !filtered.some(a => a.id === selected.id)) {
+      setSelected(filtered[0]!)
+    }
+  }, [filtered, selected])
+
   const runReview = useCallback(async (algo: Algo27, persona: typeof PERSONA_NAMES[0]) => {
     const key = `${algo.id}-${persona.key}`
     setReviewing(p => ({ ...p, [key]:true }))
@@ -157,7 +167,7 @@ export default function AlphaSeekPage({ onPageChange }: Props) {
           ['discovery', 'DISCOVERY',      'var(--tealB)'],
           ['ic',        'IC DECAY',       'var(--goldB)'],
           ['regime',    'REGIME ENGINE',  '#ff8c20'],
-          ['field',     '⚽ FIELD STATUS', 'var(--greenB)'],
+          ['field',     'DEPLOYMENT STATUS', 'var(--greenB)'],
         ] as const).map(([id, label, color]) => (
           <button key={id} onClick={() => setTab(id as any)} style={{
             padding:'4px 11px', fontSize:9, fontFamily:'var(--font-mono)', fontWeight:700,
@@ -169,11 +179,88 @@ export default function AlphaSeekPage({ onPageChange }: Props) {
         ))}
       </div>
 
+      <div style={{ display:'flex', gap:6, flexWrap:'wrap', alignItems:'center', padding:'6px 8px', background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:3 }}>
+        <span style={{ fontSize:8, color:'var(--text3)', letterSpacing:'0.1em' }}>ALGO</span>
+        <select
+          value={selected?.id ?? ''}
+          onChange={(e) => {
+            const next = filtered.find(a => a.id === e.target.value)
+            if (next) setSelected(next)
+          }}
+          style={{
+            minWidth: 260,
+            padding:'4px 8px',
+            fontSize:9,
+            fontFamily:'var(--font-mono)',
+            color:'var(--text)',
+            background:'var(--bg3)',
+            border:'1px solid var(--border)',
+            borderRadius:3,
+          }}
+        >
+          {!filtered.length && <option value="">No algos loaded</option>}
+          {filtered.map(a => (
+            <option key={a.id} value={a.id}>{`${a.id} · ${a.name} · Bank ${a.bank}`}</option>
+          ))}
+        </select>
+        {selected && (
+          <span className={`m5d-badge ${selected.bank === 'A' ? 'blue' : selected.bank === 'B' ? 'gold' : 'purple'}`}>{`BANK ${selected.bank}`}</span>
+        )}
+        <span style={{ marginLeft:'auto', fontSize:8, color:'var(--text3)' }}>
+          {filtered.length ? `${filtered.length} algos` : 'Polling /v1/algos/…'}
+        </span>
+      </div>
+
+      {/* Horizontal algo panels (restored) */}
+      <div style={{
+        border:'1px solid var(--border)',
+        borderRadius:3,
+        background:'var(--bg2)',
+        padding:'6px',
+        overflowX:'auto',
+      }}>
+        <div style={{ display:'flex', gap:6, minWidth: filtered.length ? filtered.length * 110 : 320 }}>
+          {(filtered.length ? filtered : [
+            { id:'NS', bank:'A', name:'placeholder', stop_pct:0, hold_bars:0 },
+            { id:'CI', bank:'A', name:'placeholder', stop_pct:0, hold_bars:0 },
+            { id:'BQ', bank:'A', name:'placeholder', stop_pct:0, hold_bars:0 },
+            { id:'8E', bank:'B', name:'placeholder', stop_pct:0, hold_bars:0 },
+            { id:'VT', bank:'B', name:'placeholder', stop_pct:0, hold_bars:0 },
+            { id:'SE', bank:'C', name:'placeholder', stop_pct:0, hold_bars:0 },
+          ] as Algo27[]).map(a => (
+            <button
+              key={a.id}
+              onClick={() => setSelected(a)}
+              style={{
+                minWidth: 104,
+                textAlign:'left',
+                padding:'5px 6px',
+                borderRadius:3,
+                cursor:'pointer',
+                background: selected?.id === a.id ? 'rgba(58,143,255,0.16)' : 'var(--bg3)',
+                border:`1px solid ${selected?.id === a.id ? 'var(--accent)' : 'var(--border)'}`,
+                color:'var(--text)',
+                fontFamily:'var(--font-mono)',
+              }}
+              title={`${a.id} · ${a.name} · Bank ${a.bank}`}
+            >
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                <span style={{ fontSize:9, fontWeight:700, color: selected?.id === a.id ? bankColor(a.bank) : 'var(--text)' }}>{a.id}</span>
+                <span className={`m5d-badge ${a.bank === 'A' ? 'blue' : a.bank === 'B' ? 'gold' : 'purple'}`} style={{ fontSize:6 }}>{a.bank}</span>
+              </div>
+              <div style={{ fontSize:7, color:'var(--text3)', marginTop:2, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                {a.name}
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* 2-3 col responsive grid */}
       <div className="alphaseek-grid">
 
-        {/* Col 1 — Algo list */}
-        <div style={{ display:'flex', flexDirection:'column', gap:2, overflow:'auto', maxHeight:'calc(100vh - 260px)' }}>
+        {/* Col 1 — Algo list (retired; replaced by compact selector) */}
+        {false && <div style={{ display:'flex', flexDirection:'column', gap:2, overflow:'auto', maxHeight:'calc(100vh - 260px)' }}>
           {filtered.map(a => (
             <button key={a.id} onClick={() => setSelected(a)} style={{
               display:'flex', justifyContent:'space-between', alignItems:'center',
@@ -190,7 +277,7 @@ export default function AlphaSeekPage({ onPageChange }: Props) {
             </button>
           ))}
           {!algos.length && <div style={{ fontSize:9, color:'var(--text3)', padding:8 }}>Polling /v1/algos/…</div>}
-        </div>
+        </div>}
 
         {/* Col 2 — Tab content */}
         <div style={{ overflow:'auto', minHeight:0 }}>
@@ -522,7 +609,7 @@ export default function AlphaSeekPage({ onPageChange }: Props) {
                   }}>✦ MEDALLION →</button>
                 </div>
                 {regime
-                  ? <>{section('ON FIELD', onField, 'var(--greenB)', 'active')}{section('LOCKER ROOM', lockerRm, 'var(--goldB)', 'ready')}{section('BENCH', benchd, 'var(--text3)', 'muted')}</>
+                  ? <>{section('ACTIVE BOOK', onField, 'var(--greenB)', 'routed')}{section('CANDIDATE QUEUE', lockerRm, 'var(--goldB)', 'watchlist')}{section('SUPPRESSED SET', benchd, 'var(--text3)', 'muted')}</>
                   : <div style={{ fontSize:9, color:'var(--text3)' }}>Waiting for regime (DS :8000)…</div>
                 }
               </div>
@@ -651,8 +738,8 @@ export default function AlphaSeekPage({ onPageChange }: Props) {
           })()}
         </div>
 
-        {/* Col 3 — Medallion quick panel (desktop only, hidden via CSS on narrow) */}
-        <div style={{ overflow:'auto', borderLeft:'1px solid var(--border)', padding:'8px 10px', display:'flex', flexDirection:'column', gap:8 }}>
+        {/* Col 3 — Medallion quick panel removed (duplicate of Medallion page) */}
+        {false && <div style={{ overflow:'auto', borderLeft:'1px solid var(--border)', padding:'8px 10px', display:'flex', flexDirection:'column', gap:8 }}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', paddingBottom:6, borderBottom:'1px solid rgba(255,204,58,0.3)' }}>
             <span style={{ fontSize:10, color:'var(--goldB)', fontWeight:700, letterSpacing:'0.12em' }}>✦ MEDALLION</span>
             <button onClick={() => onPageChange('medallion')} style={{
@@ -689,7 +776,7 @@ export default function AlphaSeekPage({ onPageChange }: Props) {
             border:'1px solid var(--gold)', borderRadius:4,
             background:'rgba(255,204,58,0.08)', color:'var(--goldB)', cursor:'pointer',
           }}>✦ MEDALLION RUN LAB →</button>
-        </div>
+        </div>}
 
       </div>
     </div>

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { PageId } from '../types'
+import { usePoll } from '../api/client'
 
 const DS = '/ds'
 
@@ -122,6 +123,13 @@ interface Props {
   onPageChange: (p: PageId) => void
 }
 
+interface HealthResponse { status?: string; ok?: boolean }
+interface DeltaReportLite { mode?: string; generated_at?: string; sharpe?: number }
+interface CrossReportLite { ok?: boolean; regime?: string }
+interface ActivityLite { ok?: boolean; gate_status?: string; activity_score?: number }
+interface GateReportLite { ok?: boolean; stacked_sharpe?: number; gates?: Array<{ gate: string; enabled: boolean }> }
+interface PaperLite { ok?: boolean; broker?: string; account?: { equity?: number } }
+
 export default function MedallionPage({ onPageChange }: Props) {
   const [detail, setDetail]       = useState<DetailItem | null>(ARCH[1] as DetailItem)
   const [detailSrc, setDetailSrc] = useState<'arch'|'disc'>('arch')
@@ -133,6 +141,26 @@ export default function MedallionPage({ onPageChange }: Props) {
   const [gates, setGates]         = useState(GATES_INIT)
   const { result, secs }          = useRunProgress(runMode, runTs)
   const isRunning = runTs !== null && result === null
+
+  const apiHealth    = usePoll<HealthResponse>('/health', 15_000)
+  const dsHealth     = usePoll<HealthResponse>(`${DS}/health/`, 15_000)
+  const crossReport  = usePoll<CrossReportLite>(`${DS}/v1/cross/report/`, 30_000)
+  const activityRpt  = usePoll<ActivityLite>(`${DS}/v1/ai/activity/`, 30_000)
+  const gateRpt      = usePoll<GateReportLite>(`${DS}/v1/gate/report/`, 60_000)
+  const paperStatus  = usePoll<PaperLite>(`${DS}/v1/paper/status/`, 30_000)
+  const deltaReport  = usePoll<DeltaReportLite>(`${DS}/v1/delta/report/`, 30_000)
+
+  const serviceOk = {
+    api: apiHealth?.status === 'ok' || apiHealth?.ok === true,
+    ds: dsHealth?.status === 'ok' || dsHealth?.ok === true,
+    cross: crossReport?.ok === true,
+    activity: activityRpt?.ok === true,
+    gates: gateRpt?.ok === true,
+    paper: paperStatus?.ok === true,
+    delta: !!deltaReport?.generated_at,
+  }
+  const healthyCount = Object.values(serviceOk).filter(Boolean).length
+  const stackReady = serviceOk.api && serviceOk.ds && serviceOk.cross && serviceOk.activity
 
   const selectArch = (b: typeof ARCH[0]) => { setDetail(b as DetailItem); setDetailSrc('arch') }
   const selectDisc = (b: typeof DISCOVERY[0]) => { setDetail(b as DetailItem); setDetailSrc('disc') }
@@ -289,6 +317,48 @@ export default function MedallionPage({ onPageChange }: Props) {
 
         {/* COL 4 — Gates + Run result */}
         <div style={{ overflow:'auto', padding:'8px 10px', display:'flex', flexDirection:'column', gap:10 }}>
+          {colHead('TECH / PROCESS VISIBILITY', C.blue)}
+          <div style={{ border:`1px solid ${C.border}`, borderRadius:4, background:C.bg1, padding:'8px 8px', marginBottom:2 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+              <span style={{ fontSize:8, color:C.faint }}>STACK HEALTH</span>
+              <span style={{ fontSize:9, color:stackReady ? C.green : C.amber, fontWeight:700 }}>{healthyCount}/7 OK</span>
+            </div>
+            {[
+              { k:'API :3300', ok:serviceOk.api, hint:'/health' },
+              { k:'DS :8000', ok:serviceOk.ds, hint:'/ds/health/' },
+              { k:'Cross report', ok:serviceOk.cross, hint:'/ds/v1/cross/report/' },
+              { k:'Activity', ok:serviceOk.activity, hint:'/ds/v1/ai/activity/' },
+              { k:'Gate report', ok:serviceOk.gates, hint:'/ds/v1/gate/report/' },
+              { k:'Paper status', ok:serviceOk.paper, hint:'/ds/v1/paper/status/' },
+              { k:'Delta report', ok:serviceOk.delta, hint:'/ds/v1/delta/report/' },
+            ].map(s => (
+              <div key={s.k} style={{ display:'flex', alignItems:'center', gap:6, padding:'2px 0', borderBottom:`1px solid ${C.border}` }}>
+                <span style={{ width:7, height:7, borderRadius:2, background:s.ok ? C.green : C.red, boxShadow:s.ok ? `0 0 6px ${C.green}88` : 'none' }} />
+                <span style={{ fontSize:8, color:s.ok ? C.text : C.faint, flex:1 }}>{s.k}</span>
+                <span style={{ fontSize:7, color:C.faint }}>{s.hint}</span>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ border:`1px solid ${C.border}`, borderRadius:4, background:C.bg1, padding:'8px 8px' }}>
+            <div style={{ fontSize:8, color:C.faint, marginBottom:6 }}>PROCESS PIPELINE</div>
+            {[
+              { step:'DISCOVERY', state:serviceOk.delta ? 'active' : 'waiting', note:`mode=${deltaReport?.mode ?? '—'}` },
+              { step:'REGIME', state:serviceOk.cross ? 'active' : 'waiting', note:`${crossReport?.regime ?? '—'}` },
+              { step:'ACTIVITY GATE', state:serviceOk.activity ? 'active' : 'waiting', note:`${activityRpt?.gate_status ?? '—'}` },
+              { step:'RISK STACK', state:serviceOk.gates ? 'active' : 'waiting', note:`Sharpe ${gateRpt?.stacked_sharpe != null ? Number(gateRpt.stacked_sharpe).toFixed(2) : '—'}` },
+              { step:'PAPER EXEC', state:serviceOk.paper ? 'ready' : 'blocked', note:`${paperStatus?.broker ?? '—'}` },
+            ].map(p => (
+              <div key={p.step} style={{ display:'flex', alignItems:'center', gap:7, padding:'3px 0', borderBottom:`1px solid ${C.border}` }}>
+                <span style={{ fontSize:7, color:p.state === 'active' || p.state === 'ready' ? C.green : p.state === 'blocked' ? C.red : C.amber }}>
+                  {p.state === 'active' || p.state === 'ready' ? '●' : p.state === 'blocked' ? '✗' : '○'}
+                </span>
+                <span style={{ fontSize:8, color:C.text, minWidth:82 }}>{p.step}</span>
+                <span style={{ fontSize:7, color:C.faint }}>{p.note}</span>
+              </div>
+            ))}
+          </div>
+
           {colHead('⊕ GATE CONTROLS', C.amber)}
           {gates.map(g=>(
             <div key={g.id} onClick={()=>setGates(p=>p.map(x=>x.id===g.id?{...x,on:!x.on}:x))} style={{
@@ -341,7 +411,7 @@ export default function MedallionPage({ onPageChange }: Props) {
             <button
               onClick={() => onPageChange('starray')}
               style={{ background:'none', border:'none', padding:0, cursor:'pointer', color:C.purple, fontSize:8, fontFamily:C.mono }}
-            >→ STAR-RAY opts lab</button>
+            >→ OPTIMIZER lab</button>
           </div>
         </div>
       </div>

@@ -349,6 +349,14 @@ interface ObiJediSignal {
   multReason:     string
 }
 
+interface LiquidityGlowState {
+  compressionExpansion: number
+  liquidityInteraction: number
+  aggressionSpike: number
+  structuralBreak: number
+  total: number
+}
+
 function computeObiJediGate(
   obi: NonNullable<ReturnType<typeof computeOBI>>,
   brain: ICTBrain,
@@ -393,6 +401,60 @@ function computeObiJediGate(
     entryZone: brain.entryZone, rr: obi.rr,
     sizeMultiplier, multReason,
   }
+}
+
+function computeLiquidityGlowState(
+  bars: Bar[],
+  obi: NonNullable<ReturnType<typeof computeOBI>> | null,
+  walls: LiqWall[],
+): LiquidityGlowState {
+  if (!obi || bars.length < 30) {
+    return { compressionExpansion: 0, liquidityInteraction: 0, aggressionSpike: 0, structuralBreak: 0, total: 0 }
+  }
+
+  const last = bars[bars.length - 1]!
+  const prev = bars[bars.length - 2]!
+  const atrFast = bATR(bars.slice(-30), 10)
+  const atrSlow = bATR(bars.slice(-140), 28) || atrFast || Math.max(1e-6, last.close * 0.005)
+  const lastRange = Math.max(1e-9, last.high - last.low)
+  const fastVsSlow = atrFast / atrSlow
+  const expansionNow = lastRange / Math.max(1e-9, atrFast)
+  const compressionExpansion = Math.max(0, Math.min(1, ((1 - Math.min(1.2, fastVsSlow)) * 0.45) + (Math.min(2.5, expansionNow) / 2.5) * 0.8))
+
+  const candidateLevels: number[] = []
+  const push = (v: number) => { if (isFinite(v) && v > 0) candidateLevels.push(v) }
+  push(obi.ict.pdh); push(obi.ict.pdl); push(obi.ict.pwh); push(obi.ict.pwl)
+  push(obi.ict.ah); push(obi.ict.al); push(obi.ict.lh); push(obi.ict.ll); push(obi.ict.mno)
+  obi.ict.eqh.forEach(push); obi.ict.eql.forEach(push)
+  walls.filter(w => w.type === 'WALL').slice(0, 24).forEach(w => push(w.price))
+  const nearestDist = candidateLevels.length ? Math.min(...candidateLevels.map(p => Math.abs(p - last.close))) : atrFast * 2
+  const liquidityInteraction = Math.max(0, Math.min(1, 1 - (nearestDist / Math.max(1e-9, atrFast * 1.6))))
+
+  const lastVol = last.volume ?? 0
+  const prevVol = bars.slice(-21, -1).reduce((s, b) => s + (b.volume ?? 0), 0) / 20
+  const volSpike = prevVol > 0 ? lastVol / prevVol : 1
+  const bodyFrac = Math.abs(last.close - last.open) / lastRange
+  const aggressionSpike = Math.max(0, Math.min(1, (Math.min(3, volSpike) / 3) * 0.65 + bodyFrac * 0.45))
+
+  const swingHigh = Math.max(...bars.slice(-24, -1).map(b => b.high))
+  const swingLow = Math.min(...bars.slice(-24, -1).map(b => b.low))
+  const breakout = last.close > swingHigh || last.close < swingLow
+  const sweep = (last.high > swingHigh && last.close <= swingHigh) || (last.low < swingLow && last.close >= swingLow)
+  const continuation = (last.close - prev.close) * (prev.close - bars[Math.max(0, bars.length - 3)]!.close) > 0
+  const structuralBreak = breakout ? (continuation ? 1 : 0.85) : sweep ? 0.7 : 0.15
+
+  const total = Math.max(
+    0,
+    Math.min(
+      1,
+      compressionExpansion * 0.25 +
+      liquidityInteraction * 0.30 +
+      aggressionSpike * 0.25 +
+      structuralBreak * 0.20,
+    ),
+  )
+
+  return { compressionExpansion, liquidityInteraction, aggressionSpike, structuralBreak, total }
 }
 
 function rankTargets(levels: RawL[], dir: 'BULL'|'BEAR'|'NEUTRAL', cur: number, atrVal: number): ObiTarget[] {
@@ -1041,6 +1103,28 @@ export default function ObiPage() {
     [obiResult, ictBrain, jediScore],
   )
 
+  const councilConfluence = useMemo(() => {
+    const factors: Array<{ k: string; pass: boolean; note: string; w: number }> = []
+    if (!obiResult || !ictBrain || !obiJediGate) {
+      return { score: 0, factors, iterOpt: ['Load bars and wait for OBI + ICT state.'] }
+    }
+    factors.push({ k: 'BIAS', pass: obiResult.dir !== 'NEUTRAL', note: obiResult.dir, w: 0.2 })
+    factors.push({ k: 'KZ', pass: ictBrain.killzoneNow, note: ictBrain.killzone, w: 0.22 })
+    factors.push({ k: 'DISP', pass: ictBrain.rapidExpansion, note: `${ictBrain.expansionRatio.toFixed(2)}x ATR`, w: 0.16 })
+    factors.push({ k: 'ENTRY', pass: !!ictBrain.entryZone || ictBrain.orbBreakout, note: ictBrain.entryZone ? ictBrain.entryZone.type : (ictBrain.orbBreakout ? 'ORB' : 'none'), w: 0.16 })
+    factors.push({ k: 'RR', pass: obiResult.rr >= 2.0, note: `1:${obiResult.rr}`, w: 0.16 })
+    factors.push({ k: 'JEDI', pass: Math.abs(jediScore) >= 8, note: `${jediScore > 0 ? '+' : ''}${Math.round(jediScore)}`, w: 0.1 })
+    const score = Math.round(factors.reduce((s, f) => s + (f.pass ? f.w : 0), 0) * 100)
+
+    const iterOpt: string[] = []
+    if (!ictBrain.killzoneNow) iterOpt.push('Wait for London/NY killzone before aggressive entries.')
+    if (!ictBrain.rapidExpansion) iterOpt.push('Raise displacement quality: require >=0.6x ATR for next run.')
+    if (!(!!ictBrain.entryZone || ictBrain.orbBreakout)) iterOpt.push('No OB/FVG/ORB trigger: reduce size to scout only.')
+    if (obiResult.rr < 2.0) iterOpt.push('R:R below 2.0; adjust entry closer to OB/FVG mean threshold.')
+    if (!iterOpt.length) iterOpt.push('Confluence aligned: keep quarter-Kelly and monitor divergence drift.')
+    return { score, factors, iterOpt }
+  }, [obiResult, ictBrain, obiJediGate, jediScore])
+
   // OBI → orb: jediAlign scaled by Kelly multiplier when whack is ready
   const obiJediAlign = obiResult
     ? (obiJediGate?.whackReady
@@ -1112,6 +1196,11 @@ export default function ObiPage() {
     eq_pools: { price: number; count: number; side: string; label: string }[]
     pd_zone:  { mid: number; cur_zone: string; pct_of_range: number }
   }>(`/ds/v1/liquidity/walls/?symbol=${encodeURIComponent(sym)}&bars=500`, 120_000)
+
+  const liquidityGlow = useMemo(
+    () => computeLiquidityGlowState(bars, obiResult, liquidityWalls),
+    [bars, obiResult, liquidityWalls],
+  )
 
   const ictLevels = useMemo(
     () => controls.showEqualLevels ? bICTLevels(bars, bATR(bars)) : null,
@@ -1195,8 +1284,27 @@ export default function ObiPage() {
       })
     }
 
-    return lines
-  }, [bars, lt, targetPack.targets, targetPack.atr, obiChartLines, showObiTargets, obiResult, liquidityWalls, ictLevels, dsWalls])
+    const lineRelevance = (tier: string): number => {
+      if (tier.startsWith('LIQ-')) return 1
+      if (tier === 'EQH' || tier === 'EQL') return 0.9
+      if (tier === 'VWAP' || tier === 'VOL') return 0.75
+      if (tier === 'PDH' || tier === 'PDL' || tier === 'PWH' || tier === 'PWL' || tier === 'AH' || tier === 'AL' || tier === 'LH' || tier === 'LL' || tier === 'MNO') return 0.95
+      if (tier === 'LVN') return 0.5
+      if (tier === 'T1' || tier === 'T2' || tier === 'T3' || tier === 'T4') return 0.85
+      return 0.65
+    }
+
+    const glow = liquidityGlow.total
+    return lines.map(line => {
+      const relevance = lineRelevance(line.tier)
+      const boost = glow * (0.25 + 0.75 * relevance)
+      return {
+        ...line,
+        opacity: Math.min(0.95, line.opacity + boost * 0.38),
+        lineWidth: Math.min(3, line.lineWidth + (boost >= 0.4 ? 1 : 0)),
+      }
+    })
+  }, [bars, lt, targetPack.targets, targetPack.atr, obiChartLines, showObiTargets, obiResult, liquidityWalls, ictLevels, dsWalls, liquidityGlow.total])
 
 
   return (
@@ -1388,6 +1496,39 @@ export default function ObiPage() {
             {lastPrice !== null && <span className="tv-lw-overlay-price">{fmtPrice(lastPrice)}</span>}
             {priceChgPct !== null && <span className={`tv-lw-overlay-chg ${priceChgPct >= 0 ? 'pos' : 'neg'}`}>{priceChgPct >= 0 ? '+' : ''}{priceChgPct.toFixed(2)}%</span>}
             {obiBoomMinimal && <span className="tv-lw-overlay-heat" style={{ color: '#38bdf8', textShadow: '0 0 6px #38bdf8' }}>MIN</span>}
+            <span
+              style={{
+                position: 'absolute',
+                top: 6,
+                right: obiVisible ? 220 : 24,
+                fontSize: 8,
+                fontFamily: 'monospace',
+                letterSpacing: 0.7,
+                color: '#f43f5e',
+                textShadow: `0 0 ${8 + Math.round(liquidityGlow.total * 14)}px rgba(244,63,94,0.95)`,
+                opacity: 0.8 + liquidityGlow.total * 0.2,
+                pointerEvents: 'none',
+              }}
+              title="Liquidity glow fusion: Compression/Expansion · Liquidity Interaction · Aggression Spike · Structural Break"
+            >
+              LIQ GLOW {Math.round(liquidityGlow.total * 100)}% · C{Math.round(liquidityGlow.compressionExpansion * 100)} L{Math.round(liquidityGlow.liquidityInteraction * 100)} A{Math.round(liquidityGlow.aggressionSpike * 100)} S{Math.round(liquidityGlow.structuralBreak * 100)}
+            </span>
+            <span
+              style={{
+                position: 'absolute',
+                top: 20,
+                right: obiVisible ? 220 : 24,
+                fontSize: 7,
+                fontFamily: 'monospace',
+                letterSpacing: 0.5,
+                color: '#94a3b8',
+                opacity: 0.8,
+                pointerEvents: 'none',
+              }}
+              title="Energy inputs powering LIQ GLOW"
+            >
+              ENERGY INPUTS: COMPRESSION→EXPANSION · LIQUIDITY LEVEL INTERACTION · AGGRESSION SPIKE · STRUCTURAL BREAK
+            </span>
             {obiResult && obiResult.targets.length > 0 && obiResult.dir !== 'NEUTRAL' && (() => {
               const t1 = obiResult.targets[0]!
               const cur = obiResult.entry
@@ -1427,6 +1568,56 @@ export default function ObiPage() {
             pdZone={dsWalls?.pd_zone ?? null}
           />
         )}
+      </div>
+
+      {/* Bottom tight info panel: council confluence + ticker context */}
+      <div style={{
+        margin: '0 8px 8px',
+        border: '1px solid rgba(58,143,255,0.24)',
+        background: 'rgba(3,8,16,0.94)',
+        borderRadius: 4,
+        padding: '5px 8px',
+        display: 'grid',
+        gridTemplateColumns: '190px 1fr 1fr 190px',
+        gap: 8,
+        alignItems: 'center',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 8, fontFamily: 'monospace', color: '#38bdf8', letterSpacing: 1 }}>COUNCIL CONFLUENCE</span>
+          <span style={{ fontSize: 14, fontWeight: 800, fontFamily: 'monospace', color: councilConfluence.score >= 70 ? '#4ade80' : councilConfluence.score >= 50 ? '#fbbf24' : '#f43f5e' }}>
+            {councilConfluence.score}
+          </span>
+          <span style={{ fontSize: 8, fontFamily: 'monospace', color: '#64748b' }}>/100</span>
+        </div>
+
+        <div style={{ minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', fontSize: 8, fontFamily: 'monospace', color: '#94a3b8' }}>
+          FACTORS: {councilConfluence.factors.map(f => `${f.k}:${f.pass ? '✓' : '○'} ${f.note}`).join(' · ')}
+        </div>
+
+        <div style={{ minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', fontSize: 8, fontFamily: 'monospace', color: '#fbbf24' }}>
+          ITER-OPT NEXT: {councilConfluence.iterOpt[0] ?? '—'}
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
+          <span style={{ fontSize: 8, color: '#64748b', fontFamily: 'monospace' }}>CTX TICKER</span>
+          <select
+            value={sym}
+            onChange={(e) => { void selectTicker(e.target.value) }}
+            style={{
+              height: 20,
+              background: 'rgba(15,23,42,0.9)',
+              border: '1px solid rgba(148,163,184,0.3)',
+              color: '#cbd5e1',
+              fontSize: 8,
+              fontFamily: 'monospace',
+              padding: '0 4px',
+            }}
+          >
+            {[sym, ...TOP_STOCKS.filter(s => s !== sym)].map(s => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+        </div>
       </div>
     </div>
   )
