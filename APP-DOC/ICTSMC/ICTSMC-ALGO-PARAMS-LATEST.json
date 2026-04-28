@@ -1,0 +1,319 @@
+{
+  "config": {
+    "start": "2024-01-01",
+    "end": "2025-03-31",
+    "is_pct": 0.75,
+    "min_trades": 30,
+    "top_n": 5,
+    "interval": "5m",
+    "killzone_only": true
+  },
+  "assets": {
+    "ES": {
+      "top10": [
+        {
+          "algo": "VOL_BO",
+          "params": {
+            "vol_n": 25,
+            "vol_mult": 3.0,
+            "price_n": 15
+          },
+          "rank_score": 0.1674,
+          "is_sharpe": -0.8217,
+          "oos_sharpe": 1.651,
+          "is_trades": 148,
+          "oos_trades": 47,
+          "oos_win_rate": 61.7,
+          "oos_max_dd": 1.0,
+          "decay": -2.4727
+        },
+        {
+          "algo": "BB_BREAK",
+          "params": {
+            "period": 20,
+            "mult": 2.2
+          },
+          "rank_score": -0.1734,
+          "is_sharpe": -1.2289,
+          "oos_sharpe": 1.4098,
+          "is_trades": 357,
+          "oos_trades": 123,
+          "oos_win_rate": 44.72,
+          "oos_max_dd": 3.27,
+          "decay": -2.6387
+        },
+        {
+          "algo": "CMF_POS",
+          "params": {
+            "period": 20,
+            "threshold": 0.1
+          },
+          "rank_score": -0.4464,
+          "is_sharpe": -1.5991,
+          "oos_sharpe": 1.2826,
+          "is_trades": 609,
+          "oos_trades": 247,
+          "oos_win_rate": 48.58,
+          "oos_max_dd": 5.84,
+          "decay": -2.8817
+        },
+        {
+          "algo": "VOL_SURGE",
+          "params": {
+            "n": 15,
+            "mult": 2.0
+          },
+          "rank_score": -0.3151,
+          "is_sharpe": -1.2017,
+          "oos_sharpe": 1.0148,
+          "is_trades": 287,
+          "oos_trades": 137,
+          "oos_win_rate": 40.88,
+          "oos_max_dd": 1.62,
+          "decay": -2.2165
+        },
+        {
+          "algo": "SQZPOP",
+          "params": {
+            "length": 30
+          },
+          "rank_score": -0.1776,
+          "is_sharpe": -0.959,
+          "oos_sharpe": 0.9946,
+          "is_trades": 148,
+          "oos_trades": 46,
+          "oos_win_rate": 45.65,
+          "oos_max_dd": 1.36,
+          "decay": -1.9536
+        },
+        {
+          "algo": "RANGE_BO",
+          "params": {
+            "n": 10,
+            "pct_thresh": 0.05
+          },
+          "rank_score": -0.6741,
+          "is_sharpe": -1.5666,
+          "oos_sharpe": 0.6647,
+          "is_trades": 589,
+          "oos_trades": 279,
+          "oos_win_rate": 35.84,
+          "oos_max_dd": 3.41,
+          "decay": -2.2313
+        },
+        {
+          "algo": "ATR_EXP",
+          "params": {
+            "period": 10,
+            "mult": 2.0
+          },
+          "rank_score": -0.399,
+          "is_sharpe": -0.851,
+          "oos_sharpe": 0.2789,
+          "is_trades": 89,
+          "oos_trades": 27,
+          "oos_win_rate": 51.85,
+          "oos_max_dd": 1.13,
+          "decay": -1.1299
+        },
+        {
+          "algo": "RSI_STRONG",
+          "params": {
+            "period": 18,
+            "threshold": 65,
+            "ema_n": 26
+          },
+          "rank_score": -0.3926,
+          "is_sharpe": -0.837,
+          "oos_sharpe": 0.274,
+          "is_trades": 237,
+          "oos_trades": 93,
+          "oos_win_rate": 44.09,
+          "oos_max_dd": 3.86,
+          "decay": -1.111
+        },
+        {
+          "algo": "ADX_TREND",
+          "params": {
+            "period": 20,
+            "thresh": 25
+          },
+          "rank_score": -0.8889,
+          "is_sharpe": -1.6307,
+          "oos_sharpe": 0.2238,
+          "is_trades": 352,
+          "oos_trades": 133,
+          "oos_win_rate": 33.08,
+          "oos_max_dd": 2.97,
+          "decay": -1.8545
+        },
+        {
+          "algo": "STOCH_CROSS",
+          "params": {
+            "k_period": 18,
+            "d_period": 5,
+            "oversold": 25
+          },
+          "rank_score": -0.6927,
+          "is_sharpe": -1.2231,
+          "oos_sharpe": 0.103,
+          "is_trades": 430,
+          "oos_trades": 241,
+          "oos_win_rate": 61.41,
+          "oos_max_dd": 4.29,
+          "decay": -1.3261
+        }
+      ]
+    },
+    "NQ=F": {
+      "top10": [
+        {
+          "algo": "SQZPOP",
+          "params": {
+            "length": 25
+          },
+          "rank_score": 0.1726,
+          "is_sharpe": -0.8028,
+          "oos_sharpe": 1.6356,
+          "is_trades": 247,
+          "oos_trades": 74,
+          "oos_win_rate": 50.0,
+          "oos_max_dd": 1.58,
+          "decay": -2.4384
+        },
+        {
+          "algo": "VOL_BO",
+          "params": {
+            "vol_n": 15,
+            "vol_mult": 3.0,
+            "price_n": 15
+          },
+          "rank_score": 0.4303,
+          "is_sharpe": -0.3668,
+          "oos_sharpe": 1.626,
+          "is_trades": 120,
+          "oos_trades": 39,
+          "oos_win_rate": 51.28,
+          "oos_max_dd": 1.95,
+          "decay": -1.9928
+        },
+        {
+          "algo": "BB_BREAK",
+          "params": {
+            "period": 25,
+            "mult": 2.2
+          },
+          "rank_score": -0.0798,
+          "is_sharpe": -0.7347,
+          "oos_sharpe": 0.9026,
+          "is_trades": 318,
+          "oos_trades": 122,
+          "oos_win_rate": 44.26,
+          "oos_max_dd": 4.4,
+          "decay": -1.6373
+        },
+        {
+          "algo": "CONSEC_BULL",
+          "params": {
+            "n_bars": 3
+          },
+          "rank_score": -1.7735,
+          "is_sharpe": -3.5407,
+          "oos_sharpe": 0.8772,
+          "is_trades": 1005,
+          "oos_trades": 298,
+          "oos_win_rate": 35.91,
+          "oos_max_dd": 1.97,
+          "decay": -4.4179
+        },
+        {
+          "algo": "KC_BREAK",
+          "params": {
+            "period": 25,
+            "mult": 2.0
+          },
+          "rank_score": -0.0746,
+          "is_sharpe": -0.6762,
+          "oos_sharpe": 0.8279,
+          "is_trades": 289,
+          "oos_trades": 120,
+          "oos_win_rate": 49.17,
+          "oos_max_dd": 5.27,
+          "decay": -1.5041
+        },
+        {
+          "algo": "SUPERTREND",
+          "params": {
+            "period": 7,
+            "mult": 4.0
+          },
+          "rank_score": 0.0703,
+          "is_sharpe": -0.3687,
+          "oos_sharpe": 0.7288,
+          "is_trades": 244,
+          "oos_trades": 78,
+          "oos_win_rate": 46.15,
+          "oos_max_dd": 7.05,
+          "decay": -1.0975
+        },
+        {
+          "algo": "EMA_DIST",
+          "params": {},
+          "rank_score": -0.328,
+          "is_sharpe": -0.9765,
+          "oos_sharpe": 0.6447,
+          "is_trades": 529,
+          "oos_trades": 353,
+          "oos_win_rate": 42.49,
+          "oos_max_dd": 6.37,
+          "decay": -1.6212
+        },
+        {
+          "algo": "RANGE_BO",
+          "params": {
+            "n": 15,
+            "pct_thresh": 0.05
+          },
+          "rank_score": -0.3882,
+          "is_sharpe": -1.0264,
+          "oos_sharpe": 0.5692,
+          "is_trades": 502,
+          "oos_trades": 236,
+          "oos_win_rate": 38.56,
+          "oos_max_dd": 6.17,
+          "decay": -1.5956
+        },
+        {
+          "algo": "CONSOL_BO",
+          "params": {
+            "tight_n": 3,
+            "expand_mult": 2.0
+          },
+          "rank_score": -0.1987,
+          "is_sharpe": -0.6645,
+          "oos_sharpe": 0.5001,
+          "is_trades": 162,
+          "oos_trades": 65,
+          "oos_win_rate": 44.62,
+          "oos_max_dd": 3.71,
+          "decay": -1.1646
+        },
+        {
+          "algo": "ATR_EXP",
+          "params": {
+            "period": 10,
+            "mult": 1.5
+          },
+          "rank_score": -0.4549,
+          "is_sharpe": -1.0882,
+          "oos_sharpe": 0.4951,
+          "is_trades": 305,
+          "oos_trades": 112,
+          "oos_win_rate": 40.18,
+          "oos_max_dd": 3.06,
+          "decay": -1.5833
+        }
+      ]
+    }
+  }
+}

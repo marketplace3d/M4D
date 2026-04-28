@@ -795,6 +795,10 @@
   isolation: isolate;
 }
 
+.tv-lw-chart-outer--compact {
+  min-height: 0;
+}
+
 .tv-lw-chart-wrap {
   position: relative;
   z-index: 0;

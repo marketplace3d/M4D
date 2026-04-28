@@ -33,6 +33,7 @@ import PulsePage               from './pages/PulsePage'
 import AlphaSeekPage           from './pages/AlphaSeekPage'
 import DeltaOpsFlowPage        from './pages/DeltaOpsFlowPage'
 import MedallionPage           from './pages/MedallionPage'
+import TradeLabPage            from './pages/TradeLabPage'
 
 // ── M4D support ───────────────────────────────────────────────────────────────
 import { WarriorMobileSyncProvider } from './WarriorMobileSyncContext'
@@ -51,7 +52,7 @@ import {
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type PageId =
-  | 'hub' | 'council' | 'tradebot' | 'pulse' | 'alphaseek' | 'ghost' | 'warriors' | 'obi' | 'spx' | 'fx' | 'ict' | 'ict-old'
+  | 'hub' | 'council' | 'tradebot' | 'pulse' | 'alphaseek' | 'ghost' | 'warriors' | 'obi' | 'trade-lab' | 'spx' | 'fx' | 'ict' | 'ict-old'
   | 'crypto' | 'warrior' | 'missionviz' | 'launchpad' | 'footplate'
   | 'boom' | 'trader' | 'chartslive' | 'algos' | 'flowmaps'
   | 'testlab' | 'tradesafe' | 'codev' | 'sysarch' | 'oracle' | 'mmbrain'
@@ -95,6 +96,7 @@ const RAIL_ITEMS: { id: PageId; icon: string; label: string }[] = [
   { id: 'pulse',      icon: '◉',  label: 'PULSE · kelly+gates'},
   { id: 'ghost',      icon: '👻',  label: 'GHOST · auto-trade'},
   { id: 'obi',        icon: '◉',  label: 'OBI · order book'  },
+  { id: 'trade-lab',  icon: '◍',  label: 'TRADE LAB · replay' },
   // ── RESEARCH ──────────────────────────────────────────
   { id: 'alphaseek',  icon: '⟡',  label: 'ALPHASEEK · IC+WF' },
   { id: 'medallion',  icon: '✦',  label: 'MEDALLION · Simons'},
@@ -144,6 +146,7 @@ const HASH_MAP: Record<string, PageId> = {
   pulse: 'pulse', warriors: 'warriors', energy: 'warriors', w: 'warriors',
   alphaseek: 'alphaseek', alpha: 'alphaseek',
   obi: 'obi',
+  'trade-lab': 'trade-lab', tradelab: 'trade-lab', tlab: 'trade-lab',
   spx: 'spx', charts: 'spx', c: 'spx',
   fx: 'fx',
   ict: 'ict',
@@ -310,7 +313,7 @@ export default function App() {
   useEffect(() => {
     const titles: Partial<Record<PageId, string>> = {
       hub:'M4D — HOME', council:'M4D — MARKET', tradebot:'M4D — TRADE', pulse:'M4D — PULSE', alphaseek:'M4D — ALPHASEEK', ghost:'M4D — GHOST', warriors:'M4D — ENERGY',
-      obi:'M4D — OBI', spx:'M4D — SPX', fx:'M4D — FX', ict:'M4D — ICT', 'ict-old':'M4D — ICT·OLD',
+      obi:'M4D — OBI', 'trade-lab':'M4D — TRADE LAB', spx:'M4D — SPX', fx:'M4D — FX', ict:'M4D — ICT', 'ict-old':'M4D — ICT·OLD',
       crypto:'M4D — BTC', warrior:'M4D — COUNCIL', missionviz:'M4D — CONTROL',
       launchpad:'M4D — OPT', footplate:'M4D — ENGINE', boom:'M4D — BOOM',
       trader:'M4D — TRADER', chartslive:'M4D — LIVE WS', algos:'M4D — ALGOS',
@@ -343,6 +346,7 @@ export default function App() {
       case 'ghost':      return <GhostPage />
       case 'warriors':   return <ControlRoomKnightsPage />
       case 'obi':        return <ObiPage />
+      case 'trade-lab':  return <TradeLabPage />
       case 'spx':        return <TvLwChartsPage />
       case 'fx':         return <FxChartsPage />
       case 'ict':        return <IctChartsPage />

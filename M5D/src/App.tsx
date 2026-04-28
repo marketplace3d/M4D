@@ -20,6 +20,7 @@ import AlphaSeekPage from './pages/AlphaSeekPage'
 import MedallionPage from './pages/MedallionPage'
 import ObiPage from './pages/ObiPage'
 import BacktestLabPage from './pages/BacktestLabPage'
+import TradeLabPage from './pages/TradeLabPage'
 
 function defaultTextScaleForViewport(): TextScale {
   const w = window.innerWidth
@@ -32,7 +33,7 @@ function defaultTextScaleForViewport(): TextScale {
 
 export default function App() {
   const [theme, setTheme]           = useState<Theme>('navy-subtle')
-  const VALID_PAGES: PageId[] = ['market','market-audit','pulse','trade','ict-smc','starray','perf','alphaseek','medallion','obi','backtest-lab']
+  const VALID_PAGES: PageId[] = ['market','market-audit','pulse','trade','ict-smc','starray','perf','alphaseek','medallion','obi','trade-lab','backtest-lab']
   const [page, setPage] = useState<PageId>(() => {
     const hash = window.location.hash.slice(1) as PageId
     if (VALID_PAGES.includes(hash)) return hash
@@ -92,6 +93,7 @@ export default function App() {
       case 'alphaseek': return <AlphaSeekPage onPageChange={navigate} />
       case 'medallion': return <MedallionPage onPageChange={navigate} />
       case 'obi':           return <ObiPage />
+      case 'trade-lab':     return <TradeLabPage />
       case 'backtest-lab':  return <BacktestLabPage />
       default:              return null
     }

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Bar } from '$indicators/boom3d-tech';
 import type { AutoscaleInfo, LogicalRange, Time } from 'lightweight-charts';
-import { LineSeries } from 'lightweight-charts';
+import { createSeriesMarkers, LineSeries } from 'lightweight-charts';
 /** mountBoomChart uses the shared pwa `lightweight-charts` instance; use `any` to avoid duplicate IChartApi typings. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type LwcChart = any
@@ -25,6 +25,12 @@ export type HeatTarget = {
   lineStyle?: 0 | 1 | 2 | 3 | 4
 }
 
+/** Keeps liquidity-glow math compatible with `HeatTarget.lineWidth` literals. */
+export function clampHeatLineWidth(n: number): 1 | 2 | 3 | 4 {
+  const x = Math.min(4, Math.max(1, Math.round(n)))
+  return (x <= 1 ? 1 : x === 2 ? 2 : x === 3 ? 3 : 4) as 1 | 2 | 3 | 4
+}
+
 function applyAlpha(hex: string, alpha: number): string {
   const r = parseInt(hex.slice(1, 3), 16)
   const g = parseInt(hex.slice(3, 5), 16)
@@ -36,6 +42,8 @@ type Props = {
   bars: Bar[];
   controls: ChartControls;
   compactUi?: boolean;
+  /** Let chart outer fully follow parent height (no fixed min-height). */
+  fitContainer?: boolean;
   /** ICT page: override `controls.showVwap` without persisting (avoids chart key churn). */
   showVwap?: boolean;
   /** Reserved for future zoom persistence; ignored by mount. */
@@ -68,6 +76,13 @@ type Props = {
     lt3MiniArrowGain?: number;
     lt3MainArrowGain?: number;
   };
+  /** Sim/live entry + exit trade markers. */
+  tradeMarkers?: Array<{
+    time: number
+    side: 'LONG' | 'SHORT'
+    text?: string
+    kind?: 'entry' | 'exit'
+  }>;
 };
 
 /** Mirrors `pwa/src/lib/BoomChart.svelte` — Lightweight Charts + BOOM3D build. */
@@ -79,7 +94,7 @@ const lineNoAutoscale = {
   autoscaleInfoProvider: (_base: () => AutoscaleInfo | null) => null,
 };
 
-export default function BoomLwChart({ bars, controls, compactUi = false, showVwap, storageKey, heatTarget, heatTargets, obiConfirmTargets = false, symbol, polygonKey, ltViz }: Props) {
+export default function BoomLwChart({ bars, controls, compactUi = false, fitContainer = false, showVwap, storageKey, heatTarget, heatTargets, obiConfirmTargets = false, symbol, polygonKey, ltViz, tradeMarkers }: Props) {
   void storageKey;
   const chartControls = useMemo(
     () => (showVwap === undefined ? controls : { ...controls, showVwap }),
@@ -235,12 +250,74 @@ export default function BoomLwChart({ bars, controls, compactUi = false, showVwa
     };
   }, [chartApi, heatTargets, bars, obiConfirmTargets]);
 
+  // ── Trade arrows (entry / exit) — full close line so marker times match series. ─
+  useEffect(() => {
+    if (!chartApi || !tradeMarkers || tradeMarkers.length === 0 || bars.length === 0) return;
+    let series: LwcChart | null = null;
+    try {
+      series = (chartApi as LwcChart).addSeries(LineSeries, {
+        ...lineNoAutoscale,
+        color: 'rgba(0,0,0,0)',
+        lineWidth: 1,
+        lineStyle: 0,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+        title: 'TRADE_MARKERS',
+      });
+      series.setData(
+        bars.map((b) => ({ time: b.time as unknown as Time, value: b.close })),
+      );
+      createSeriesMarkers(
+        series,
+        tradeMarkers.map((m) => {
+          const isExit = m.kind === 'exit'
+          if (isExit) {
+            if (m.side === 'LONG') {
+              return {
+                time: m.time as unknown as Time,
+                position: 'aboveBar' as const,
+                color: '#fbbf24',
+                shape: 'arrowDown' as const,
+                size: 2,
+                text: m.text ?? 'OUT',
+              }
+            }
+            return {
+              time: m.time as unknown as Time,
+              position: 'belowBar' as const,
+              color: '#22d3ee',
+              shape: 'arrowUp' as const,
+              size: 2,
+              text: m.text ?? 'OUT',
+            }
+          }
+          return {
+            time: m.time as unknown as Time,
+            position: m.side === 'LONG' ? ('belowBar' as const) : ('aboveBar' as const),
+            color: m.side === 'LONG' ? '#22c55e' : '#ef4444',
+            shape: m.side === 'LONG' ? ('arrowUp' as const) : ('arrowDown' as const),
+            size: 2,
+            text: m.text ?? (m.side === 'LONG' ? 'BUY' : 'SELL'),
+          }
+        }),
+      );
+    } catch {
+      /* chart removed */
+    }
+    return () => {
+      if (series) {
+        try { chartApi.removeSeries(series); } catch { /* removed with chart */ }
+      }
+    };
+  }, [chartApi, tradeMarkers, bars]);
+
   function jumpToLatest() {
     chartApi?.timeScale().scrollToRealTime();
   }
 
   return (
-    <div className="tv-lw-chart-outer">
+    <div className={fitContainer || compactUi ? 'tv-lw-chart-outer tv-lw-chart-outer--compact' : 'tv-lw-chart-outer'}>
       <div className="tv-lw-chart-wrap" ref={elRef} />
       {chartApi ? (
         <button

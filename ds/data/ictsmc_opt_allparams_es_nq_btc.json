@@ -1,0 +1,1535 @@
+{
+  "ES": {
+    "asset": "ES",
+    "bars": 1960,
+    "tested_combos": 2000,
+    "top20": [
+      {
+        "sharpe": 1.1450370554732745,
+        "n_trades": 323,
+        "win_rate": 51.39318885448917,
+        "total_pnl_pct": 46.30137157208462,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": false,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 20
+          },
+          "exit": {
+            "max_hold_bars": 6,
+            "stop_atr": 1.5,
+            "take_profit_atr": 2.0
+          }
+        }
+      },
+      {
+        "sharpe": 1.1450370554732745,
+        "n_trades": 323,
+        "win_rate": 51.39318885448917,
+        "total_pnl_pct": 46.30137157208462,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": false,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 50
+          },
+          "exit": {
+            "max_hold_bars": 6,
+            "stop_atr": 1.5,
+            "take_profit_atr": 2.0
+          }
+        }
+      },
+      {
+        "sharpe": 1.1450370554732745,
+        "n_trades": 323,
+        "win_rate": 51.39318885448917,
+        "total_pnl_pct": 46.30137157208462,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": false,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 80
+          },
+          "exit": {
+            "max_hold_bars": 6,
+            "stop_atr": 1.5,
+            "take_profit_atr": 2.0
+          }
+        }
+      },
+      {
+        "sharpe": 1.1450370554732745,
+        "n_trades": 323,
+        "win_rate": 51.39318885448917,
+        "total_pnl_pct": 46.30137157208462,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": false,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 120
+          },
+          "exit": {
+            "max_hold_bars": 6,
+            "stop_atr": 1.5,
+            "take_profit_atr": 2.0
+          }
+        }
+      },
+      {
+        "sharpe": 1.1358487531032626,
+        "n_trades": 78,
+        "win_rate": 39.743589743589745,
+        "total_pnl_pct": 26.359251626672,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": true,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "strict",
+            "min_ob_lookback": 120
+          },
+          "exit": {
+            "max_hold_bars": 12,
+            "stop_atr": 1.0,
+            "take_profit_atr": 4.0
+          }
+        }
+      },
+      {
+        "sharpe": 1.1277007862793031,
+        "n_trades": 78,
+        "win_rate": 39.743589743589745,
+        "total_pnl_pct": 26.383687466135207,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": true,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "strict",
+            "min_ob_lookback": 50
+          },
+          "exit": {
+            "max_hold_bars": 12,
+            "stop_atr": 1.0,
+            "take_profit_atr": 4.0
+          }
+        }
+      },
+      {
+        "sharpe": 1.006129390205555,
+        "n_trades": 350,
+        "win_rate": 54.0,
+        "total_pnl_pct": 39.55421833886434,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": false,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 20
+          },
+          "exit": {
+            "max_hold_bars": 6,
+            "stop_atr": 1.5,
+            "take_profit_atr": 1.5
+          }
+        }
+      },
+      {
+        "sharpe": 1.006129390205555,
+        "n_trades": 350,
+        "win_rate": 54.0,
+        "total_pnl_pct": 39.55421833886434,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": false,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 50
+          },
+          "exit": {
+            "max_hold_bars": 6,
+            "stop_atr": 1.5,
+            "take_profit_atr": 1.5
+          }
+        }
+      },
+      {
+        "sharpe": 1.006129390205555,
+        "n_trades": 350,
+        "win_rate": 54.0,
+        "total_pnl_pct": 39.55421833886434,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": false,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 80
+          },
+          "exit": {
+            "max_hold_bars": 6,
+            "stop_atr": 1.5,
+            "take_profit_atr": 1.5
+          }
+        }
+      },
+      {
+        "sharpe": 1.006129390205555,
+        "n_trades": 350,
+        "win_rate": 54.0,
+        "total_pnl_pct": 39.55421833886434,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": false,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 120
+          },
+          "exit": {
+            "max_hold_bars": 6,
+            "stop_atr": 1.5,
+            "take_profit_atr": 1.5
+          }
+        }
+      },
+      {
+        "sharpe": 0.979896435919752,
+        "n_trades": 397,
+        "win_rate": 38.0352644836272,
+        "total_pnl_pct": 36.01471309317454,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": false,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 20
+          },
+          "exit": {
+            "max_hold_bars": 12,
+            "stop_atr": 0.8,
+            "take_profit_atr": 1.5
+          }
+        }
+      },
+      {
+        "sharpe": 0.979896435919752,
+        "n_trades": 397,
+        "win_rate": 38.0352644836272,
+        "total_pnl_pct": 36.01471309317454,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": false,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 50
+          },
+          "exit": {
+            "max_hold_bars": 12,
+            "stop_atr": 0.8,
+            "take_profit_atr": 1.5
+          }
+        }
+      },
+      {
+        "sharpe": 0.979896435919752,
+        "n_trades": 397,
+        "win_rate": 38.0352644836272,
+        "total_pnl_pct": 36.01471309317454,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": false,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 80
+          },
+          "exit": {
+            "max_hold_bars": 12,
+            "stop_atr": 0.8,
+            "take_profit_atr": 1.5
+          }
+        }
+      },
+      {
+        "sharpe": 0.979896435919752,
+        "n_trades": 397,
+        "win_rate": 38.0352644836272,
+        "total_pnl_pct": 36.01471309317454,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": false,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 120
+          },
+          "exit": {
+            "max_hold_bars": 12,
+            "stop_atr": 0.8,
+            "take_profit_atr": 1.5
+          }
+        }
+      },
+      {
+        "sharpe": 0.9684999697655821,
+        "n_trades": 382,
+        "win_rate": 35.86387434554974,
+        "total_pnl_pct": 38.834357497778726,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": false,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 20
+          },
+          "exit": {
+            "max_hold_bars": 6,
+            "stop_atr": 0.8,
+            "take_profit_atr": 4.0
+          }
+        }
+      },
+      {
+        "sharpe": 0.9684999697655821,
+        "n_trades": 382,
+        "win_rate": 35.86387434554974,
+        "total_pnl_pct": 38.834357497778726,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": false,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 50
+          },
+          "exit": {
+            "max_hold_bars": 6,
+            "stop_atr": 0.8,
+            "take_profit_atr": 4.0
+          }
+        }
+      },
+      {
+        "sharpe": 0.9684999697655821,
+        "n_trades": 382,
+        "win_rate": 35.86387434554974,
+        "total_pnl_pct": 38.834357497778726,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": false,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 80
+          },
+          "exit": {
+            "max_hold_bars": 6,
+            "stop_atr": 0.8,
+            "take_profit_atr": 4.0
+          }
+        }
+      },
+      {
+        "sharpe": 0.9684999697655821,
+        "n_trades": 382,
+        "win_rate": 35.86387434554974,
+        "total_pnl_pct": 38.834357497778726,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": false,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 120
+          },
+          "exit": {
+            "max_hold_bars": 6,
+            "stop_atr": 0.8,
+            "take_profit_atr": 4.0
+          }
+        }
+      },
+      {
+        "sharpe": 0.913757801281261,
+        "n_trades": 83,
+        "win_rate": 37.34939759036144,
+        "total_pnl_pct": 20.757787262658596,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": true,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "strict",
+            "min_ob_lookback": 120
+          },
+          "exit": {
+            "max_hold_bars": 12,
+            "stop_atr": 1.0,
+            "take_profit_atr": 3.0
+          }
+        }
+      },
+      {
+        "sharpe": 0.9118453784880085,
+        "n_trades": 80,
+        "win_rate": 38.75,
+        "total_pnl_pct": 21.45736845663339,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": true,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "strict",
+            "min_ob_lookback": 80
+          },
+          "exit": {
+            "max_hold_bars": 12,
+            "stop_atr": 1.0,
+            "take_profit_atr": 4.0
+          }
+        }
+      }
+    ],
+    "best": {
+      "sharpe": 1.1450370554732745,
+      "n_trades": 323,
+      "win_rate": 51.39318885448917,
+      "total_pnl_pct": 46.30137157208462,
+      "opt": {
+        "trade": true,
+        "entry": {
+          "use_bias": true,
+          "use_killzone": false,
+          "use_t1": false,
+          "use_whacker_gate": false
+        },
+        "retest": {
+          "mode": "loose",
+          "min_ob_lookback": 20
+        },
+        "exit": {
+          "max_hold_bars": 6,
+          "stop_atr": 1.5,
+          "take_profit_atr": 2.0
+        }
+      }
+    }
+  },
+  "NQ": {
+    "asset": "NQ",
+    "bars": 1960,
+    "tested_combos": 2000,
+    "top20": [
+      {
+        "sharpe": 1.6857178150971632,
+        "n_trades": 379,
+        "win_rate": 54.089709762532976,
+        "total_pnl_pct": 63.129273386569594,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": true,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 20
+          },
+          "exit": {
+            "max_hold_bars": 6,
+            "stop_atr": 1.0,
+            "take_profit_atr": 1.0
+          }
+        }
+      },
+      {
+        "sharpe": 1.6857178150971632,
+        "n_trades": 379,
+        "win_rate": 54.089709762532976,
+        "total_pnl_pct": 63.129273386569594,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": true,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 50
+          },
+          "exit": {
+            "max_hold_bars": 6,
+            "stop_atr": 1.0,
+            "take_profit_atr": 1.0
+          }
+        }
+      },
+      {
+        "sharpe": 1.6857178150971632,
+        "n_trades": 379,
+        "win_rate": 54.089709762532976,
+        "total_pnl_pct": 63.129273386569594,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": true,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 80
+          },
+          "exit": {
+            "max_hold_bars": 6,
+            "stop_atr": 1.0,
+            "take_profit_atr": 1.0
+          }
+        }
+      },
+      {
+        "sharpe": 1.6857178150971632,
+        "n_trades": 379,
+        "win_rate": 54.089709762532976,
+        "total_pnl_pct": 63.129273386569594,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": true,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 120
+          },
+          "exit": {
+            "max_hold_bars": 6,
+            "stop_atr": 1.0,
+            "take_profit_atr": 1.0
+          }
+        }
+      },
+      {
+        "sharpe": 1.6756950343236907,
+        "n_trades": 369,
+        "win_rate": 53.116531165311656,
+        "total_pnl_pct": 62.86378975067798,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": true,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 20
+          },
+          "exit": {
+            "max_hold_bars": 8,
+            "stop_atr": 1.0,
+            "take_profit_atr": 1.0
+          }
+        }
+      },
+      {
+        "sharpe": 1.6756950343236907,
+        "n_trades": 369,
+        "win_rate": 53.116531165311656,
+        "total_pnl_pct": 62.86378975067798,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": true,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 50
+          },
+          "exit": {
+            "max_hold_bars": 8,
+            "stop_atr": 1.0,
+            "take_profit_atr": 1.0
+          }
+        }
+      },
+      {
+        "sharpe": 1.6756950343236907,
+        "n_trades": 369,
+        "win_rate": 53.116531165311656,
+        "total_pnl_pct": 62.86378975067798,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": true,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 80
+          },
+          "exit": {
+            "max_hold_bars": 8,
+            "stop_atr": 1.0,
+            "take_profit_atr": 1.0
+          }
+        }
+      },
+      {
+        "sharpe": 1.6756950343236907,
+        "n_trades": 369,
+        "win_rate": 53.116531165311656,
+        "total_pnl_pct": 62.86378975067798,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": true,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 120
+          },
+          "exit": {
+            "max_hold_bars": 8,
+            "stop_atr": 1.0,
+            "take_profit_atr": 1.0
+          }
+        }
+      },
+      {
+        "sharpe": 1.6198618149615476,
+        "n_trades": 360,
+        "win_rate": 52.77777777777778,
+        "total_pnl_pct": 62.41776741290599,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": true,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 20
+          },
+          "exit": {
+            "max_hold_bars": 12,
+            "stop_atr": 1.0,
+            "take_profit_atr": 1.0
+          }
+        }
+      },
+      {
+        "sharpe": 1.6198618149615476,
+        "n_trades": 360,
+        "win_rate": 52.77777777777778,
+        "total_pnl_pct": 62.41776741290599,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": true,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 50
+          },
+          "exit": {
+            "max_hold_bars": 12,
+            "stop_atr": 1.0,
+            "take_profit_atr": 1.0
+          }
+        }
+      },
+      {
+        "sharpe": 1.6198618149615476,
+        "n_trades": 360,
+        "win_rate": 52.77777777777778,
+        "total_pnl_pct": 62.41776741290599,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": true,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 80
+          },
+          "exit": {
+            "max_hold_bars": 12,
+            "stop_atr": 1.0,
+            "take_profit_atr": 1.0
+          }
+        }
+      },
+      {
+        "sharpe": 1.6198618149615476,
+        "n_trades": 360,
+        "win_rate": 52.77777777777778,
+        "total_pnl_pct": 62.41776741290599,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": true,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 120
+          },
+          "exit": {
+            "max_hold_bars": 12,
+            "stop_atr": 1.0,
+            "take_profit_atr": 1.0
+          }
+        }
+      },
+      {
+        "sharpe": 1.5584356615777066,
+        "n_trades": 337,
+        "win_rate": 46.58753709198813,
+        "total_pnl_pct": 64.05372628280679,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": true,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 20
+          },
+          "exit": {
+            "max_hold_bars": 6,
+            "stop_atr": 1.0,
+            "take_profit_atr": 1.5
+          }
+        }
+      },
+      {
+        "sharpe": 1.5584356615777066,
+        "n_trades": 337,
+        "win_rate": 46.58753709198813,
+        "total_pnl_pct": 64.05372628280679,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": true,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 50
+          },
+          "exit": {
+            "max_hold_bars": 6,
+            "stop_atr": 1.0,
+            "take_profit_atr": 1.5
+          }
+        }
+      },
+      {
+        "sharpe": 1.5584356615777066,
+        "n_trades": 337,
+        "win_rate": 46.58753709198813,
+        "total_pnl_pct": 64.05372628280679,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": true,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 80
+          },
+          "exit": {
+            "max_hold_bars": 6,
+            "stop_atr": 1.0,
+            "take_profit_atr": 1.5
+          }
+        }
+      },
+      {
+        "sharpe": 1.5584356615777066,
+        "n_trades": 337,
+        "win_rate": 46.58753709198813,
+        "total_pnl_pct": 64.05372628280679,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": true,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 120
+          },
+          "exit": {
+            "max_hold_bars": 6,
+            "stop_atr": 1.0,
+            "take_profit_atr": 1.5
+          }
+        }
+      },
+      {
+        "sharpe": 1.4500968295931471,
+        "n_trades": 246,
+        "win_rate": 36.17886178861789,
+        "total_pnl_pct": 68.55367078988867,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": false,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 20
+          },
+          "exit": {
+            "max_hold_bars": 12,
+            "stop_atr": 1.0,
+            "take_profit_atr": 4.0
+          }
+        }
+      },
+      {
+        "sharpe": 1.4500968295931471,
+        "n_trades": 246,
+        "win_rate": 36.17886178861789,
+        "total_pnl_pct": 68.55367078988867,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": false,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 50
+          },
+          "exit": {
+            "max_hold_bars": 12,
+            "stop_atr": 1.0,
+            "take_profit_atr": 4.0
+          }
+        }
+      },
+      {
+        "sharpe": 1.4500968295931471,
+        "n_trades": 246,
+        "win_rate": 36.17886178861789,
+        "total_pnl_pct": 68.55367078988867,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": false,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 80
+          },
+          "exit": {
+            "max_hold_bars": 12,
+            "stop_atr": 1.0,
+            "take_profit_atr": 4.0
+          }
+        }
+      },
+      {
+        "sharpe": 1.4500968295931471,
+        "n_trades": 246,
+        "win_rate": 36.17886178861789,
+        "total_pnl_pct": 68.55367078988867,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": false,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 120
+          },
+          "exit": {
+            "max_hold_bars": 12,
+            "stop_atr": 1.0,
+            "take_profit_atr": 4.0
+          }
+        }
+      }
+    ],
+    "best": {
+      "sharpe": 1.6857178150971632,
+      "n_trades": 379,
+      "win_rate": 54.089709762532976,
+      "total_pnl_pct": 63.129273386569594,
+      "opt": {
+        "trade": true,
+        "entry": {
+          "use_bias": true,
+          "use_killzone": false,
+          "use_t1": true,
+          "use_whacker_gate": false
+        },
+        "retest": {
+          "mode": "loose",
+          "min_ob_lookback": 20
+        },
+        "exit": {
+          "max_hold_bars": 6,
+          "stop_atr": 1.0,
+          "take_profit_atr": 1.0
+        }
+      }
+    }
+  },
+  "BTC": {
+    "asset": "BTC",
+    "bars": 731,
+    "tested_combos": 2000,
+    "top20": [
+      {
+        "sharpe": 2.3503237070767997,
+        "n_trades": 38,
+        "win_rate": 71.05263157894737,
+        "total_pnl_pct": 65.46440261332832,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": false,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "strict",
+            "min_ob_lookback": 50
+          },
+          "exit": {
+            "max_hold_bars": 8,
+            "stop_atr": 2.0,
+            "take_profit_atr": 1.5
+          }
+        }
+      },
+      {
+        "sharpe": 2.2925667480964105,
+        "n_trades": 37,
+        "win_rate": 70.27027027027027,
+        "total_pnl_pct": 63.87820261332831,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": false,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "strict",
+            "min_ob_lookback": 80
+          },
+          "exit": {
+            "max_hold_bars": 8,
+            "stop_atr": 2.0,
+            "take_profit_atr": 1.5
+          }
+        }
+      },
+      {
+        "sharpe": 2.166565285230863,
+        "n_trades": 38,
+        "win_rate": 71.05263157894737,
+        "total_pnl_pct": 62.61534235465007,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": false,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "strict",
+            "min_ob_lookback": 50
+          },
+          "exit": {
+            "max_hold_bars": 8,
+            "stop_atr": 2.5,
+            "take_profit_atr": 1.5
+          }
+        }
+      },
+      {
+        "sharpe": 2.1109145422641977,
+        "n_trades": 37,
+        "win_rate": 70.27027027027027,
+        "total_pnl_pct": 61.02914235465008,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": false,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "strict",
+            "min_ob_lookback": 80
+          },
+          "exit": {
+            "max_hold_bars": 8,
+            "stop_atr": 2.5,
+            "take_profit_atr": 1.5
+          }
+        }
+      },
+      {
+        "sharpe": 2.063013692557552,
+        "n_trades": 39,
+        "win_rate": 66.66666666666666,
+        "total_pnl_pct": 57.06791905383173,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": false,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "strict",
+            "min_ob_lookback": 50
+          },
+          "exit": {
+            "max_hold_bars": 8,
+            "stop_atr": 1.5,
+            "take_profit_atr": 1.5
+          }
+        }
+      },
+      {
+        "sharpe": 2.0535129546768434,
+        "n_trades": 35,
+        "win_rate": 68.57142857142857,
+        "total_pnl_pct": 56.69700949504477,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": false,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "strict",
+            "min_ob_lookback": 120
+          },
+          "exit": {
+            "max_hold_bars": 8,
+            "stop_atr": 2.0,
+            "take_profit_atr": 1.5
+          }
+        }
+      },
+      {
+        "sharpe": 2.004998573772592,
+        "n_trades": 38,
+        "win_rate": 65.78947368421053,
+        "total_pnl_pct": 55.481719053831725,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": false,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "strict",
+            "min_ob_lookback": 80
+          },
+          "exit": {
+            "max_hold_bars": 8,
+            "stop_atr": 1.5,
+            "take_profit_atr": 1.5
+          }
+        }
+      },
+      {
+        "sharpe": 1.8790105970760929,
+        "n_trades": 35,
+        "win_rate": 68.57142857142857,
+        "total_pnl_pct": 53.84794923636653,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": false,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "strict",
+            "min_ob_lookback": 120
+          },
+          "exit": {
+            "max_hold_bars": 8,
+            "stop_atr": 2.5,
+            "take_profit_atr": 1.5
+          }
+        }
+      },
+      {
+        "sharpe": 1.8759752194576982,
+        "n_trades": 36,
+        "win_rate": 66.66666666666666,
+        "total_pnl_pct": 56.9233296501142,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": false,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "strict",
+            "min_ob_lookback": 20
+          },
+          "exit": {
+            "max_hold_bars": 8,
+            "stop_atr": 2.0,
+            "take_profit_atr": 1.5
+          }
+        }
+      },
+      {
+        "sharpe": 1.8669878157650057,
+        "n_trades": 36,
+        "win_rate": 66.66666666666666,
+        "total_pnl_pct": 56.66713044489491,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": false,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "strict",
+            "min_ob_lookback": 20
+          },
+          "exit": {
+            "max_hold_bars": 8,
+            "stop_atr": 2.5,
+            "take_profit_atr": 1.5
+          }
+        }
+      },
+      {
+        "sharpe": 1.823784312597079,
+        "n_trades": 32,
+        "win_rate": 65.625,
+        "total_pnl_pct": 52.36391232730037,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": false,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "strict",
+            "min_ob_lookback": 120
+          },
+          "exit": {
+            "max_hold_bars": 12,
+            "stop_atr": 1.5,
+            "take_profit_atr": 1.5
+          }
+        }
+      },
+      {
+        "sharpe": 1.8195098488288044,
+        "n_trades": 28,
+        "win_rate": 71.42857142857143,
+        "total_pnl_pct": 47.87023371422282,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": true,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "strict",
+            "min_ob_lookback": 20
+          },
+          "exit": {
+            "max_hold_bars": 8,
+            "stop_atr": 2.0,
+            "take_profit_atr": 1.5
+          }
+        }
+      },
+      {
+        "sharpe": 1.7645147730972137,
+        "n_trades": 36,
+        "win_rate": 63.888888888888886,
+        "total_pnl_pct": 48.30052593554818,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": false,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "strict",
+            "min_ob_lookback": 120
+          },
+          "exit": {
+            "max_hold_bars": 8,
+            "stop_atr": 1.5,
+            "take_profit_atr": 1.5
+          }
+        }
+      },
+      {
+        "sharpe": 1.7574807471151814,
+        "n_trades": 37,
+        "win_rate": 62.16216216216216,
+        "total_pnl_pct": 51.19213635398235,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": false,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "strict",
+            "min_ob_lookback": 20
+          },
+          "exit": {
+            "max_hold_bars": 8,
+            "stop_atr": 1.5,
+            "take_profit_atr": 1.5
+          }
+        }
+      },
+      {
+        "sharpe": 1.7278534876165337,
+        "n_trades": 31,
+        "win_rate": 74.19354838709677,
+        "total_pnl_pct": 45.75014562397797,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": true,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "strict",
+            "min_ob_lookback": 50
+          },
+          "exit": {
+            "max_hold_bars": 8,
+            "stop_atr": 2.0,
+            "take_profit_atr": 1.5
+          }
+        }
+      },
+      {
+        "sharpe": 1.7151637856761837,
+        "n_trades": 42,
+        "win_rate": 50.0,
+        "total_pnl_pct": 50.86977271206777,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": false,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "strict",
+            "min_ob_lookback": 20
+          },
+          "exit": {
+            "max_hold_bars": 12,
+            "stop_atr": 0.8,
+            "take_profit_atr": 1.5
+          }
+        }
+      },
+      {
+        "sharpe": 1.7116939478840723,
+        "n_trades": 96,
+        "win_rate": 63.541666666666664,
+        "total_pnl_pct": 85.97982927494036,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": false,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 20
+          },
+          "exit": {
+            "max_hold_bars": 8,
+            "stop_atr": 2.5,
+            "take_profit_atr": 1.5
+          }
+        }
+      },
+      {
+        "sharpe": 1.7116939478840723,
+        "n_trades": 96,
+        "win_rate": 63.541666666666664,
+        "total_pnl_pct": 85.97982927494036,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": false,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 50
+          },
+          "exit": {
+            "max_hold_bars": 8,
+            "stop_atr": 2.5,
+            "take_profit_atr": 1.5
+          }
+        }
+      },
+      {
+        "sharpe": 1.7116939478840723,
+        "n_trades": 96,
+        "win_rate": 63.541666666666664,
+        "total_pnl_pct": 85.97982927494036,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": false,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 80
+          },
+          "exit": {
+            "max_hold_bars": 8,
+            "stop_atr": 2.5,
+            "take_profit_atr": 1.5
+          }
+        }
+      },
+      {
+        "sharpe": 1.7116939478840723,
+        "n_trades": 96,
+        "win_rate": 63.541666666666664,
+        "total_pnl_pct": 85.97982927494036,
+        "opt": {
+          "trade": true,
+          "entry": {
+            "use_bias": true,
+            "use_killzone": false,
+            "use_t1": false,
+            "use_whacker_gate": false
+          },
+          "retest": {
+            "mode": "loose",
+            "min_ob_lookback": 120
+          },
+          "exit": {
+            "max_hold_bars": 8,
+            "stop_atr": 2.5,
+            "take_profit_atr": 1.5
+          }
+        }
+      }
+    ],
+    "best": {
+      "sharpe": 2.3503237070767997,
+      "n_trades": 38,
+      "win_rate": 71.05263157894737,
+      "total_pnl_pct": 65.46440261332832,
+      "opt": {
+        "trade": true,
+        "entry": {
+          "use_bias": true,
+          "use_killzone": false,
+          "use_t1": false,
+          "use_whacker_gate": false
+        },
+        "retest": {
+          "mode": "strict",
+          "min_ob_lookback": 50
+        },
+        "exit": {
+          "max_hold_bars": 8,
+          "stop_atr": 2.0,
+          "take_profit_atr": 1.5
+        }
+      }
+    }
+  }
+}

@@ -18,6 +18,7 @@ const PRIMARY: NavSection[] = [
   { id: 'trade',   icon: '③', label: 'TRADE',     sublabel: 'Fire · Blotter · AI',        status: 'idle', group: 'primary' },
   { id: 'ict-smc', icon: '⑥', label: 'ICT-SMC',   sublabel: 'Liquidity Warfare · 7-Layer', status: 'live', group: 'primary' },
   { id: 'obi',     icon: '◉', label: 'OBI',       sublabel: '8-Engine · Targets',         status: 'live', group: 'primary' },
+  { id: 'trade-lab', icon: '◍', label: 'TRADE LAB', sublabel: 'Replay · Simulation',      status: 'live', group: 'primary' },
   { id: 'starray', icon: '④', label: 'OPTIMIZER', sublabel: 'IOPT · Pipeline',            status: 'idle', group: 'primary' },
   { id: 'perf',    icon: '⑤', label: 'PERFORMANCE', sublabel: 'Sharpe · Stack · IC',      status: 'live', group: 'primary' },
 ]
@@ -54,6 +55,7 @@ const ICON_BY_PAGE: Record<PageId, string> = {
   alphaseek: '⟡',
   medallion: '✦',
   obi: '◉',
+  'trade-lab': '◍',
   'backtest-lab': '⧉',
 }
 
@@ -68,6 +70,7 @@ const ICON_COLOUR: Record<PageId, string> = {
   alphaseek: 'var(--accent)',
   medallion: '#c084fc',
   obi: '#f43f5e',
+  'trade-lab': '#38bdf8',
   'backtest-lab': '#38bdf8',
 }
 
@@ -82,6 +85,7 @@ const ICON_NAVY_BLUE: Record<PageId, string> = {
   alphaseek: '#5fb0ff',
   medallion: '#7abfff',
   obi: '#66b4ff',
+  'trade-lab': '#82d5ff',
   'backtest-lab': '#8ad8ff',
 }
 
@@ -99,6 +103,7 @@ function contextSublabel(id: PageId, activePage: PageId, jedi: number|null, regi
     case 'alphaseek': return `27 ALGOS · JEDI ${j}`
     case 'medallion': return 'SIGNAL CIVILISATION'
     case 'obi':           return '8-ENGINE · BTC LIVE'
+    case 'trade-lab':     return 'LIVE + SIM · REPLAY LAB'
     case 'backtest-lab':  return 'ICT WF · HK+KZ WINNER'
     default:              return ''
   }

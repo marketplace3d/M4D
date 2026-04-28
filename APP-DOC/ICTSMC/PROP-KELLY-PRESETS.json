@@ -1,0 +1,62 @@
+{
+  "meta": {
+    "purpose": "Prop-trading-safe sizing presets for ICTSMC",
+    "notes": [
+      "All presets assume hard cap maxRiskPct <= 1.0",
+      "Use STARTER presets for challenge/evaluation phases",
+      "Use PRO presets only after stable OOS and drawdown compliance"
+    ]
+  },
+  "presets": {
+    "challenge_50k_conservative": {
+      "accountMode": "STARTER",
+      "kellySizingOn": true,
+      "fractionalKelly": 0.25,
+      "kellyFractionCap": 0.15,
+      "maxRiskPct": 0.5,
+      "requireCouncilAlignment": true,
+      "requireHtfAlignment": true,
+      "requireKillzoneForPro": true,
+      "requireBiasStrongForPro": true,
+      "volatileSizeCut": 0.5,
+      "allowRetestReentry": false
+    },
+    "challenge_100k_balanced": {
+      "accountMode": "STARTER",
+      "kellySizingOn": true,
+      "fractionalKelly": 0.35,
+      "kellyFractionCap": 0.2,
+      "maxRiskPct": 0.75,
+      "requireCouncilAlignment": true,
+      "requireHtfAlignment": true,
+      "requireKillzoneForPro": true,
+      "requireBiasStrongForPro": true,
+      "volatileSizeCut": 0.5,
+      "allowRetestReentry": false
+    },
+    "funded_pro_base": {
+      "accountMode": "PRO",
+      "kellySizingOn": true,
+      "fractionalKelly": 0.5,
+      "kellyFractionCap": 0.25,
+      "maxRiskPct": 1.0,
+      "requireCouncilAlignment": true,
+      "requireHtfAlignment": true,
+      "requireKillzoneForPro": true,
+      "requireBiasStrongForPro": true,
+      "volatileSizeCut": 0.5,
+      "allowRetestReentry": false
+    },
+    "fixed_fraction_fallback": {
+      "accountMode": "STARTER",
+      "kellySizingOn": false,
+      "fixedRiskPct": 0.75,
+      "maxRiskPct": 0.75,
+      "requireCouncilAlignment": true,
+      "requireHtfAlignment": true,
+      "requireKillzoneForPro": true,
+      "requireBiasStrongForPro": true,
+      "allowRetestReentry": false
+    }
+  }
+}

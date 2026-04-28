@@ -11,6 +11,8 @@ Returns a DataFrame with capitalised OHLCV columns required by backtesting.py:
 from __future__ import annotations
 
 import logging
+import pathlib
+import sqlite3
 from datetime import datetime, timedelta
 
 import pandas as pd
@@ -63,6 +65,9 @@ _CCXT_INTERVAL_MAP = {
 }
 
 _REQUIRED_COLS = {"Open", "High", "Low", "Close", "Volume"}
+_DS_ROOT = pathlib.Path(__file__).resolve().parent.parent
+_FUTURES_DB = _DS_ROOT / "data" / "futures.db"
+_FETCH_CACHE: dict[tuple[str, str, str, str], pd.DataFrame] = {}
 
 
 def _normalise_yf_interval(interval: str) -> str:
@@ -192,6 +197,87 @@ def _fetch_ccxt(symbol: str, start: str, end: str, interval: str) -> pd.DataFram
         return pd.DataFrame()
 
 
+def _norm_futures_symbol(symbol: str) -> str:
+    sym = symbol.upper().strip()
+    if sym.endswith("=F"):
+        return sym[:-2]
+    return sym
+
+
+def _resample_for_interval(df: pd.DataFrame, interval: str) -> pd.DataFrame:
+    iv = interval.lower()
+    if iv in ("5m", "5min"):
+        return df
+    if iv in ("1h", "60m"):
+        rule = "1H"
+    elif iv in ("1d", "1day", "daily", "d"):
+        rule = "1D"
+    else:
+        # Unknown interval: keep native bars_5m data.
+        return df
+
+    agg = df.resample(rule).agg({
+        "Open": "first",
+        "High": "max",
+        "Low": "min",
+        "Close": "last",
+        "Volume": "sum",
+    })
+    return agg.dropna()
+
+
+def _fetch_futures_db(symbol: str, start: str, end: str, interval: str) -> pd.DataFrame:
+    """Read bars from local futures.db and resample if needed."""
+    if not _FUTURES_DB.exists():
+        return pd.DataFrame()
+
+    sym = _norm_futures_symbol(symbol)
+    start_ts = int(pd.Timestamp(start, tz="UTC").timestamp())
+    # inclusive end-of-day window
+    end_ts = int((pd.Timestamp(end, tz="UTC") + pd.Timedelta(days=1)).timestamp())
+
+    try:
+        con = sqlite3.connect(_FUTURES_DB)
+        try:
+            # Prefer bars_5m when available; fallback to bars_1m then resample.
+            has_5m = con.execute(
+                "SELECT 1 FROM bars_5m WHERE symbol = ? LIMIT 1", (sym,)
+            ).fetchone() is not None
+            table = "bars_5m" if has_5m else "bars_1m"
+            q = f"""
+                SELECT ts, open, high, low, close, volume
+                FROM {table}
+                WHERE symbol = ? AND ts >= ? AND ts <= ?
+                ORDER BY ts ASC
+            """
+            rows = con.execute(q, (sym, start_ts, end_ts)).fetchall()
+        finally:
+            con.close()
+    except Exception as exc:
+        logger.debug("futures.db read error for %s: %s", sym, exc)
+        return pd.DataFrame()
+
+    if not rows:
+        return pd.DataFrame()
+
+    df = pd.DataFrame(rows, columns=["ts", "Open", "High", "Low", "Close", "Volume"])
+    df.index = pd.to_datetime(df["ts"], unit="s", utc=True)
+    df.index.name = "Datetime"
+    df = df.drop(columns=["ts"])
+    # If source is bars_1m, first normalize to 5m baseline.
+    iv = interval.lower()
+    if iv in ("5m", "5min", "1h", "60m", "1d", "1day", "daily", "d"):
+        df = df.resample("5min").agg({
+            "Open": "first",
+            "High": "max",
+            "Low": "min",
+            "Close": "last",
+            "Volume": "sum",
+        }).dropna()
+    df = _resample_for_interval(df, interval)
+    return _clean_df(df)
+
+
 def fetch_ohlcv(
     symbol: str,
     start: str,
@@ -217,10 +303,20 @@ def fetch_ohlcv(
         Raises ValueError if no data could be fetched.
     """
     sym = symbol.upper().strip()
+    cache_key = (sym, start, end, interval.lower())
+    if cache_key in _FETCH_CACHE:
+        return _FETCH_CACHE[cache_key].copy()
+
+    # Prefer local futures.db first (fast + deterministic + no network).
+    df = _fetch_futures_db(sym, start, end, interval)
+    if not df.empty:
+        _FETCH_CACHE[cache_key] = df.copy()
+        return df
 
     # Always try yfinance first
     df = _fetch_yfinance(sym, start, end, interval)
     if not df.empty:
+        _FETCH_CACHE[cache_key] = df.copy()
         return df
 
     # If base symbol matches known crypto set, try ccxt
@@ -229,6 +325,7 @@ def fetch_ohlcv(
         logger.info("yfinance empty for %s — trying ccxt Binance", sym)
         df = _fetch_ccxt(base, start, end, interval)
         if not df.empty:
+            _FETCH_CACHE[cache_key] = df.copy()
             return df
 
     raise ValueError(

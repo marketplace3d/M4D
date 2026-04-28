@@ -1,0 +1,1265 @@
+{
+  "config": {
+    "start": "2024-01-01",
+    "end": "2025-03-31",
+    "is_pct": 0.75,
+    "min_trades": 30,
+    "top_n": 5,
+    "interval": "5m",
+    "killzone_only": true
+  },
+  "symbols": [
+    "ES",
+    "NQ=F",
+    "RTY",
+    "CL",
+    "6E",
+    "GC"
+  ],
+  "per_symbol": {
+    "ES": {
+      "elapsed_s": 36.5,
+      "n_ranked": 29,
+      "n_survivors": 3,
+      "top5": [
+        {
+          "symbol": "ES",
+          "algo": "VOL_BO",
+          "rank_score": 0.1674,
+          "is_sharpe": -0.8217,
+          "oos_sharpe": 1.651,
+          "is_trades": 148,
+          "oos_trades": 47,
+          "oos_wr": 61.7,
+          "oos_dd": 1.0,
+          "decay": -2.4727,
+          "params": {
+            "vol_n": 25,
+            "vol_mult": 3.0,
+            "price_n": 15
+          }
+        },
+        {
+          "symbol": "ES",
+          "algo": "BB_BREAK",
+          "rank_score": -0.1734,
+          "is_sharpe": -1.2289,
+          "oos_sharpe": 1.4098,
+          "is_trades": 357,
+          "oos_trades": 123,
+          "oos_wr": 44.72,
+          "oos_dd": 3.27,
+          "decay": -2.6387,
+          "params": {
+            "period": 20,
+            "mult": 2.2
+          }
+        },
+        {
+          "symbol": "ES",
+          "algo": "SQZPOP",
+          "rank_score": -0.1776,
+          "is_sharpe": -0.959,
+          "oos_sharpe": 0.9946,
+          "is_trades": 148,
+          "oos_trades": 46,
+          "oos_wr": 45.65,
+          "oos_dd": 1.36,
+          "decay": -1.9536,
+          "params": {
+            "length": 30
+          }
+        },
+        {
+          "symbol": "ES",
+          "algo": "VOL_SURGE",
+          "rank_score": -0.3151,
+          "is_sharpe": -1.2017,
+          "oos_sharpe": 1.0148,
+          "is_trades": 287,
+          "oos_trades": 137,
+          "oos_wr": 40.88,
+          "oos_dd": 1.62,
+          "decay": -2.2165,
+          "params": {
+            "n": 15,
+            "mult": 2.0
+          }
+        },
+        {
+          "symbol": "ES",
+          "algo": "GOLDEN",
+          "rank_score": -0.3716,
+          "is_sharpe": -0.0132,
+          "oos_sharpe": -0.9093,
+          "is_trades": 68,
+          "oos_trades": 21,
+          "oos_wr": 38.1,
+          "oos_dd": 6.57,
+          "decay": 0.8961,
+          "params": {
+            "fast": 40,
+            "slow": 220
+          }
+        }
+      ],
+      "survivors": [
+        {
+          "symbol": "ES",
+          "algo": "VOL_BO",
+          "rank_score": 0.1674,
+          "is_sharpe": -0.8217,
+          "oos_sharpe": 1.651,
+          "is_trades": 148,
+          "oos_trades": 47,
+          "oos_wr": 61.7,
+          "oos_dd": 1.0,
+          "decay": -2.4727,
+          "params": {
+            "vol_n": 25,
+            "vol_mult": 3.0,
+            "price_n": 15
+          }
+        },
+        {
+          "symbol": "ES",
+          "algo": "CMF_POS",
+          "rank_score": -0.4464,
+          "is_sharpe": -1.5991,
+          "oos_sharpe": 1.2826,
+          "is_trades": 609,
+          "oos_trades": 247,
+          "oos_wr": 48.58,
+          "oos_dd": 5.84,
+          "decay": -2.8817,
+          "params": {
+            "period": 20,
+            "threshold": 0.1
+          }
+        },
+        {
+          "symbol": "ES",
+          "algo": "SQZPOP",
+          "rank_score": -0.1776,
+          "is_sharpe": -0.959,
+          "oos_sharpe": 0.9946,
+          "is_trades": 148,
+          "oos_trades": 46,
+          "oos_wr": 45.65,
+          "oos_dd": 1.36,
+          "decay": -1.9536,
+          "params": {
+            "length": 30
+          }
+        }
+      ]
+    },
+    "NQ=F": {
+      "elapsed_s": 31.94,
+      "n_ranked": 29,
+      "n_survivors": 4,
+      "top5": [
+        {
+          "symbol": "NQ=F",
+          "algo": "VOL_BO",
+          "rank_score": 0.4303,
+          "is_sharpe": -0.3668,
+          "oos_sharpe": 1.626,
+          "is_trades": 120,
+          "oos_trades": 39,
+          "oos_wr": 51.28,
+          "oos_dd": 1.95,
+          "decay": -1.9928,
+          "params": {
+            "vol_n": 15,
+            "vol_mult": 3.0,
+            "price_n": 15
+          }
+        },
+        {
+          "symbol": "NQ=F",
+          "algo": "SQZPOP",
+          "rank_score": 0.1726,
+          "is_sharpe": -0.8028,
+          "oos_sharpe": 1.6356,
+          "is_trades": 247,
+          "oos_trades": 74,
+          "oos_wr": 50.0,
+          "oos_dd": 1.58,
+          "decay": -2.4384,
+          "params": {
+            "length": 25
+          }
+        },
+        {
+          "symbol": "NQ=F",
+          "algo": "SUPERTREND",
+          "rank_score": 0.0703,
+          "is_sharpe": -0.3687,
+          "oos_sharpe": 0.7288,
+          "is_trades": 244,
+          "oos_trades": 78,
+          "oos_wr": 46.15,
+          "oos_dd": 7.05,
+          "decay": -1.0975,
+          "params": {
+            "period": 7,
+            "mult": 4.0
+          }
+        },
+        {
+          "symbol": "NQ=F",
+          "algo": "KC_BREAK",
+          "rank_score": -0.0746,
+          "is_sharpe": -0.6762,
+          "oos_sharpe": 0.8279,
+          "is_trades": 289,
+          "oos_trades": 120,
+          "oos_wr": 49.17,
+          "oos_dd": 5.27,
+          "decay": -1.5041,
+          "params": {
+            "period": 25,
+            "mult": 2.0
+          }
+        },
+        {
+          "symbol": "NQ=F",
+          "algo": "BB_BREAK",
+          "rank_score": -0.0798,
+          "is_sharpe": -0.7347,
+          "oos_sharpe": 0.9026,
+          "is_trades": 318,
+          "oos_trades": 122,
+          "oos_wr": 44.26,
+          "oos_dd": 4.4,
+          "decay": -1.6373,
+          "params": {
+            "period": 25,
+            "mult": 2.2
+          }
+        }
+      ],
+      "survivors": [
+        {
+          "symbol": "NQ=F",
+          "algo": "SQZPOP",
+          "rank_score": 0.1726,
+          "is_sharpe": -0.8028,
+          "oos_sharpe": 1.6356,
+          "is_trades": 247,
+          "oos_trades": 74,
+          "oos_wr": 50.0,
+          "oos_dd": 1.58,
+          "decay": -2.4384,
+          "params": {
+            "length": 25
+          }
+        },
+        {
+          "symbol": "NQ=F",
+          "algo": "VOL_BO",
+          "rank_score": 0.4303,
+          "is_sharpe": -0.3668,
+          "oos_sharpe": 1.626,
+          "is_trades": 120,
+          "oos_trades": 39,
+          "oos_wr": 51.28,
+          "oos_dd": 1.95,
+          "decay": -1.9928,
+          "params": {
+            "vol_n": 15,
+            "vol_mult": 3.0,
+            "price_n": 15
+          }
+        },
+        {
+          "symbol": "NQ=F",
+          "algo": "KC_BREAK",
+          "rank_score": -0.0746,
+          "is_sharpe": -0.6762,
+          "oos_sharpe": 0.8279,
+          "is_trades": 289,
+          "oos_trades": 120,
+          "oos_wr": 49.17,
+          "oos_dd": 5.27,
+          "decay": -1.5041,
+          "params": {
+            "period": 25,
+            "mult": 2.0
+          }
+        },
+        {
+          "symbol": "NQ=F",
+          "algo": "SUPERTREND",
+          "rank_score": 0.0703,
+          "is_sharpe": -0.3687,
+          "oos_sharpe": 0.7288,
+          "is_trades": 244,
+          "oos_trades": 78,
+          "oos_wr": 46.15,
+          "oos_dd": 7.05,
+          "decay": -1.0975,
+          "params": {
+            "period": 7,
+            "mult": 4.0
+          }
+        }
+      ]
+    },
+    "RTY": {
+      "elapsed_s": 25.08,
+      "n_ranked": 29,
+      "n_survivors": 2,
+      "top5": [
+        {
+          "symbol": "RTY",
+          "algo": "GOLDEN",
+          "rank_score": 0.0808,
+          "is_sharpe": 0.0653,
+          "oos_sharpe": 0.1041,
+          "is_trades": 53,
+          "oos_trades": 12,
+          "oos_wr": 58.33,
+          "oos_dd": 5.24,
+          "decay": -0.0388,
+          "params": {
+            "fast": 40,
+            "slow": 220
+          }
+        },
+        {
+          "symbol": "RTY",
+          "algo": "STOCH_CROSS",
+          "rank_score": -0.1727,
+          "is_sharpe": -0.8268,
+          "oos_sharpe": 0.8085,
+          "is_trades": 388,
+          "oos_trades": 235,
+          "oos_wr": 58.3,
+          "oos_dd": 8.38,
+          "decay": -1.6353,
+          "params": {
+            "k_period": 18,
+            "d_period": 3,
+            "oversold": 30
+          }
+        },
+        {
+          "symbol": "RTY",
+          "algo": "CONSOL_BO",
+          "rank_score": -0.3339,
+          "is_sharpe": -0.4568,
+          "oos_sharpe": -0.1495,
+          "is_trades": 130,
+          "oos_trades": 61,
+          "oos_wr": 47.54,
+          "oos_dd": 4.51,
+          "decay": -0.3073,
+          "params": {
+            "tight_n": 3,
+            "expand_mult": 2.0
+          }
+        },
+        {
+          "symbol": "RTY",
+          "algo": "ADX_TREND",
+          "rank_score": -0.3659,
+          "is_sharpe": -1.2126,
+          "oos_sharpe": 0.9042,
+          "is_trades": 257,
+          "oos_trades": 89,
+          "oos_wr": 46.07,
+          "oos_dd": 1.75,
+          "decay": -2.1168,
+          "params": {
+            "period": 20,
+            "thresh": 25
+          }
+        },
+        {
+          "symbol": "RTY",
+          "algo": "SQZPOP",
+          "rank_score": -0.4438,
+          "is_sharpe": -0.6956,
+          "oos_sharpe": -0.0661,
+          "is_trades": 258,
+          "oos_trades": 94,
+          "oos_wr": 44.68,
+          "oos_dd": 4.21,
+          "decay": -0.6295,
+          "params": {
+            "length": 20
+          }
+        }
+      ],
+      "survivors": [
+        {
+          "symbol": "RTY",
+          "algo": "ADX_TREND",
+          "rank_score": -0.3659,
+          "is_sharpe": -1.2126,
+          "oos_sharpe": 0.9042,
+          "is_trades": 257,
+          "oos_trades": 89,
+          "oos_wr": 46.07,
+          "oos_dd": 1.75,
+          "decay": -2.1168,
+          "params": {
+            "period": 20,
+            "thresh": 25
+          }
+        },
+        {
+          "symbol": "RTY",
+          "algo": "STOCH_CROSS",
+          "rank_score": -0.1727,
+          "is_sharpe": -0.8268,
+          "oos_sharpe": 0.8085,
+          "is_trades": 388,
+          "oos_trades": 235,
+          "oos_wr": 58.3,
+          "oos_dd": 8.38,
+          "decay": -1.6353,
+          "params": {
+            "k_period": 18,
+            "d_period": 3,
+            "oversold": 30
+          }
+        }
+      ]
+    },
+    "CL": {
+      "elapsed_s": 24.94,
+      "n_ranked": 29,
+      "n_survivors": 10,
+      "top5": [
+        {
+          "symbol": "CL",
+          "algo": "SQZPOP",
+          "rank_score": 0.5152,
+          "is_sharpe": -0.5402,
+          "oos_sharpe": 2.0984,
+          "is_trades": 95,
+          "oos_trades": 28,
+          "oos_wr": 64.29,
+          "oos_dd": 0.79,
+          "decay": -2.6386,
+          "params": {
+            "length": 30
+          }
+        },
+        {
+          "symbol": "CL",
+          "algo": "GOLDEN",
+          "rank_score": 0.3107,
+          "is_sharpe": -0.0083,
+          "oos_sharpe": 0.7891,
+          "is_trades": 44,
+          "oos_trades": 15,
+          "oos_wr": 46.67,
+          "oos_dd": 3.59,
+          "decay": -0.7974,
+          "params": {
+            "fast": 60,
+            "slow": 220
+          }
+        },
+        {
+          "symbol": "CL",
+          "algo": "SUPERTREND",
+          "rank_score": 0.2827,
+          "is_sharpe": -0.5989,
+          "oos_sharpe": 1.6052,
+          "is_trades": 243,
+          "oos_trades": 71,
+          "oos_wr": 43.66,
+          "oos_dd": 5.84,
+          "decay": -2.2041,
+          "params": {
+            "period": 10,
+            "mult": 3.5
+          }
+        },
+        {
+          "symbol": "CL",
+          "algo": "VOL_BO",
+          "rank_score": 0.1806,
+          "is_sharpe": -0.5043,
+          "oos_sharpe": 1.2079,
+          "is_trades": 108,
+          "oos_trades": 28,
+          "oos_wr": 50.0,
+          "oos_dd": 1.35,
+          "decay": -1.7122,
+          "params": {
+            "vol_n": 20,
+            "vol_mult": 3.0,
+            "price_n": 15
+          }
+        },
+        {
+          "symbol": "CL",
+          "algo": "ATR_EXP",
+          "rank_score": 0.1704,
+          "is_sharpe": -0.4889,
+          "oos_sharpe": 1.1593,
+          "is_trades": 63,
+          "oos_trades": 27,
+          "oos_wr": 51.85,
+          "oos_dd": 1.85,
+          "decay": -1.6482,
+          "params": {
+            "period": 10,
+            "mult": 2.0
+          }
+        }
+      ],
+      "survivors": [
+        {
+          "symbol": "CL",
+          "algo": "SQZPOP",
+          "rank_score": 0.5152,
+          "is_sharpe": -0.5402,
+          "oos_sharpe": 2.0984,
+          "is_trades": 95,
+          "oos_trades": 28,
+          "oos_wr": 64.29,
+          "oos_dd": 0.79,
+          "decay": -2.6386,
+          "params": {
+            "length": 30
+          }
+        },
+        {
+          "symbol": "CL",
+          "algo": "CONSOL_BO",
+          "rank_score": 0.0838,
+          "is_sharpe": -0.7009,
+          "oos_sharpe": 1.2609,
+          "is_trades": 128,
+          "oos_trades": 44,
+          "oos_wr": 52.27,
+          "oos_dd": 1.77,
+          "decay": -1.9618,
+          "params": {
+            "tight_n": 3,
+            "expand_mult": 2.0
+          }
+        },
+        {
+          "symbol": "CL",
+          "algo": "BB_BREAK",
+          "rank_score": 0.1441,
+          "is_sharpe": -0.5978,
+          "oos_sharpe": 1.2569,
+          "is_trades": 172,
+          "oos_trades": 54,
+          "oos_wr": 51.85,
+          "oos_dd": 2.37,
+          "decay": -1.8547,
+          "params": {
+            "period": 25,
+            "mult": 2.5
+          }
+        },
+        {
+          "symbol": "CL",
+          "algo": "VOL_BO",
+          "rank_score": 0.1806,
+          "is_sharpe": -0.5043,
+          "oos_sharpe": 1.2079,
+          "is_trades": 108,
+          "oos_trades": 28,
+          "oos_wr": 50.0,
+          "oos_dd": 1.35,
+          "decay": -1.7122,
+          "params": {
+            "vol_n": 20,
+            "vol_mult": 3.0,
+            "price_n": 15
+          }
+        },
+        {
+          "symbol": "CL",
+          "algo": "ATR_EXP",
+          "rank_score": 0.1704,
+          "is_sharpe": -0.4889,
+          "oos_sharpe": 1.1593,
+          "is_trades": 63,
+          "oos_trades": 27,
+          "oos_wr": 51.85,
+          "oos_dd": 1.85,
+          "decay": -1.6482,
+          "params": {
+            "period": 10,
+            "mult": 2.0
+          }
+        },
+        {
+          "symbol": "CL",
+          "algo": "KC_BREAK",
+          "rank_score": 0.1098,
+          "is_sharpe": -0.582,
+          "oos_sharpe": 1.1475,
+          "is_trades": 159,
+          "oos_trades": 69,
+          "oos_wr": 46.38,
+          "oos_dd": 3.47,
+          "decay": -1.7295,
+          "params": {
+            "period": 20,
+            "mult": 2.5
+          }
+        },
+        {
+          "symbol": "CL",
+          "algo": "NEW_HIGH",
+          "rank_score": -0.007,
+          "is_sharpe": -0.62,
+          "oos_sharpe": 0.9124,
+          "is_trades": 216,
+          "oos_trades": 95,
+          "oos_wr": 51.58,
+          "oos_dd": 5.56,
+          "decay": -1.5324,
+          "params": {
+            "n": 52,
+            "exit_n": 15
+          }
+        },
+        {
+          "symbol": "CL",
+          "algo": "CMF_POS",
+          "rank_score": -0.0235,
+          "is_sharpe": -0.6426,
+          "oos_sharpe": 0.9052,
+          "is_trades": 282,
+          "oos_trades": 106,
+          "oos_wr": 46.23,
+          "oos_dd": 5.17,
+          "decay": -1.5478,
+          "params": {
+            "period": 25,
+            "threshold": 0.1
+          }
+        }
+      ]
+    },
+    "6E": {
+      "elapsed_s": 15.04,
+      "n_ranked": 29,
+      "n_survivors": 4,
+      "top5": [
+        {
+          "symbol": "6E",
+          "algo": "SQZPOP",
+          "rank_score": 0.7855,
+          "is_sharpe": -0.9789,
+          "oos_sharpe": 3.432,
+          "is_trades": 36,
+          "oos_trades": 14,
+          "oos_wr": 78.57,
+          "oos_dd": 0.02,
+          "decay": -4.4109,
+          "params": {
+            "length": 30
+          }
+        },
+        {
+          "symbol": "6E",
+          "algo": "GOLDEN",
+          "rank_score": 0.6913,
+          "is_sharpe": -0.4027,
+          "oos_sharpe": 2.3324,
+          "is_trades": 34,
+          "oos_trades": 9,
+          "oos_wr": 66.67,
+          "oos_dd": 0,
+          "decay": -2.7351,
+          "params": {
+            "fast": 40,
+            "slow": 200
+          }
+        },
+        {
+          "symbol": "6E",
+          "algo": "TREND_SMA",
+          "rank_score": -0.1439,
+          "is_sharpe": -1.6503,
+          "oos_sharpe": 2.1156,
+          "is_trades": 122,
+          "oos_trades": 40,
+          "oos_wr": 30.0,
+          "oos_dd": 0.42,
+          "decay": -3.7659,
+          "params": {
+            "sma_n": 70,
+            "slope_n": 5
+          }
+        },
+        {
+          "symbol": "6E",
+          "algo": "CMF_POS",
+          "rank_score": -0.1613,
+          "is_sharpe": -1.3265,
+          "oos_sharpe": 1.5864,
+          "is_trades": 186,
+          "oos_trades": 69,
+          "oos_wr": 49.28,
+          "oos_dd": 0.61,
+          "decay": -2.9129,
+          "params": {
+            "period": 15,
+            "threshold": 0.1
+          }
+        },
+        {
+          "symbol": "6E",
+          "algo": "STOCH_CROSS",
+          "rank_score": -0.2771,
+          "is_sharpe": -2.1571,
+          "oos_sharpe": 2.543,
+          "is_trades": 222,
+          "oos_trades": 109,
+          "oos_wr": 62.39,
+          "oos_dd": 0.61,
+          "decay": -4.7001,
+          "params": {
+            "k_period": 18,
+            "d_period": 5,
+            "oversold": 20
+          }
+        }
+      ],
+      "survivors": [
+        {
+          "symbol": "6E",
+          "algo": "STOCH_CROSS",
+          "rank_score": -0.2771,
+          "is_sharpe": -2.1571,
+          "oos_sharpe": 2.543,
+          "is_trades": 222,
+          "oos_trades": 109,
+          "oos_wr": 62.39,
+          "oos_dd": 0.61,
+          "decay": -4.7001,
+          "params": {
+            "k_period": 18,
+            "d_period": 5,
+            "oversold": 20
+          }
+        },
+        {
+          "symbol": "6E",
+          "algo": "CMF_POS",
+          "rank_score": -0.1613,
+          "is_sharpe": -1.3265,
+          "oos_sharpe": 1.5864,
+          "is_trades": 186,
+          "oos_trades": 69,
+          "oos_wr": 49.28,
+          "oos_dd": 0.61,
+          "decay": -2.9129,
+          "params": {
+            "period": 15,
+            "threshold": 0.1
+          }
+        },
+        {
+          "symbol": "6E",
+          "algo": "OBV_TREND",
+          "rank_score": -0.5809,
+          "is_sharpe": -1.7648,
+          "oos_sharpe": 1.195,
+          "is_trades": 165,
+          "oos_trades": 80,
+          "oos_wr": 45.0,
+          "oos_dd": 0.97,
+          "decay": -2.9598,
+          "params": {
+            "n": 30
+          }
+        },
+        {
+          "symbol": "6E",
+          "algo": "BB_BREAK",
+          "rank_score": -0.7604,
+          "is_sharpe": -1.5425,
+          "oos_sharpe": 0.4127,
+          "is_trades": 141,
+          "oos_trades": 55,
+          "oos_wr": 45.45,
+          "oos_dd": 1.46,
+          "decay": -1.9552,
+          "params": {
+            "period": 25,
+            "mult": 2.2
+          }
+        }
+      ]
+    },
+    "GC": {
+      "elapsed_s": 3.46,
+      "n_ranked": 24,
+      "n_survivors": 4,
+      "top5": [
+        {
+          "symbol": "GC",
+          "algo": "KC_BREAK",
+          "rank_score": 0.84,
+          "is_sharpe": 0.4659,
+          "oos_sharpe": 1.4012,
+          "is_trades": 41,
+          "oos_trades": 20,
+          "oos_wr": 45.0,
+          "oos_dd": 1.9,
+          "decay": -0.9353,
+          "params": {
+            "period": 25,
+            "mult": 2.5
+          }
+        },
+        {
+          "symbol": "GC",
+          "algo": "NEW_HIGH",
+          "rank_score": 0.8091,
+          "is_sharpe": 0.2427,
+          "oos_sharpe": 1.6588,
+          "is_trades": 43,
+          "oos_trades": 19,
+          "oos_wr": 52.63,
+          "oos_dd": 1.44,
+          "decay": -1.4161,
+          "params": {
+            "n": 20,
+            "exit_n": 15
+          }
+        },
+        {
+          "symbol": "GC",
+          "algo": "DON_BO",
+          "rank_score": 0.767,
+          "is_sharpe": 0.4588,
+          "oos_sharpe": 1.2292,
+          "is_trades": 43,
+          "oos_trades": 19,
+          "oos_wr": 52.63,
+          "oos_dd": 1.54,
+          "decay": -0.7704,
+          "params": {
+            "n": 15,
+            "exit_n": 15
+          }
+        },
+        {
+          "symbol": "GC",
+          "algo": "EMA_CROSS",
+          "rank_score": 0.737,
+          "is_sharpe": -0.0378,
+          "oos_sharpe": 1.8993,
+          "is_trades": 48,
+          "oos_trades": 17,
+          "oos_wr": 52.94,
+          "oos_dd": 0.75,
+          "decay": -1.9371,
+          "params": {
+            "fast": 9,
+            "slow": 26
+          }
+        },
+        {
+          "symbol": "GC",
+          "algo": "SUPERTREND",
+          "rank_score": 0.7244,
+          "is_sharpe": 0.6341,
+          "oos_sharpe": 0.8599,
+          "is_trades": 66,
+          "oos_trades": 27,
+          "oos_wr": 44.44,
+          "oos_dd": 3.01,
+          "decay": -0.2258,
+          "params": {
+            "period": 14,
+            "mult": 3.0
+          }
+        }
+      ],
+      "survivors": [
+        {
+          "symbol": "GC",
+          "algo": "CONSEC_BULL",
+          "rank_score": -0.6836,
+          "is_sharpe": -1.8938,
+          "oos_sharpe": 1.1316,
+          "is_trades": 76,
+          "oos_trades": 29,
+          "oos_wr": 55.17,
+          "oos_dd": 1.02,
+          "decay": -3.0254,
+          "params": {
+            "n_bars": 2
+          }
+        },
+        {
+          "symbol": "GC",
+          "algo": "MFI_CROSS",
+          "rank_score": 0.0557,
+          "is_sharpe": -0.6053,
+          "oos_sharpe": 1.0471,
+          "is_trades": 140,
+          "oos_trades": 41,
+          "oos_wr": 48.78,
+          "oos_dd": 2.15,
+          "decay": -1.6524,
+          "params": {
+            "period": 10
+          }
+        },
+        {
+          "symbol": "GC",
+          "algo": "RANGE_POS",
+          "rank_score": 0.4031,
+          "is_sharpe": 0.0014,
+          "oos_sharpe": 1.0057,
+          "is_trades": 34,
+          "oos_trades": 41,
+          "oos_wr": 48.78,
+          "oos_dd": 1.76,
+          "decay": -1.0043,
+          "params": {}
+        },
+        {
+          "symbol": "GC",
+          "algo": "VWAP_DEV",
+          "rank_score": 0.237,
+          "is_sharpe": -0.2022,
+          "oos_sharpe": 0.8957,
+          "is_trades": 71,
+          "oos_trades": 41,
+          "oos_wr": 51.22,
+          "oos_dd": 2.71,
+          "decay": -1.0979,
+          "params": {}
+        }
+      ]
+    }
+  },
+  "global_survivors_top20": [
+    {
+      "symbol": "6E",
+      "algo": "STOCH_CROSS",
+      "rank_score": -0.2771,
+      "is_sharpe": -2.1571,
+      "oos_sharpe": 2.543,
+      "is_trades": 222,
+      "oos_trades": 109,
+      "oos_wr": 62.39,
+      "oos_dd": 0.61,
+      "decay": -4.7001,
+      "params": {
+        "k_period": 18,
+        "d_period": 5,
+        "oversold": 20
+      }
+    },
+    {
+      "symbol": "CL",
+      "algo": "SQZPOP",
+      "rank_score": 0.5152,
+      "is_sharpe": -0.5402,
+      "oos_sharpe": 2.0984,
+      "is_trades": 95,
+      "oos_trades": 28,
+      "oos_wr": 64.29,
+      "oos_dd": 0.79,
+      "decay": -2.6386,
+      "params": {
+        "length": 30
+      }
+    },
+    {
+      "symbol": "ES",
+      "algo": "VOL_BO",
+      "rank_score": 0.1674,
+      "is_sharpe": -0.8217,
+      "oos_sharpe": 1.651,
+      "is_trades": 148,
+      "oos_trades": 47,
+      "oos_wr": 61.7,
+      "oos_dd": 1.0,
+      "decay": -2.4727,
+      "params": {
+        "vol_n": 25,
+        "vol_mult": 3.0,
+        "price_n": 15
+      }
+    },
+    {
+      "symbol": "NQ=F",
+      "algo": "SQZPOP",
+      "rank_score": 0.1726,
+      "is_sharpe": -0.8028,
+      "oos_sharpe": 1.6356,
+      "is_trades": 247,
+      "oos_trades": 74,
+      "oos_wr": 50.0,
+      "oos_dd": 1.58,
+      "decay": -2.4384,
+      "params": {
+        "length": 25
+      }
+    },
+    {
+      "symbol": "NQ=F",
+      "algo": "VOL_BO",
+      "rank_score": 0.4303,
+      "is_sharpe": -0.3668,
+      "oos_sharpe": 1.626,
+      "is_trades": 120,
+      "oos_trades": 39,
+      "oos_wr": 51.28,
+      "oos_dd": 1.95,
+      "decay": -1.9928,
+      "params": {
+        "vol_n": 15,
+        "vol_mult": 3.0,
+        "price_n": 15
+      }
+    },
+    {
+      "symbol": "6E",
+      "algo": "CMF_POS",
+      "rank_score": -0.1613,
+      "is_sharpe": -1.3265,
+      "oos_sharpe": 1.5864,
+      "is_trades": 186,
+      "oos_trades": 69,
+      "oos_wr": 49.28,
+      "oos_dd": 0.61,
+      "decay": -2.9129,
+      "params": {
+        "period": 15,
+        "threshold": 0.1
+      }
+    },
+    {
+      "symbol": "ES",
+      "algo": "CMF_POS",
+      "rank_score": -0.4464,
+      "is_sharpe": -1.5991,
+      "oos_sharpe": 1.2826,
+      "is_trades": 609,
+      "oos_trades": 247,
+      "oos_wr": 48.58,
+      "oos_dd": 5.84,
+      "decay": -2.8817,
+      "params": {
+        "period": 20,
+        "threshold": 0.1
+      }
+    },
+    {
+      "symbol": "CL",
+      "algo": "CONSOL_BO",
+      "rank_score": 0.0838,
+      "is_sharpe": -0.7009,
+      "oos_sharpe": 1.2609,
+      "is_trades": 128,
+      "oos_trades": 44,
+      "oos_wr": 52.27,
+      "oos_dd": 1.77,
+      "decay": -1.9618,
+      "params": {
+        "tight_n": 3,
+        "expand_mult": 2.0
+      }
+    },
+    {
+      "symbol": "CL",
+      "algo": "BB_BREAK",
+      "rank_score": 0.1441,
+      "is_sharpe": -0.5978,
+      "oos_sharpe": 1.2569,
+      "is_trades": 172,
+      "oos_trades": 54,
+      "oos_wr": 51.85,
+      "oos_dd": 2.37,
+      "decay": -1.8547,
+      "params": {
+        "period": 25,
+        "mult": 2.5
+      }
+    },
+    {
+      "symbol": "CL",
+      "algo": "VOL_BO",
+      "rank_score": 0.1806,
+      "is_sharpe": -0.5043,
+      "oos_sharpe": 1.2079,
+      "is_trades": 108,
+      "oos_trades": 28,
+      "oos_wr": 50.0,
+      "oos_dd": 1.35,
+      "decay": -1.7122,
+      "params": {
+        "vol_n": 20,
+        "vol_mult": 3.0,
+        "price_n": 15
+      }
+    },
+    {
+      "symbol": "6E",
+      "algo": "OBV_TREND",
+      "rank_score": -0.5809,
+      "is_sharpe": -1.7648,
+      "oos_sharpe": 1.195,
+      "is_trades": 165,
+      "oos_trades": 80,
+      "oos_wr": 45.0,
+      "oos_dd": 0.97,
+      "decay": -2.9598,
+      "params": {
+        "n": 30
+      }
+    },
+    {
+      "symbol": "CL",
+      "algo": "ATR_EXP",
+      "rank_score": 0.1704,
+      "is_sharpe": -0.4889,
+      "oos_sharpe": 1.1593,
+      "is_trades": 63,
+      "oos_trades": 27,
+      "oos_wr": 51.85,
+      "oos_dd": 1.85,
+      "decay": -1.6482,
+      "params": {
+        "period": 10,
+        "mult": 2.0
+      }
+    },
+    {
+      "symbol": "CL",
+      "algo": "KC_BREAK",
+      "rank_score": 0.1098,
+      "is_sharpe": -0.582,
+      "oos_sharpe": 1.1475,
+      "is_trades": 159,
+      "oos_trades": 69,
+      "oos_wr": 46.38,
+      "oos_dd": 3.47,
+      "decay": -1.7295,
+      "params": {
+        "period": 20,
+        "mult": 2.5
+      }
+    },
+    {
+      "symbol": "GC",
+      "algo": "CONSEC_BULL",
+      "rank_score": -0.6836,
+      "is_sharpe": -1.8938,
+      "oos_sharpe": 1.1316,
+      "is_trades": 76,
+      "oos_trades": 29,
+      "oos_wr": 55.17,
+      "oos_dd": 1.02,
+      "decay": -3.0254,
+      "params": {
+        "n_bars": 2
+      }
+    },
+    {
+      "symbol": "GC",
+      "algo": "MFI_CROSS",
+      "rank_score": 0.0557,
+      "is_sharpe": -0.6053,
+      "oos_sharpe": 1.0471,
+      "is_trades": 140,
+      "oos_trades": 41,
+      "oos_wr": 48.78,
+      "oos_dd": 2.15,
+      "decay": -1.6524,
+      "params": {
+        "period": 10
+      }
+    },
+    {
+      "symbol": "GC",
+      "algo": "RANGE_POS",
+      "rank_score": 0.4031,
+      "is_sharpe": 0.0014,
+      "oos_sharpe": 1.0057,
+      "is_trades": 34,
+      "oos_trades": 41,
+      "oos_wr": 48.78,
+      "oos_dd": 1.76,
+      "decay": -1.0043,
+      "params": {}
+    },
+    {
+      "symbol": "ES",
+      "algo": "SQZPOP",
+      "rank_score": -0.1776,
+      "is_sharpe": -0.959,
+      "oos_sharpe": 0.9946,
+      "is_trades": 148,
+      "oos_trades": 46,
+      "oos_wr": 45.65,
+      "oos_dd": 1.36,
+      "decay": -1.9536,
+      "params": {
+        "length": 30
+      }
+    },
+    {
+      "symbol": "CL",
+      "algo": "NEW_HIGH",
+      "rank_score": -0.007,
+      "is_sharpe": -0.62,
+      "oos_sharpe": 0.9124,
+      "is_trades": 216,
+      "oos_trades": 95,
+      "oos_wr": 51.58,
+      "oos_dd": 5.56,
+      "decay": -1.5324,
+      "params": {
+        "n": 52,
+        "exit_n": 15
+      }
+    },
+    {
+      "symbol": "CL",
+      "algo": "CMF_POS",
+      "rank_score": -0.0235,
+      "is_sharpe": -0.6426,
+      "oos_sharpe": 0.9052,
+      "is_trades": 282,
+      "oos_trades": 106,
+      "oos_wr": 46.23,
+      "oos_dd": 5.17,
+      "decay": -1.5478,
+      "params": {
+        "period": 25,
+        "threshold": 0.1
+      }
+    },
+    {
+      "symbol": "RTY",
+      "algo": "ADX_TREND",
+      "rank_score": -0.3659,
+      "is_sharpe": -1.2126,
+      "oos_sharpe": 0.9042,
+      "is_trades": 257,
+      "oos_trades": 89,
+      "oos_wr": 46.07,
+      "oos_dd": 1.75,
+      "decay": -2.1168,
+      "params": {
+        "period": 20,
+        "thresh": 25
+      }
+    }
+  ]
+}

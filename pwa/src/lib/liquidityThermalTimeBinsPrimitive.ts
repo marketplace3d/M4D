@@ -268,9 +268,10 @@ export function createLiquidityThermalTimeBinsPrimitive(
               }
             }
 
-            // Optional pressure bubbles on last candles
+            // Optional pressure bubbles — last ~20 bars so large trades stay visible (50% fill); not only the last 3.
             if (showActionBubbles) {
-              for (const rb of recent) {
+              const lookbackBubbles = Math.min(20, Math.max(1, bars.length));
+              for (const rb of bars.slice(-lookbackBubbles)) {
                 const x = ts.timeToCoordinate(rb.time as unknown as Time);
                 const y = seriesApi.priceToCoordinate(rb.close);
                 if (x == null || y == null) continue;
@@ -281,7 +282,8 @@ export function createLiquidityThermalTimeBinsPrimitive(
                 const up = rb.close >= rb.open;
                 const [cr, cg, cb] = up ? [41, 180, 83] : [189, 43, 43];
                 ctx.save();
-                ctx.fillStyle = `rgba(${cr},${cg},${cb},${(0.18 + n * 0.42).toFixed(3)})`;
+                // Fixed 50% fill — size still scales with trade pressure (rad), opacity does not.
+                ctx.fillStyle = `rgba(${cr},${cg},${cb},0.5)`;
                 ctx.beginPath();
                 ctx.arc(x, y, rad, 0, Math.PI * 2);
                 ctx.fill();

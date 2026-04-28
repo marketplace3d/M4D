@@ -10,6 +10,7 @@ export type PageId =
   | 'alphaseek'
   | 'medallion'
   | 'obi'
+  | 'trade-lab'
   | 'backtest-lab'
 
 export interface AlgoVote {

@@ -3,12 +3,16 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    path("",                    views.root,         name="root"),
     path("health/",              views.health,        name="health"),
     path("v1/algos/",            views.algos_list,    name="algos-list"),
     path("v1/algos/<str:algo_id>/", views.algo_detail, name="algo-detail"),
     path("v1/backtest/",         views.backtest,      name="backtest"),
     path("v1/optimize/",         views.optimize,      name="optimize"),
     path("v1/optimize/all/",     views.optimize_all,  name="optimize-all"),
+    path("v1/optimized-params/",  views.optimized_params_read, name="optimized-params"),
+    path("v1/sim/universe/",     views.sim_universe,  name="sim-universe"),
+    path("v1/ictsmc/backtest/", views.ictsmc_backtest, name="ictsmc-backtest"),
     path("v1/signals/",          views.signals,       name="signals"),
     path("v1/chart/<str:symbol>/", views.chart_ohlcv,   name="chart-ohlcv"),
     path("v1/legend/scan/",      views.legend_scan,   name="legend-scan"),

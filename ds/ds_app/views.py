@@ -40,6 +40,7 @@ _load_env_local()
 
 import numpy as np
 from django.http import JsonResponse
+from django.shortcuts import redirect
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
@@ -104,6 +105,13 @@ def _read_operator_control_state() -> dict:
 def _write_operator_control_state(state: dict) -> None:
     _OP_CONTROL_FILE.parent.mkdir(parents=True, exist_ok=True)
     _OP_CONTROL_FILE.write_text(json.dumps(state))
+
+
+# ── / (redirect) — prevents bare / from 404ing in a browser ──────────────────
+
+@require_GET
+def root(request):
+    return redirect("health")
 
 
 # ── /health/ ──────────────────────────────────────────────────────────────────
@@ -173,7 +181,9 @@ def backtest(request):
     asset = body.get("asset", "BTC").upper()
     start = body.get("start", "2022-01-01")
     end = body.get("end", datetime.utcnow().strftime("%Y-%m-%d"))
-    params = body.get("params", {})
+    user_params = body.get("params", {}) or {}
+    if not isinstance(user_params, dict):
+        user_params = {}
 
     if not algo:
         return _err("'algo' is required")
@@ -181,8 +191,9 @@ def backtest(request):
         return _err(f"Unknown algo: {algo}. Valid: {ALL_ALGO_IDS}")
 
     try:
-        # Use the existing run_backtest infrastructure but route through algos_crypto
-        result = _run_crypto_backtest(algo, asset, start, end, params)
+        from .optimized_params_store import params_for_algo
+        # Walk-forward *persisted* params as baseline; request body wins on key overlap
+        result = _run_crypto_backtest(algo, asset, start, end, {**params_for_algo(asset, algo), **user_params})
         return JsonResponse(result)
     except ValueError as exc:
         return _err(str(exc))
@@ -321,7 +332,9 @@ def optimize(request):
           "end": "2024-01-01",
           "is_pct": 0.75,       // optional
           "min_trades": 10,     // optional
-          "top_n": 10           // optional
+          "top_n": 10,          // optional
+          "persist": false,     // if true, save best IS/OOS params for live signals + backtest
+          "custom_grid": {}     // optional — override PARAM_GRIDS for this run
         }
     """
     body = _json_body(request)
@@ -332,6 +345,11 @@ def optimize(request):
     is_pct = float(body.get("is_pct", 0.75))
     min_trades = int(body.get("min_trades", 10))
     top_n = int(body.get("top_n", 10))
+    interval = str(body.get("interval", "1d"))
+    killzone_only = bool(body.get("killzone_only", False))
+    persist = bool(body.get("persist", False))
+    cgrid = body.get("custom_grid")
+    custom_grid = cgrid if isinstance(cgrid, dict) else None
 
     if not algo:
         return _err("'algo' is required")
@@ -339,9 +357,23 @@ def optimize(request):
         return _err(f"Unknown algo: {algo}. Valid: {ALL_ALGO_IDS}")
 
     try:
-        result = optimize_algo(algo, asset, start, end, is_pct=is_pct,
-                               min_trades=min_trades, top_n=top_n)
-        return JsonResponse(result.to_dict())
+        result = optimize_algo(
+            algo,
+            asset,
+            start,
+            end,
+            is_pct=is_pct,
+            min_trades=min_trades,
+            top_n=top_n,
+            interval=interval,
+            killzone_only=killzone_only,
+            custom_grid=custom_grid,
+        )
+        out = result.to_dict()
+        if persist:
+            from .optimized_params_store import merge_persist_one
+            out["persisted"] = merge_persist_one(asset, algo, out)
+        return JsonResponse(out)
     except ValueError as exc:
         return _err(str(exc))
     except Exception as exc:
@@ -358,10 +390,12 @@ def optimize_all(request):
           "asset": "BTC",
           "start": "2021-01-01",
           "end": "2024-01-01",
-          "algos": ["DON_BO", "EMA_CROSS"],   // optional, omit for all 27
+          "algos": ["DON_BO", "EMA_CROSS"],   // optional, omit for all
           "is_pct": 0.75,
           "min_trades": 10,
-          "top_n": 5
+          "top_n": 5,
+          "persist": false,   // if true, write best params per algo to ds/data/optimized_algo_params.json
+          "replace_asset": true  // if false, merge with existing by_asset[asset] keys
         }
     """
     body = _json_body(request)
@@ -372,16 +406,150 @@ def optimize_all(request):
     is_pct = float(body.get("is_pct", 0.75))
     min_trades = int(body.get("min_trades", 10))
     top_n = int(body.get("top_n", 5))
+    interval = str(body.get("interval", "1d"))
+    killzone_only = bool(body.get("killzone_only", False))
+    persist = bool(body.get("persist", False))
+    replace_asset = bool(body.get("replace_asset", True))
 
     try:
         results = optimize_all_algos(
             asset, start, end, algo_ids=algo_ids,
             is_pct=is_pct, min_trades=min_trades, top_n=top_n,
+            interval=interval, killzone_only=killzone_only,
         )
-        return JsonResponse({"asset": asset, "start": start, "end": end, "results": results})
+        res = {"asset": asset, "start": start, "end": end, "results": results}
+        if persist:
+            from .optimized_params_store import merge_persist_optimized_all
+            res["persisted"] = merge_persist_optimized_all(asset, results, replace_asset=replace_asset)
+        return JsonResponse(res)
     except Exception as exc:
         logger.exception("Optimize-all error: %s", exc)
         return _err(f"Internal error: {exc}", status=500)
+
+
+@require_GET
+def optimized_params_read(request):
+    """
+    GET /v1/optimized-params/?asset=BTC
+    Full JSON store if asset omitted. With asset, returns { asset, params } only.
+    """
+    from .optimized_params_store import load_store
+
+    st = load_store()
+    a = (request.GET.get("asset") or "").strip().upper()
+    if a:
+        p = (st.get("by_asset") or {}).get(a) or {}
+        return JsonResponse({
+            "asset": a, "param_count": len(p), "params": p,
+            "system": st.get("system", {}),
+        })
+    return JsonResponse(st)
+
+
+@require_GET
+def sim_universe(request):
+    """
+    GET /v1/sim/universe/
+      ?asset=BTC&start=…&end=…&interval=1d&min_trades=3&algos=DON_BO,EMA_STACK
+      &trades_list=sample|all|off&sample_per=20
+
+    Trades in sim are grouped in ``trades_by_category`` (bank, regime, algo, exit, dow);
+    ``competition`` is a leaderboard + bank "teams". ``reasoning`` narrates who beat whom.
+    """
+    from .sim_universe import run_universe_sim
+
+    asset = (request.GET.get("asset") or "BTC").upper()
+    end = (request.GET.get("end") or datetime.utcnow().strftime("%Y-%m-%d"))[:10]
+    start = (request.GET.get("start") or "2021-01-01")[:10]
+    interval = (request.GET.get("interval") or "1d").lower()
+    min_t = int(request.GET.get("min_trades", 3))
+    raw = (request.GET.get("algos") or "").strip()
+    algo_ids = [x.strip().upper() for x in raw.split(",") if x.strip()] or None
+    al = (request.GET.get("all_algos", "1") or "1").strip().lower() in ("1", "true", "yes", "on")
+    tlist = (request.GET.get("trades_list") or "sample").lower().strip()
+    sample_per = int(request.GET.get("sample_per", 20))
+    try:
+        out = run_universe_sim(
+            asset, start, end, interval=interval, algo_ids=algo_ids, all_algos=al,
+            min_trades_for_rank=min_t, trades_list=tlist, sample_per_category=sample_per,
+        )
+        if not out.get("ok"):
+            return JsonResponse(out, status=400)
+        return JsonResponse(out)
+    except Exception as exc:
+        logger.exception("sim_universe: %s", exc)
+        return _err(str(exc), status=500)
+
+
+@csrf_exempt
+def ictsmc_backtest(request):
+    """
+    GET/POST /v1/ictsmc/backtest/
+    ICT + SMC signal stack (add_ict_signals) with opt levels: trade, entry, retest, exit.
+
+    GET (quick):
+      ?asset=BTC&start=2018-01-01&end=2024-01-01&interval=1d
+      &trade=1&e_kz=0&e_bias=1&e_gate=0&retest=loose&hold=5&stop_atr=1.5&tp_atr=2
+
+    POST JSON:
+      { "asset": "BTC", "start": "…", "end": "…", "interval": "1d",
+        "opt": { "trade": true, "entry": { "use_bias": true, "use_killzone": false, … },
+                 "retest": { "mode": "strict"|"loose" },
+                 "exit": { "max_hold_bars": 5, "stop_atr": 1.5, "take_profit_atr": 2.0 } } }
+    """
+    from .ictsmc_backtest import run_ictsmc_backtest
+
+    if request.method == "GET":
+        asset = (request.GET.get("asset") or "BTC").upper()
+        end = (request.GET.get("end") or datetime.utcnow().strftime("%Y-%m-%d"))[:10]
+        start = (request.GET.get("start") or "2018-01-01")[:10]
+        interval = (request.GET.get("interval") or "1d").lower()
+
+        def _b(k, d="0"):
+            return (request.GET.get(k, d) or d).lower() in ("1", "true", "yes", "on")
+
+        opt = {
+            "trade": _b("trade", "1"),
+            "entry": {
+                "use_bias": _b("e_bias", "1"),
+                "use_killzone": _b("e_kz", "0"),
+                "use_t1": _b("e_t1", "0"),
+                "use_whacker_gate": _b("e_gate", "0"),
+            },
+            "retest": {"mode": (request.GET.get("retest") or "loose").lower()},
+            "exit": {
+                "max_hold_bars": int(request.GET.get("hold", 5)),
+                "stop_atr": float(request.GET.get("stop_atr", 1.5)),
+                "take_profit_atr": float(request.GET.get("tp_atr", 2.0)),
+            },
+        }
+        try:
+            out = run_ictsmc_backtest(asset, start, end, interval=interval, opt=opt)
+            st = 400 if out.get("ok") is False and "error" in out else 200
+            return JsonResponse(out, status=st)
+        except Exception as exc:
+            logger.exception("ictsmc_backtest GET: %s", exc)
+            return _err(str(exc), status=500)
+
+    if request.method != "POST":
+        from django.http import HttpResponseNotAllowed
+        return HttpResponseNotAllowed(["GET", "POST"])
+
+    body = _json_body(request)
+    asset = (body.get("asset") or "BTC").upper()
+    end = (body.get("end") or datetime.utcnow().strftime("%Y-%m-%d"))[:10]
+    start = (body.get("start") or "2018-01-01")[:10]
+    interval = (body.get("interval") or "1d").lower()
+    opt = body.get("opt")
+    if opt is None and any(k in body for k in ("trade", "entry", "exit", "retest")):
+        opt = {k: body[k] for k in ("trade", "entry", "exit", "retest") if k in body}
+    try:
+        out = run_ictsmc_backtest(asset, start, end, interval=interval, opt=opt or {})
+        st = 400 if out.get("ok") is False and "error" in out else 200
+        return JsonResponse(out, status=st)
+    except Exception as exc:
+        logger.exception("ictsmc_backtest POST: %s", exc)
+        return _err(str(exc), status=500)
 
 
 # ── /v1/signals/ ─────────────────────────────────────────────────────────────
@@ -403,7 +571,7 @@ def signals(request):
         if df.empty or len(df) < 30:
             return _err(f"Insufficient data for {asset}")
 
-        votes = compute_live_votes(df)
+        votes = compute_live_votes(df, asset=asset)
 
         algo_list = []
         for algo_id, v in votes.items():
@@ -416,6 +584,9 @@ def signals(request):
             })
 
         jedi = votes.get("JEDI", {})
+        from .optimized_params_store import load_store
+        st = load_store()
+        oa = (st.get("by_asset") or {}).get(asset) or {}
         return JsonResponse({
             "asset": asset,
             "as_of": end,
@@ -423,6 +594,8 @@ def signals(request):
             "jedi_raw": jedi.get("raw_score", 0),
             "jedi_score_pct": round(jedi.get("score", 0.0) * 100, 1),
             "algos": algo_list,
+            "using_optimized_params": len(oa) > 0,
+            "optimized_param_keys": list(oa.keys()) if oa else [],
         })
     except ValueError as exc:
         return _err(str(exc))
@@ -708,7 +881,7 @@ def jedi_score(request):
         if df.empty or len(df) < 30:
             return _err(f"Insufficient data for {asset}")
 
-        votes = compute_live_votes(df)
+        votes = compute_live_votes(df, asset=asset)
 
         # Bank scores: fraction of bank algos firing long
         from .algos_crypto import ALGO_REGISTRY

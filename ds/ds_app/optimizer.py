@@ -148,6 +148,73 @@ def _vectorized_backtest(
     }
 
 
+def vectorized_backtest_trades(
+    close: np.ndarray,
+    entries: np.ndarray,
+    exits: np.ndarray,
+    stop_pct: float,
+    hold_bars: int,
+) -> list[dict]:
+    """
+    Same long-only sim as _vectorized_backtest but returns one record per round-trip
+    (for universe sim + win-attribution). pnl_pct is *percent* (e.g. 1.2 = +1.2%).
+    """
+    n = len(close)
+    if n < 2:
+        return []
+    ent = np.asarray(entries, dtype=bool)
+    exi = np.asarray(exits, dtype=bool)
+    trades: list[dict] = []
+    in_trade = False
+    entry_price = 0.0
+    entry_i = 0
+    hold_count = 0
+    stop_f = -stop_pct / 100.0
+
+    for i in range(1, n):
+        if in_trade:
+            ret_since = (close[i] - entry_price) / entry_price
+            if ret_since <= stop_f:
+                pnl = ret_since * 100.0
+                trades.append({
+                    "entry_i": int(entry_i),
+                    "exit_i": int(i),
+                    "pnl_pct": round(float(pnl), 4),
+                    "exit_reason": "stop",
+                })
+                in_trade = False
+            elif exi[i] or hold_count >= hold_bars:
+                pnl = (close[i] - entry_price) / entry_price * 100.0
+                reason = "exit_sig" if exi[i] else "max_hold"
+                trades.append({
+                    "entry_i": int(entry_i),
+                    "exit_i": int(i),
+                    "pnl_pct": round(float(pnl), 4),
+                    "exit_reason": reason,
+                })
+                in_trade = False
+            else:
+                hold_count += 1
+        else:
+            if ent[i]:
+                in_trade = True
+                entry_price = float(close[i])
+                entry_i = i
+                hold_count = 0
+
+    if in_trade and n > 0:
+        pnl = (float(close[-1]) - entry_price) / entry_price * 100.0
+        trades.append({
+            "entry_i": int(entry_i),
+            "exit_i": int(n - 1),
+            "pnl_pct": round(float(pnl), 4),
+            "exit_reason": "eod",
+        })
+    for t in trades:
+        t["win"] = t["pnl_pct"] > 0.0
+    return trades
+
+
 # ── vectorbt-accelerated grid search ─────────────────────────────────────────
 
 def _vbt_grid_search(
@@ -273,6 +340,25 @@ def _split_df(df: pd.DataFrame, is_pct: float = 0.75) -> tuple[pd.DataFrame, pd.
     return df.iloc[:split].copy(), df.iloc[split:].copy()
 
 
+def _apply_killzone_filter(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Keep only killzone windows in UTC:
+      - London: 07:00-10:59
+      - NY AM:  13:00-16:59
+    """
+    if df.empty:
+        return df
+    idx = df.index
+    if getattr(idx, "tz", None) is None:
+        idx = idx.tz_localize("UTC")
+    else:
+        idx = idx.tz_convert("UTC")
+    h = idx.hour
+    m = ((h >= 7) & (h <= 10)) | ((h >= 13) & (h <= 16))
+    out = df.loc[m].copy()
+    return out
+
+
 # ── main optimize function ────────────────────────────────────────────────────
 
 @dataclass
@@ -309,6 +395,8 @@ def optimize_algo(
     is_pct: float = 0.75,
     min_trades: int = 10,
     top_n: int = 10,
+    interval: str = "1d",
+    killzone_only: bool = False,
     custom_grid: dict | None = None,
 ) -> OptResult:
     """
@@ -336,9 +424,12 @@ def optimize_algo(
     hold_bars = meta["hold_bars"]
 
     # Fetch data
-    df = fetch_ohlcv(asset, start, end)
+    df = fetch_ohlcv(asset, start, end, interval=interval)
+    if killzone_only:
+        df = _apply_killzone_filter(df)
     if len(df) < 60:
-        raise ValueError(f"Insufficient data: {len(df)} bars for {asset} {start}→{end}")
+        kz = " (killzone filtered)" if killzone_only else ""
+        raise ValueError(f"Insufficient data: {len(df)} bars for {asset} {start}→{end} @ {interval}{kz}")
 
     # IS / OOS split
     is_df, oos_df = _split_df(df, is_pct)

@@ -1,0 +1,13 @@
+{
+  "config": {
+    "start": "2024-01-01",
+    "end": "2025-03-31",
+    "is_pct": 0.75,
+    "min_trades": 30,
+    "top_n": 5,
+    "interval": "5m",
+    "killzone_only": true
+  },
+  "strict": [],
+  "count": 0
+}

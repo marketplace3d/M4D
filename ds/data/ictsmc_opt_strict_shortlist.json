@@ -1,0 +1,18 @@
+{
+  "strict_shortlist": [
+    {
+      "symbol": "GC",
+      "algo": "RANGE_POS",
+      "rank_score": 0.4031,
+      "is_sharpe": 0.0014,
+      "oos_sharpe": 1.0057,
+      "is_trades": 34,
+      "oos_trades": 41,
+      "oos_wr": 48.78,
+      "oos_dd": 1.76,
+      "decay": -1.0043,
+      "params": {}
+    }
+  ],
+  "count": 1
+}

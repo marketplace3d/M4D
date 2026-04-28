@@ -6,6 +6,7 @@ const TABS: { id: PageId; icon: string; label: string }[] = [
   { id: 'trade',     icon: '⚔', label: 'TRADE' },
   { id: 'ict-smc',   icon: '⟁', label: 'ICT-SMC' },
   { id: 'obi',       icon: '◉', label: 'OBI'   },
+  { id: 'trade-lab', icon: '◍', label: 'TLAB'  },
   { id: 'starray',   icon: '✶', label: 'OPT'   },
   { id: 'perf',      icon: '◍', label: 'PERFORMANCE'  },
   { id: 'alphaseek', icon: '⟡', label: 'SEEK'  },
@@ -23,6 +24,7 @@ const ICON_COLOUR: Record<PageId, string> = {
   alphaseek: 'var(--accent)',
   medallion: '#c084fc',
   obi: '#f43f5e',
+  'trade-lab': '#38bdf8',
   'backtest-lab': '#38bdf8',
 }
 
@@ -37,6 +39,7 @@ const ICON_NAVY_BLUE: Record<PageId, string> = {
   alphaseek: '#5fb0ff',
   medallion: '#7abfff',
   obi: '#66b4ff',
+  'trade-lab': '#82d5ff',
   'backtest-lab': '#8ad8ff',
 }
 

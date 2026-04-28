@@ -26,6 +26,10 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
+# Simple in-process OHLCV cache to avoid repeated network/IO fetches
+# when running matrix backtests on same symbol/date range.
+_OHLCV_CACHE: dict[tuple[str, str, str], pd.DataFrame] = {}
+
 # Default backtest execution constants
 _DEFAULT_CASH = 100_000
 _DEFAULT_COMMISSION = 0.0015
@@ -450,8 +454,14 @@ def run_backtest(
     exit_mode = str(merged.get("exit_mode", "ema13"))
     break_even_offset_pct = float(merged.get("break_even_offset_pct", 0.05))
 
-    # Fetch data
-    df = fetch_ohlcv(asset, start, end)
+    # Fetch data (cached per process for matrix/sweep speed)
+    cache_key = (asset.upper(), start, end)
+    if cache_key in _OHLCV_CACHE:
+        df = _OHLCV_CACHE[cache_key].copy()
+    else:
+        df = fetch_ohlcv(asset, start, end)
+        _OHLCV_CACHE[cache_key] = df.copy()
+
     if df.empty or len(df) < 30:
         raise ValueError(f"Insufficient data for {asset} ({start}→{end}): {len(df)} bars")
 

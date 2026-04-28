@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # MASTER LAUNCHER — runs from repo root
 #
-#   ./go.sh          → ALL: M3D :5500 · M2D :5565 · M1D :5550 · M4D :5555 + backends
+#   ./go.sh | all    → full stack: M3D :5500 · M2D :5565 · M1D :5550 · M4D :5555 · M5D :5556 + backends
+#   ./go.sh none     → do not start any service (message only; safe if script is source'd)
 #   ./go.sh paper    → PAPER TRADING: DS :8000 + M4D :5555 (TWS must be open on :7497)
 #   ./go.sh m3d      → M3D stack only  (site :5500 · API :3300 · DS :8800 · engine)
 #   ./go.sh m2d      → M2D only  :5565
@@ -24,7 +25,7 @@
 #   M1D ds   :8050   Python m4d-ds (crypto worker)
 #   M4D      :5555   Main combined interface shell (Vite: ./M4D/ — not m4d)
 #   M5D      :5556   Co-trader / Palantir UI (Vite: ./M5D/ — not m5d)
-#   DS quant :8000   Django quant DS (signal_log · star-ray · PCA · ensemble · xaigrok)
+#   DS quant :8000   JSON API; GET / → redirect /health/ (v1/… for backtest, sim, ictsmc, …)
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
@@ -147,12 +148,12 @@ print_urls() {
   echo ""
   echo -e "──────────────────────────────────────────────────────"
   echo -e "  ${Y}M3D${NC}      http://127.0.0.1:5500/   (after Rust compile)"
-  echo -e "  ${C}M2D${NC}      http://localhost:5565/"
+  echo -e "  ${C}M2D${NC}      http://127.0.0.1:5565/"
   echo -e "  ${G}M1D${NC}      http://127.0.0.1:5550/"
   echo -e "  ${G}m4d-ds${NC}   http://127.0.0.1:8050/  (crypto worker)"
   echo -e "  ${B}M4D${NC}      http://127.0.0.1:5555/  ← main interface"
   echo -e "  ${C}M5D${NC}      http://127.0.0.1:5556/  ← co-trader Palantir UI"
-  echo -e "  ${G}DS quant${NC} http://127.0.0.1:8000/  ← star-ray · PCA · signals"
+  echo -e "  ${G}DS quant${NC} http://127.0.0.1:8000/  (→ /health/ JSON)  API /v1/…"
   echo -e "──────────────────────────────────────────────────────"
   echo -e "  Browsers open automatically when each server is ready"
   echo ""
@@ -162,7 +163,13 @@ print_urls() {
 
 case "$CMD" in
 
-""| all)
+none|noop|_)
+  # return first so `source go.sh` does not kill the parent shell; || exit for ./go.sh
+  log "No services started. Full stack: ${Y}./go.sh${NC} or ${Y}./go.sh all${NC} · M4D+DS: ${Y}./go.sh m4d${NC} · M5D: ${Y}./go.sh m5d${NC}"
+  return 0 2>/dev/null || exit 0
+  ;;
+
+""|all)
   reclaim_all_ports
   run_m3d
   run_m2d
@@ -172,7 +179,7 @@ case "$CMD" in
   run_ds_quant
   print_urls
   open_when_ready "http://127.0.0.1:5500/" 180
-  open_when_ready "http://localhost:5565/"   90
+  open_when_ready "http://127.0.0.1:5565/"   90
   open_when_ready "http://127.0.0.1:8050/" 120
   open_when_ready "http://127.0.0.1:5550/" 120
   open_when_ready "http://127.0.0.1:8000/health/" 30
@@ -182,7 +189,7 @@ case "$CMD" in
   ;;
 
 m3d)  exec "$ROOT/go3d.sh" "${2:-all}" ;;
-m2d)  run_m2d; open_when_ready "http://localhost:5565/" 30; wait || true ;;
+m2d)  run_m2d; open_when_ready "http://127.0.0.1:5565/" 30; wait || true ;;
 m1d)  run_m1d; open_when_ready "http://127.0.0.1:8050/" 120; open_when_ready "http://127.0.0.1:5550/" 120; wait || true ;;
 m4d)
   _kill_port 8000 "DS quant"; _kill_port 5555 "M4D"

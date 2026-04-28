@@ -754,15 +754,24 @@ def build_features(df: pd.DataFrame, algo_id: str, params: dict | None = None) -
     return fn(df, params or {})
 
 
-def compute_live_votes(df: pd.DataFrame) -> dict[str, dict]:
+def compute_live_votes(df: pd.DataFrame, asset: str = "BTC") -> dict[str, dict]:
     """
-    Compute live vote (-1, 0, +1) and score (0-1) for all 27 algos.
-    Uses default parameters. Returns dict keyed by algo_id.
+    Compute live vote (-1, 0, +1) and score (0-1) for all 27+ algos.
+    When ds/data/optimized_algo_params.json has a row for this asset+algo, uses
+    those walk-forward params; else feat_* in-code defaults (empty dict).
+    JEDI thresholds: optimized_params_store system.jedi_bull_min_votes / jedi_bear_max_votes.
     """
+    from .optimized_params_store import params_for_algo, system_ict_flags
+
+    sysf = system_ict_flags()
+    bull_min = int(sysf.get("jedi_bull_min_votes", 9))
+    bear_max = int(sysf.get("jedi_bear_max_votes", -9))
+    aup = (asset or "BTC").upper()
     results: dict[str, dict] = {}
     for algo_id, meta in ALGO_REGISTRY.items():
         try:
-            feat = meta["fn"](df, {})
+            p = params_for_algo(aup, algo_id)
+            feat = meta["fn"](df, p)
             last_entry = bool(feat["entry"].iloc[-1]) if len(feat) > 0 else False
             last_exit = bool(feat["exit_sig"].iloc[-1]) if len(feat) > 0 else False
 
@@ -789,7 +798,7 @@ def compute_live_votes(df: pd.DataFrame) -> dict[str, dict]:
     # JEDI
     total = sum(v["vote"] for v in results.values())
     results["JEDI"] = {
-        "vote": 1 if total >= 9 else (-1 if total <= -9 else 0),
+        "vote": 1 if total >= bull_min else (-1 if total <= bear_max else 0),
         "score": round(abs(total) / 27.0, 4),
         "bank": "JEDI",
         "name": "JEDI Master",

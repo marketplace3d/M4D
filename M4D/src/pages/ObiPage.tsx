@@ -336,6 +336,7 @@ export default function ObiPage() {
   const [obiVisible, setObiVisible] = useState(true)
   const [obiChartLines, setObiChartLines] = useState<ObiChartLines>(() => loadObiChartLines())
   const [obiBoomMinimal, setObiBoomMinimal] = useState<boolean>(() => loadObiBoomMinimal())
+  const [allAlgosSimBusy, setAllAlgosSimBusy] = useState(false)
   const [soloDock, setSoloDock] = useState<SoloDockState>(() => loadSoloDock())
   const setObiChartLinesPatch = useCallback((patch: Partial<ObiChartLines> | ((p: ObiChartLines) => ObiChartLines)) => {
     setObiChartLines(prev => {
@@ -358,6 +359,42 @@ export default function ObiPage() {
   const setSoloDockPatch = useCallback((patch: Partial<SoloDockState> | ((p: SoloDockState) => Partial<SoloDockState>)) => {
     setSoloDock(prev => { const delta = typeof patch === 'function' ? patch(prev) : patch; const next = { ...prev, ...delta }; saveSoloDock(next); return next })
   }, [])
+
+  const runAllAlgosSimDs = useCallback(async () => {
+    const base = (import.meta.env.VITE_DS_URL as string | undefined) || 'http://127.0.0.1:8000'
+    const raw = String(sym).toUpperCase().split(/[\/\-]/)[0] ?? 'BTC'
+    const knownCrypto = new Set(['BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'BNB', 'ADA', 'AVAX', 'DOT', 'LINK', 'MATIC', 'LTC'])
+    const asset = knownCrypto.has(raw) ? raw : 'BTC'
+    setAllAlgosSimBusy(true)
+    try {
+      const end = new Date()
+      const start = new Date()
+      start.setFullYear(end.getFullYear() - 3)
+      const q = new URLSearchParams({
+        asset,
+        start: start.toISOString().slice(0, 10),
+        end: end.toISOString().slice(0, 10),
+        interval: '1d',
+        all_algos: '1',
+        trades_list: 'off',
+        min_trades: '2',
+      })
+      const r = await fetch(`${base}/v1/sim/universe/?${q.toString()}`)
+      const j = (await r.json()) as { error?: string; algorithms_ranked?: { algo_id: string }[]; trades_total?: number }
+      if (!r.ok) throw new Error(j.error || r.statusText)
+      setErr('')
+      console.info('[ALL 30 ALGOS] OK', {
+        asset,
+        trades_total: j.trades_total,
+        top_algo: j.algorithms_ranked?.[0]?.algo_id ?? null,
+      })
+      console.log('[DS /v1/sim/universe?all_algos=1]', j)
+    } catch (e) {
+      setErr(`ALL 30 ALGOS: ${e instanceof Error ? e.message : String(e)} (is DS on :8000?)`)
+    } finally {
+      setAllAlgosSimBusy(false)
+    }
+  }, [sym])
 
   // SOLO orb
   const solo = useMemo(() => {
@@ -530,6 +567,27 @@ export default function ObiPage() {
         <div className="tv-lw-masters-row" role="group" aria-label="Chart overlays">
           <div className="tv-lw-masters-seg" style={{ paddingRight: 4 }}>
             <span style={{ fontSize: 10, fontWeight: 800, color: '#a78bfa', fontFamily: 'monospace', letterSpacing: 2, textShadow: '0 0 8px #a78bfa', padding: '2px 6px' }}>◉ OBI</span>
+          </div>
+
+          <div className="tv-lw-masters-seg" role="group" aria-label="DS all-algo sim" style={{ flexShrink: 0, borderLeft: '1px solid rgba(45,212,191,0.25)', borderRight: '1px solid rgba(45,212,191,0.25)', padding: '0 4px' }}>
+            <button
+              type="button"
+              className="tv-lw-pill"
+              style={{
+                fontSize: 9,
+                fontWeight: 800,
+                padding: '2px 10px',
+                border: '1px solid rgba(45, 212, 191, 0.85)',
+                color: '#99f6e4',
+                background: 'linear-gradient(180deg, rgba(6, 78, 59, 0.85), rgba(4, 47, 46, 0.95))',
+                boxShadow: '0 0 12px rgba(45, 212, 191, 0.25)',
+                letterSpacing: 0.5,
+              }}
+              disabled={allAlgosSimBusy}
+              onClick={() => { void runAllAlgosSimDs() }}
+              title="Django GET /v1/sim/universe/?all_algos=1 — 30 crypto strategies (VITE_DS_URL or :8000). Non-crypto tickers use BTC.">
+              {allAlgosSimBusy ? '…' : 'ALL 30 ALGOS'}
+            </button>
           </div>
 
           <div className="tv-lw-masters-seg tv-lw-masters-seg--sym">

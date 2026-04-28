@@ -1,0 +1,400 @@
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+.shell {
+  font-family: 'Courier New', monospace;
+  background: #090909;
+  color: #ddd;
+  border-radius: 12px;
+  border: 1px solid #1e1e1e;
+  overflow: hidden;
+}
+.titlebar {
+  background: #0e0e0e;
+  border-bottom: 1px solid #1a1a1a;
+  padding: 9px 16px;
+  display: flex; align-items: center; gap: 8px;
+}
+.dot { width: 9px; height: 9px; border-radius: 50%; }
+.dot-r{background:#ff5f57}.dot-y{background:#febc2e}.dot-g{background:#28c840}
+.tb-title { font-size: 10px; color: #555; margin: 0 auto; letter-spacing: 2px; text-transform: uppercase; }
+.nav { display: flex; border-bottom: 1px solid #1a1a1a; overflow-x: auto; scrollbar-width: none; }
+.nav::-webkit-scrollbar { display: none; }
+.tab {
+  padding: 9px 14px; font-size: 10px; letter-spacing: 1.5px; cursor: pointer;
+  border: none; background: transparent; color: #555;
+  border-bottom: 2px solid transparent; white-space: nowrap;
+  font-family: 'Courier New', monospace; transition: color 0.15s;
+}
+.tab:hover{color:#aaa}
+.tab.active{color:#ff6b35;border-bottom-color:#ff6b35}
+.content { padding: 14px 16px; }
+.sec { display: none; }
+.sec.active { display: block; }
+.sec-label { font-size: 9px; color: #444; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px; }
+.layer {
+  border: 1px solid #1a1a1a;
+  border-radius: 6px;
+  margin-bottom: 7px;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+.layer:hover{border-color:#2a2a2a}
+.layer.open{border-color:#252525}
+.lh {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px;
+}
+.ln { font-size: 9px; color: #444; min-width: 22px; }
+.lname { font-size: 11px; letter-spacing: 1px; flex: 1; font-weight: bold; }
+.lbadge {
+  font-size: 8px; padding: 2px 7px; border-radius: 3px;
+  letter-spacing: 1px; border: 1px solid;
+}
+.b-red{color:#ff6b35;border-color:#3a1f10;background:#1a0f08}
+.b-grn{color:#00ff9d;border-color:#1a3a25;background:#0a1f14}
+.b-blu{color:#44aaff;border-color:#1a2535;background:#0a1520}
+.b-ylw{color:#ffcc44;border-color:#3a3010;background:#1f1a08}
+.b-gry{color:#888;border-color:#2a2a2a;background:#141414}
+.chev { font-size: 9px; color: #333; transition: transform 0.2s; }
+.layer.open .chev{transform:rotate(90deg)}
+.ld {
+  display: none; margin: 0 12px 12px;
+  padding-top: 10px; border-top: 1px solid #141414;
+  font-size: 10px; color: #777; line-height: 1.9;
+}
+.layer.open .ld{display:block}
+.ld b{color:#bbb;font-weight:normal}
+.tag {
+  display: inline-block; font-size: 8px; padding: 2px 6px;
+  border-radius: 3px; margin: 2px 2px 2px 0;
+  letter-spacing: 0.5px; border: 1px solid #1e1e1e; color: #666; background: #0f0f0f;
+}
+.tag.r{color:#ff6b35;border-color:#3a1a0a;background:#150a05}
+.tag.g{color:#00cc7a;border-color:#1a3020;background:#0a1810}
+.tag.b{color:#44aaff;border-color:#1a2535;background:#080f18}
+.tag.y{color:#ffcc44;border-color:#302810;background:#181408}
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 7px; margin-bottom: 10px; }
+.card {
+  background: #0d0d0d; border: 1px solid #1a1a1a;
+  border-radius: 5px; padding: 10px;
+}
+.card-label { font-size: 8px; color: #444; letter-spacing: 1.5px; margin-bottom: 5px; text-transform: uppercase; }
+.card-val { font-size: 11px; color: #ccc; }
+.card-sub { font-size: 9px; color: #444; margin-top: 2px; }
+.sep { height: 1px; background: #141414; margin: 10px 0; }
+.row {
+  display: flex; gap: 8px; align-items: flex-start;
+  padding: 7px 0; border-bottom: 1px solid #0f0f0f;
+  font-size: 10px;
+}
+.row:last-child{border-bottom:none}
+.ri { font-size: 12px; min-width: 20px; }
+.rt { color: #ccc; margin-bottom: 2px; font-size: 10px; }
+.rd { color: #666; font-size: 9px; line-height: 1.6; }
+.rm { color: #00cc7a; font-size: 9px; margin-top: 2px; }
+.rw { color: #ff6b35; font-size: 9px; margin-top: 2px; }
+.code {
+  background: #0a0a0a; border: 1px solid #181818;
+  border-radius: 4px; padding: 10px; font-size: 9px;
+  line-height: 1.9; color: #888; margin: 7px 0; overflow-x: auto;
+}
+.kw{color:#569cd6}.fn{color:#dcdcaa}.str{color:#ce9178}.cm{color:#444}.acc{color:#00ff9d}.warn{color:#ff6b35}
+.ask-btn {
+  font-family: 'Courier New', monospace; font-size: 9px;
+  padding: 4px 10px; background: transparent;
+  border: 1px solid #1e1e1e; border-radius: 3px;
+  color: #555; cursor: pointer; letter-spacing: 0.5px;
+  margin: 2px; transition: all 0.15s;
+}
+.ask-btn:hover{border-color:#ff6b35;color:#ff6b35}
+.ph { display: flex; gap: 7px; margin-bottom: 7px; align-items: flex-start; }
+.pn {
+  background: #111; border: 1px solid #1e1e1e;
+  border-radius: 3px; font-size: 9px; color: #ff6b35;
+  padding: 3px 6px; min-width: 26px; text-align: center;
+}
+.pt { font-size: 10px; color: #666; line-height: 1.7; padding-top: 3px; }
+.pt strong{color:#bbb;font-weight:normal}
+.blink{display:inline-block;width:5px;height:5px;border-radius:50%;background:#ff6b35;animation:bk 1.2s infinite;vertical-align:middle;margin-right:4px}
+@keyframes bk{0%,100%{opacity:1}50%{opacity:0.2}}
+.scroll{max-height:520px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#1e1e1e transparent}
+.matrix-row{display:flex;gap:5px;align-items:center;padding:5px 0;border-bottom:1px solid #0f0f0f;font-size:9px}
+.matrix-row:last-child{border-bottom:none}
+.mx-risk{min-width:50px;padding:2px 6px;border-radius:3px;font-size:8px;text-align:center}
+.risk-hi{background:#2a0f05;color:#ff6b35;border:1px solid #3a1505}
+.risk-md{background:#1a1505;color:#ffcc44;border:1px solid #2a2005}
+.risk-lo{background:#051a10;color:#00cc7a;border:1px solid #0a2a18}
+.mx-action{color:#bbb;flex:1}
+.mx-counter{color:#555;font-size:9px;flex:1;text-align:right}
+</style>
+
+<div class="shell">
+  <div class="titlebar">
+    <div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div>
+    <div class="tb-title"><span class="blink"></span>GHOST PROTOCOL - BROKER OPT - ACCOUNT SURVIVAL</div>
+  </div>
+  <div class="nav">
+    <button class="tab active" onclick="show('threats')">THREAT MAP</button>
+    <button class="tab" onclick="show('behavior')">BEHAVIOR</button>
+    <button class="tab" onclick="show('structure')">STRUCTURE</button>
+    <button class="tab" onclick="show('frontrun')">FRONT-RUN</button>
+    <button class="tab" onclick="show('playbook')">PLAYBOOK</button>
+    <button class="tab" onclick="show('code')">CODE</button>
+  </div>
+
+  <div class="content">
+
+    <!-- THREAT MAP -->
+    <div id="tab-threats" class="sec active">
+      <div class="sec-label">threat matrix — all broker/prop adverse actions</div>
+      <div class="scroll">
+        <div class="matrix-row" style="padding-bottom:6px;border-bottom:1px solid #1a1a1a;margin-bottom:4px">
+          <div style="min-width:50px;font-size:8px;color:#333">RISK</div>
+          <div style="flex:1;font-size:8px;color:#333">THREAT</div>
+          <div style="flex:1;font-size:8px;color:#333;text-align:right">COUNTERMEASURE</div>
+        </div>
+        <div class="matrix-row"><div class="mx-risk risk-hi">CRITICAL</div><div class="mx-action">Account closure — "policy violation"</div><div class="mx-counter">Multi-broker split + entity separation</div></div>
+        <div class="matrix-row"><div class="mx-risk risk-hi">CRITICAL</div><div class="mx-action">Position liquidation without consent</div><div class="mx-counter">Low leverage + hard stop pre-orders</div></div>
+        <div class="matrix-row"><div class="mx-risk risk-hi">CRITICAL</div><div class="mx-action">Prop firm: breach rule detection ban</div><div class="mx-counter">Rule simulator + automated guardrails</div></div>
+        <div class="matrix-row"><div class="mx-risk risk-hi">CRITICAL</div><div class="mx-action">Front-running by broker/desk</div><div class="mx-counter">Randomized size+timing, dark pool routing</div></div>
+        <div class="matrix-row"><div class="mx-risk risk-md">HIGH</div><div class="mx-action">Withdrawal freeze / fund hold</div><div class="mx-counter">Sweep profits weekly, min balance float</div></div>
+        <div class="matrix-row"><div class="mx-risk risk-md">HIGH</div><div class="mx-action">Slippage manipulation (B-book)</div><div class="mx-counter">Use A-book / STP / ECN brokers only</div></div>
+        <div class="matrix-row"><div class="mx-risk risk-md">HIGH</div><div class="mx-action">Requotes on high-conviction entries</div><div class="mx-counter">Limit orders only, never market orders</div></div>
+        <div class="matrix-row"><div class="mx-risk risk-md">HIGH</div><div class="mx-action">Spread widening at key levels</div><div class="mx-counter">Monitor spread at entry, skip if >2x avg</div></div>
+        <div class="matrix-row"><div class="mx-risk risk-md">HIGH</div><div class="mx-action">Algo flagged as "HFT" — throttled</div><div class="mx-counter">Min 500ms order spacing, human-like cadence</div></div>
+        <div class="matrix-row"><div class="mx-risk risk-lo">MEDIUM</div><div class="mx-action">Profitable trader desk review</div><div class="mx-counter">Win rate &lt;70%, varied hold times, no pattern</div></div>
+        <div class="matrix-row"><div class="mx-risk risk-lo">MEDIUM</div><div class="mx-action">Pattern-of-life profiling by broker</div><div class="mx-counter">Vary session times, instrument rotation</div></div>
+        <div class="matrix-row"><div class="mx-risk risk-lo">MEDIUM</div><div class="mx-action">Profit-sharing clawback (prop firms)</div><div class="mx-counter">Verify TOS before scaling; read payout rules</div></div>
+        <div class="matrix-row"><div class="mx-risk risk-lo">LOW</div><div class="mx-action">KYC re-verification trigger</div><div class="mx-counter">Entity account: LLC EIN-based, not personal SSN</div></div>
+      </div>
+      <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:5px">
+        <button class="ask-btn" onclick="sendPrompt('Ghost Protocol: which prop firms have the most aggressive account banning policies for algo traders?')">prop firm risk ranking ↗</button>
+        <button class="ask-btn" onclick="sendPrompt('Ghost Protocol: how to detect if my broker is B-booking my trades?')">B-book detection ↗</button>
+      </div>
+    </div>
+
+    <!-- BEHAVIOR LAYER -->
+    <div id="tab-behavior" class="sec">
+      <div class="sec-label">behavioral camouflage — don't look like a winning algo</div>
+      <div class="scroll">
+        <div class="layer" onclick="tog(this)">
+          <div class="lh"><span class="ln">B1</span><span class="lname" style="color:#ff6b35">WIN RATE MANAGEMENT</span><span class="lbadge b-red">CRITICAL</span><span class="chev">▶</span></div>
+          <div class="ld">
+            <b>Problem:</b> Win rates above ~65% trigger broker profitability reviews. High win rate + consistent PnL = "looks like front-running or latency arb" to compliance.<br><br>
+            <b>Solution:</b> Intentionally allow some trades to expire at small losses. SURGE should include a "deliberate noise" module — a configurable loss-injection rate targeting 55-62% net win rate at the account level. True alpha is in expectancy (R-multiple), not raw win rate.<br><br>
+            <span class="tag r">Never exceed 65% win rate</span><span class="tag y">Target 55-62%</span><span class="tag g">High R-multiple compensates</span><br><br>
+            <b>Implementation:</b> Add a parameter <code style="color:#ffcc44">NOISE_RATE=0.08</code> — on 8% of signals, submit an intentionally poor-entry version (wrong side of spread, slightly late). These are "paid camouflage losses."
+          </div>
+        </div>
+        <div class="layer" onclick="tog(this)">
+          <div class="lh"><span class="ln">B2</span><span class="lname" style="color:#ff6b35">HOLD TIME DISTRIBUTION</span><span class="lbadge b-red">HIGH</span><span class="chev">▶</span></div>
+          <div class="ld">
+            <b>Problem:</b> Scalping algos (consistent 30-90s holds) are often auto-flagged or TOS-banned at prop firms. Identical hold times = robot fingerprint.<br><br>
+            <b>Solution:</b> Use lognormal hold-time distribution. Mean = your true target, sigma = 0.4. Some trades hold 2 minutes, some 40 minutes, even if all triggered the same signal. This mimics discretionary trader behavior.<br><br>
+            <span class="tag r">No consistent hold times</span><span class="tag g">Lognormal distribution</span><span class="tag b">Mix scalp + swing on same account</span><br><br>
+            <b>Max hold rule:</b> Ensure ≥15% of trades exceed 4 hours hold time. Even if you exit early, open a hedge. Looks like you "managed" the position.
+          </div>
+        </div>
+        <div class="layer" onclick="tog(this)">
+          <div class="lh"><span class="ln">B3</span><span class="lname" style="color:#ff6b35">INSTRUMENT ROTATION</span><span class="lbadge b-ylw">HIGH</span><span class="chev">▶</span></div>
+          <div class="ld">
+            <b>Problem:</b> Trading only NQ or only ES on a prop account makes your equity curve "too clean" — correlated, consistent, easily identified.<br><br>
+            <b>Solution:</b> Rotate instruments. Even if SURGE only generates strong signals on NQ, allocate 20% of trades to correlated instruments (ES, RTY, YM). Accept slightly lower performance — you're buying camouflage.<br><br>
+            <span class="tag y">Rotate 3-4 instruments minimum</span><span class="tag">Include some losers</span>
+          </div>
+        </div>
+        <div class="layer" onclick="tog(this)">
+          <div class="lh"><span class="ln">B4</span><span class="lname" style="color:#ff6b35">SESSION VARIATION</span><span class="lbadge b-ylw">MEDIUM</span><span class="chev">▶</span></div>
+          <div class="ld">
+            <b>Problem:</b> Algos that only trade 9:30-11am EST every day are trivially identifiable by session analysis.<br><br>
+            <b>Solution:</b> SURGE session mask: run primary signals in optimal session, but add ghost orders (0.1x size) in London open, Asia open. These lose money on average but break the session-pattern fingerprint. Cost: small drag. Benefit: undetectable session profile.
+          </div>
+        </div>
+        <div class="layer" onclick="tog(this)">
+          <div class="lh"><span class="ln">B5</span><span class="lname" style="color:#ff6b35">DRAWDOWN THEATER</span><span class="lbadge b-gry">MEDIUM</span><span class="chev">▶</span></div>
+          <div class="ld">
+            <b>Problem:</b> Zero-drawdown months look impossible to risk teams. Suspicious perfect equity curves get reviewed.<br><br>
+            <b>Solution:</b> Allow 1-3 "theatrical drawdown" days per month — reduce position size to 10% of normal and trade through a known losing condition deliberately. Adds realism. Keeps equity curve looking like a skilled human, not a locked-in arb.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STRUCTURE -->
+    <div id="tab-structure" class="sec">
+      <div class="sec-label">account architecture — structural defense</div>
+      <div class="scroll">
+        <div class="grid2">
+          <div class="card"><div class="card-label">account count</div><div class="card-val">4-6 accounts</div><div class="card-sub">2-3 prop firms + 1-2 retail brokers + 1 entity broker</div></div>
+          <div class="card"><div class="card-label">capital split</div><div class="card-val">40/40/20</div><div class="card-sub">Primary prop / retail ECN / buffer cash (wire-ready)</div></div>
+          <div class="card"><div class="card-label">profit sweep</div><div class="card-val">Weekly</div><div class="card-sub">Sweep profits to cold account every Friday. Never let broker hold >3 months profit.</div></div>
+          <div class="card"><div class="card-label">entity type</div><div class="card-val">LLC per broker</div><div class="card-sub">Different Wyoming LLCs for each broker tier. No cross-contamination.</div></div>
+        </div>
+        <div class="sep"></div>
+        <div class="ph"><div class="pn">S1</div><div class="pt"><strong>Never put all capital in one broker.</strong> $100k across 5 accounts beats $100k in one. If any single account is restricted, you lose 20% of capacity, not 100%.</div></div>
+        <div class="ph"><div class="pn">S2</div><div class="pt"><strong>Prop firm account rotation:</strong> Pass challenge on firm A → fund → trade 60 days → pass challenge on firm B → fund → never be 100% dependent on one payout cycle.</div></div>
+        <div class="ph"><div class="pn">S3</div><div class="pt"><strong>Broker jurisdiction:</strong> Maintain at least one account with an offshore regulated broker (Bahamas, Cayman-regulated) as backstop. Lower KYC burden, lower intervention risk. IBKR Bahamas entity for example.</div></div>
+        <div class="ph"><div class="pn">S4</div><div class="pt"><strong>Separate algo account from manual account</strong> at same broker. If algo gets flagged, manual account (with different trading pattern) survives. Different LLC entity = clean separation.</div></div>
+        <div class="ph"><div class="pn">S5</div><div class="pt"><strong>Emergency protocol:</strong> Maintain broker-agnostic position mirror log (local DB). On account restriction: within 30 min, hedge equivalent positions at backup broker. Never be caught flat with no hedge.</div></div>
+      </div>
+    </div>
+
+    <!-- FRONT-RUN DEFENSE -->
+    <div id="tab-frontrun" class="sec">
+      <div class="sec-label">front-run / B-book / last-look defense</div>
+      <div class="scroll">
+        <div class="layer" onclick="tog(this)">
+          <div class="lh"><span class="ln">F1</span><span class="lname" style="color:#44aaff">B-BOOK DETECTION</span><span class="lbadge b-blu">DETECT</span><span class="chev">▶</span></div>
+          <div class="ld">
+            <b>What it is:</b> B-book brokers take the other side of your trade. When you win, they lose. Profitable traders get manually moved to worse fill conditions or restricted.<br><br>
+            <b>Detection:</b> Log exact requested price vs fill price for 200+ trades. Calculate mean slippage. B-book signature: positive slippage (you get worse than requested) on winners, neutral/negative slippage on losers. Run t-test.<br><br>
+            <span class="tag b">Log every fill</span><span class="tag b">Compare req vs fill</span><span class="tag r">Asymmetric slippage = B-book</span><br><br>
+            <b>Counter:</b> Move to ECN/STP broker (IBKR, Tradeovate, Rithmic-connected NinjaTrader). Pay commission explicitly — you want a broker who makes money from commission, not from your losses.
+          </div>
+        </div>
+        <div class="layer" onclick="tog(this)">
+          <div class="lh"><span class="ln">F2</span><span class="lname" style="color:#44aaff">LAST-LOOK DEFENSE</span><span class="lbadge b-blu">COUNTER</span><span class="chev">▶</span></div>
+          <div class="ld">
+            <b>What it is:</b> Some FX/CFD brokers use "last look" — they review your order for 50-200ms before filling. If your order is directionally correct (price moved your way), they reject it.<br><br>
+            <b>Counter:</b> Only use exchange-cleared futures (CME, CBOT, ICE). No last-look possible on exchange. NQ/ES futures via Rithmic or CQG have true exchange fills — no broker intermediary.<br><br>
+            <span class="tag r">Avoid FX spot for algo</span><span class="tag r">Avoid CFDs entirely</span><span class="tag g">CME futures = no last-look</span>
+          </div>
+        </div>
+        <div class="layer" onclick="tog(this)">
+          <div class="lh"><span class="ln">F3</span><span class="lname" style="color:#44aaff">ORDER FLOW CAMOUFLAGE</span><span class="lbadge b-blu">PREVENT</span><span class="chev">▶</span></div>
+          <div class="ld">
+            <b>What it is:</b> Brokers/prime brokers can see your pending orders and systematically front-run large or predictable entries.<br><br>
+            <b>Counter — Iceberg + jitter stack:</b><br>
+            — Never place stops at obvious round numbers (broker algos hunt these)<br>
+            — Use iceberg orders: show 10% of size, hide 90%<br>
+            — Randomize order submission time ±3-7 seconds post-signal<br>
+            — Split large orders into 3-5 child orders across 30-120 second window (TWAP-like)<br>
+            — Vary order type: sometimes LMT, sometimes stop-limit (disguises pattern)<br><br>
+            <span class="tag g">Iceberg orders</span><span class="tag g">TWAP child-order split</span><span class="tag y">Avoid round-number stops</span>
+          </div>
+        </div>
+        <div class="layer" onclick="tog(this)">
+          <div class="lh"><span class="ln">F4</span><span class="lname" style="color:#44aaff">BROKER TOXICITY SCORE</span><span class="lbadge b-gry">MONITOR</span><span class="chev">▶</span></div>
+          <div class="ld">
+            <b>What it is:</b> Ongoing systematic measurement of broker behavior to detect degradation before account action.<br><br>
+            <b>Metrics to track (daily):</b><br>
+            — Mean fill latency (ms) — sudden increase = flagged<br>
+            — Slippage asymmetry ratio (winners vs losers)<br>
+            — Requote rate (%)<br>
+            — Spread vs published at time of fill<br>
+            — Withdrawal processing time (days)<br><br>
+            <b>Trigger:</b> Any metric drifts >2 standard deviations from 30-day baseline → escalate to "broker degradation" alert → begin capital migration to backup broker.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PLAYBOOK -->
+    <div id="tab-playbook" class="sec">
+      <div class="sec-label">escalation playbook — what to do when things go wrong</div>
+      <div class="scroll">
+        <div class="row"><div class="ri" style="color:#ff6b35">!</div><div><div class="rt">ACCOUNT RESTRICTED (trading halted)</div><div class="rd">Broker limits new positions but holds existing.</div><div class="rm">↳ Immediately hedge equivalent exposure at backup broker. Do not close existing (may be profitable). Contact broker via entity email — request written reason. Document everything. Do NOT agree verbally to anything.</div></div></div>
+        <div class="row"><div class="ri" style="color:#ff6b35">!</div><div><div class="rt">ACCOUNT CLOSED — funds held</div><div class="rd">Broker terminates and freezes withdrawal.</div><div class="rm">↳ Request written closure reason within 48hr. If regulated broker (FCA/CFTC), file regulatory complaint immediately — this creates leverage. Consult trading attorney. Funds legally held >30 days without cause = regulatory violation in most jurisdictions.</div><div class="rw">↳ Prevention: never hold >60 days profit in broker account. Sweep weekly.</div></div></div>
+        <div class="row"><div class="ri" style="color:#ffcc44">!</div><div><div class="rt">PROP FIRM RULE BREACH NOTICE</div><div class="rd">Daily loss limit approached, or consistency rule flagged.</div><div class="rm">↳ SURGE should have a real-time rule monitor. On 80% of daily loss limit: auto-stop all new entries. On 90%: close all positions. Never let the firm's system liquidate — you get worse fills and a note on account.</div></div></div>
+        <div class="row"><div class="ri" style="color:#ffcc44">!</div><div><div class="rt">WITHDRAWAL DELAYED</div><div class="rd">Broker "processing" withdrawal for >5 business days.</div><div class="rm">↳ Escalate to compliance department in writing. Reference regulatory standards. In parallel: reduce new deposits, begin capital migration. A broker delaying withdrawals from profitable traders = structural red flag. Exit relationship within 30 days.</div></div></div>
+        <div class="row"><div class="ri" style="color:#44aaff">!</div><div><div class="rt">FRONT-RUN PATTERN DETECTED</div><div class="rd">Toxicity score breach — slippage asymmetry confirmed.</div><div class="rm">↳ Do not confront broker. Begin quiet capital migration over 2-3 weeks (sudden full withdrawal triggers review). Run lower size while migrating. Complete exit before broker notices reduced activity.</div></div></div>
+        <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:5px">
+          <button class="ask-btn" onclick="sendPrompt('Ghost Protocol: write a SURGE prop firm rule monitor module — real-time guardrails for FTMO/TopstepTrader rules with auto-halt')">prop rule monitor code ↗</button>
+          <button class="ask-btn" onclick="sendPrompt('Ghost Protocol: build the broker toxicity score tracker with slippage asymmetry detection for SURGE')">toxicity score module ↗</button>
+          <button class="ask-btn" onclick="sendPrompt('Ghost Protocol: SURGE behavioral camouflage — noise injection + lognormal hold time distribution implementation')">camouflage module ↗</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CODE -->
+    <div id="tab-code" class="sec">
+      <div class="sec-label">code stubs — defense modules</div>
+      <div class="scroll">
+        <div style="font-size:9px;color:#444;letter-spacing:1px;margin-bottom:5px">PROP FIRM RULE GUARDIAN</div>
+        <div class="code">
+<span class="cm"># prop_guardian.py — real-time rule enforcement</span>
+<span class="kw">class</span> <span class="fn">PropGuardian</span>:
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, daily_loss_limit, max_drawdown, 
+                  consistency_threshold=<span class="acc">0.4</span>):
+        self.ddl = daily_loss_limit     <span class="cm"># e.g. -2000</span>
+        self.mdd = max_drawdown         <span class="cm"># e.g. -5000</span>
+        self.ct  = consistency_threshold
+        self.today_pnl = <span class="acc">0.0</span>
+        self.peak = <span class="acc">0.0</span>
+
+    <span class="kw">def</span> <span class="fn">check</span>(self, current_pnl) -> str:
+        self.today_pnl = current_pnl
+        dd = current_pnl - self.peak
+        ddl_pct = current_pnl / abs(self.ddl)
+        
+        <span class="kw">if</span> ddl_pct <= <span class="warn">-0.9</span>: <span class="kw">return</span> <span class="str">"CLOSE_ALL"</span>
+        <span class="kw">if</span> ddl_pct <= <span class="warn">-0.8</span>: <span class="kw">return</span> <span class="str">"HALT_NEW"</span>
+        <span class="kw">if</span> dd <= self.mdd * <span class="warn">0.8</span>: <span class="kw">return</span> <span class="str">"REDUCE_HALF"</span>
+        <span class="kw">return</span> <span class="str">"OK"</span>
+        </div>
+
+        <div style="font-size:9px;color:#444;letter-spacing:1px;margin-bottom:5px;margin-top:10px">BROKER TOXICITY MONITOR</div>
+        <div class="code">
+<span class="cm"># toxicity.py — slippage asymmetry detector</span>
+<span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">from</span> scipy <span class="kw">import</span> stats
+
+<span class="kw">class</span> <span class="fn">ToxicityMonitor</span>:
+    <span class="kw">def</span> <span class="fn">log_fill</span>(self, req_px, fill_px, direction, pnl):
+        <span class="cm">"""direction: 1=long, -1=short"""</span>
+        slip = (fill_px - req_px) * direction
+        self.slippage.append({
+            <span class="str">"slip"</span>: slip, <span class="str">"winner"</span>: pnl > <span class="acc">0</span>
+        })
+
+    <span class="kw">def</span> <span class="fn">score</span>(self) -> dict:
+        winners = [x[<span class="str">"slip"</span>] <span class="kw">for</span> x <span class="kw">in</span> self.slippage <span class="kw">if</span> x[<span class="str">"winner"</span>]]
+        losers  = [x[<span class="str">"slip"</span>] <span class="kw">for</span> x <span class="kw">in</span> self.slippage <span class="kw">if</span> <span class="kw">not</span> x[<span class="str">"winner"</span>]]
+        t, p = stats.ttest_ind(winners, losers)
+        <span class="kw">return</span> {
+            <span class="str">"winner_slip_mean"</span>: np.mean(winners),
+            <span class="str">"loser_slip_mean"</span>:  np.mean(losers),
+            <span class="str">"asymmetry_pval"</span>:   p,
+            <span class="str">"b_book_flag"</span>: p < <span class="warn">0.05</span> <span class="kw">and</span> np.mean(winners) > np.mean(losers)
+        }
+        </div>
+
+        <div style="font-size:9px;color:#444;letter-spacing:1px;margin-bottom:5px;margin-top:10px">BEHAVIORAL CAMOUFLAGE — NOISE + HOLD DISTRIBUTION</div>
+        <div class="code">
+<span class="cm"># camouflage.py</span>
+<span class="kw">import</span> numpy <span class="kw">as</span> np, random
+
+NOISE_RATE = <span class="acc">0.07</span>  <span class="cm"># 7% deliberate losers</span>
+
+<span class="kw">def</span> <span class="fn">should_noise</span>() -> bool:
+    <span class="kw">return</span> random.random() < NOISE_RATE
+
+<span class="kw">def</span> <span class="fn">lognormal_hold_seconds</span>(target_mean_sec=<span class="acc">600</span>) -> int:
+    <span class="cm">"""Returns hold time in seconds, lognormal dist."""</span>
+    mu = np.log(target_mean_sec) - <span class="acc">0.5</span> * <span class="acc">0.4</span>**<span class="acc">2</span>
+    <span class="kw">return</span> max(<span class="acc">60</span>, int(np.random.lognormal(mu, <span class="acc">0.4</span>)))
+
+<span class="kw">def</span> <span class="fn">ghost_entry_price</span>(signal_px, direction, spread):
+    <span class="cm">"""Noise trade: enter on wrong side of spread."""</span>
+    penalty = spread * <span class="acc">1.5</span> * direction
+    <span class="kw">return</span> signal_px + penalty
+        </div>
+        <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:5px">
+          <button class="ask-btn" onclick="sendPrompt('Ghost Protocol: full SURGE broker defense system — integrate PropGuardian + ToxicityMonitor + Camouflage into a single defense layer with alerts')">integrate all modules ↗</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+function show(id){
+  document.querySelectorAll('.sec').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  event.target.classList.add('active');
+}
+function tog(el){el.classList.toggle('open')}
+</script>

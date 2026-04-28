@@ -609,12 +609,13 @@ def _live_regime(df: pd.DataFrame, votes: dict) -> str:  # votes kept for signat
     return classify_live(df)
 
 
-def score_symbol(df: pd.DataFrame) -> dict:
+def score_symbol(df: pd.DataFrame, asset: str = "BTC") -> dict:
     global _SHARPE_WEIGHTS
     if not _SHARPE_WEIGHTS:
         _SHARPE_WEIGHTS = _load_sharpe_weights()
 
-    votes    = compute_live_votes(df)
+    sym = (asset or "BTC").upper()
+    votes    = compute_live_votes(df, asset=sym)
     regime   = _live_regime(df, votes)
     jedi_raw = float(votes.get("JEDI", {}).get("raw_score", 0))
 
@@ -702,12 +703,13 @@ def check_gates(sc: dict, mode: ModeConfig, symbol: str = "") -> tuple[bool, lis
 # ── CIS live computation ───────────────────────────────────────────────────────
 
 def live_cis(df: pd.DataFrame, pos: sqlite3.Row, mode: ModeConfig) -> tuple[int, dict]:
+    sym = (pos["symbol"] or "BTC") if pos is not None else "BTC"
     scores_arr = np.zeros(len(df))
-    sc_now = score_symbol(df)
+    sc_now = score_symbol(df, sym)
     regimes_arr = np.full(len(df), sc_now["regime"], dtype=object)
     idx = len(df) - 1
 
-    sc = score_symbol(df)
+    sc = score_symbol(df, sym)
     scores_arr[idx] = sc["soft_score"]
 
     _df_for_cis = df.copy()
@@ -776,7 +778,7 @@ def run_cycle(mode_name: str = "PADAWAN", dry_run: bool = False) -> dict:
                 result.errors.append(f"{raw_sym}: no bars")
                 continue
 
-            sc = score_symbol(df)
+            sc = score_symbol(df, raw_sym)
             gates_pass, killed = check_gates(sc, mode, symbol=raw_sym)
 
             # Check jitter countdown

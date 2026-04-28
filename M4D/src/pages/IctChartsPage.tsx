@@ -575,6 +575,14 @@ export default function TvLwChartsPage() {
             </button>
             <button
               type="button"
+              className={controls.showVolBubbles ? 'tv-lw-pill tv-lw-pill--on' : 'tv-lw-pill'}
+              onClick={() => persist({ ...controls, showVolBubbles: !controls.showVolBubbles })}
+              title="BU — liquidity wall bubbles (HVN/POC markers)"
+            >
+              BU
+            </button>
+            <button
+              type="button"
               className={controls.showVwap ? 'tv-lw-pill tv-lw-pill--on' : 'tv-lw-pill'}
               onClick={() => persist({ ...controls, showVwap: !controls.showVwap })}
               title="Session VWAP + ±1σ bands (trend read)"
