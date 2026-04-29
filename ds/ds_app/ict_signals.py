@@ -256,6 +256,90 @@ def _premium_discount_mask(close_a: np.ndarray,
     return result.astype(np.int8)
 
 
+# ── OB Sweep-and-Fill detection ──────────────────────────────────────────────
+
+def _ob_sweep_fill_series(
+    open_a: np.ndarray, high_a: np.ndarray, low_a: np.ndarray,
+    close_a: np.ndarray, bias: np.ndarray, atr_a: np.ndarray,
+    lookback: int = 50,
+    displace_mult: float = 1.5,
+    max_touches: int = 1,
+) -> np.ndarray:
+    """
+    Stricter OB entry: bar i's wick must SWEEP through the OB edge AND close
+    back inside the zone (the stop-hunt + fill pattern).
+
+    BULL OB (demand): low[i] < ob_low  AND close[i] > ob_low
+      → price swept the stops below the OB but buyers defended from inside the zone
+    BEAR OB (supply): high[i] > ob_high AND close[i] < ob_high
+      → price swept the stops above the OB but sellers defended from inside
+
+    OB qualifications are identical to _ob_series (body + displacement + freshness).
+    """
+    n          = len(close_a)
+    has_sf     = np.zeros(n, dtype=np.int8)
+    bar_ranges = high_a - low_a
+
+    for i in range(lookback, n):
+        b = bias[i]
+        if b == 0:
+            continue
+        cur   = close_a[i]
+        atr_i = atr_a[i]
+        reach = atr_i * 3.0
+
+        lo14 = max(0, i - 14)
+        local_atr = float(np.mean(bar_ranges[lo14:i])) if i > lo14 else bar_ranges[i]
+        if local_atr < 1e-9:
+            continue
+
+        for j in range(i - 2, max(0, i - lookback), -1):
+            if b == 1:
+                ob_body     = close_a[j] < open_a[j]
+                ob_in_reach = high_a[j] < cur and high_a[j] > cur - reach
+            else:
+                ob_body     = close_a[j] > open_a[j]
+                ob_in_reach = low_a[j] > cur and low_a[j] < cur + reach
+
+            if not (ob_body and ob_in_reach):
+                continue
+
+            ob_high = high_a[j]
+            ob_low  = low_a[j]
+
+            # Displacement at j+1
+            if j + 1 >= i:
+                continue
+            if bar_ranges[j + 1] < displace_mult * local_atr:
+                continue
+
+            # Freshness
+            touches = 0
+            for k in range(j + 2, i):
+                if b == 1 and close_a[k] <= ob_high:
+                    touches += 1
+                elif b == -1 and close_a[k] >= ob_low:
+                    touches += 1
+                if touches > max_touches:
+                    break
+            if touches > max_touches:
+                continue
+
+            # Sweep-and-Fill: wick through edge + close back inside
+            if b == 1:
+                swept = low_a[i] < ob_low
+                filled = close_a[i] > ob_low
+            else:
+                swept = high_a[i] > ob_high
+                filled = close_a[i] < ob_high
+
+            if swept and filled:
+                has_sf[i] = 1
+                break
+
+    return has_sf
+
+
 # ── Fair Value Gap detection ──────────────────────────────────────────────────
 
 def _fvg_series(high_a: np.ndarray, low_a: np.ndarray,
@@ -335,10 +419,12 @@ def add_ict_signals(df: pd.DataFrame, ob_lookback: int = 50) -> pd.DataFrame:
       ict_bias_strong           — bool, week+day agree
       v_ict_kz                  — 1 if killzone active
       v_ict_ob                  — 1 if LIVE OB (displaced + fresh, ≤max_touches retests)
+      v_ict_ob_sf               — 1 if OB SWEEP-AND-FILL (wick through OB edge + close back)
       v_ict_fvg                 — 1 if FVG present in lookback
       ict_t1_level              — 1 if nearest target is ICT institutional level
       ict_pd_ok                 — 1 if price in correct premium/discount zone for bias
       v_ict_gate                — Whacker gate: bias≠0 AND kz AND (ob OR fvg) AND pd_ok
+      v_ict_gate_sf             — Precision gate: bias≠0 AND kz AND ob_sf (sweep-and-fill only)
     """
     df = _add_session_levels(df)
     results = []
@@ -361,30 +447,36 @@ def add_ict_signals(df: pd.DataFrame, ob_lookback: int = 50) -> pd.DataFrame:
         # Qualified OB: displacement candle ≥1.5×ATR + freshness ≤1 retest
         ob     = _ob_series(open_a, high_a, low_a, close_a, bias, atr_a,
                             ob_lookback, displace_mult=1.5, max_touches=1)
+        # Precision OB: OB Sweep-and-Fill (wick through OB edge + close back inside)
+        ob_sf  = _ob_sweep_fill_series(open_a, high_a, low_a, close_a, bias, atr_a,
+                                       ob_lookback, displace_mult=1.5, max_touches=1)
         fvg    = _fvg_series(high_a, low_a, bias, lookback=40)
         t1_lvl = _t1_is_ict_level(close_a, pdh_a, pdl_a, pwh_a, pwl_a, bias, atr_a)
         pd_ok  = _premium_discount_mask(close_a, pdh_a, pdl_a, bias)
 
-        # Whacker gate: bias + KZ (hard gate) + OB or FVG entry zone
-        # pd_ok is kept as UI warning column only — NOT a hard gate.
-        # Reason: P/D vs prior-day midpoint blocks all trend entries in uptrend
-        # (close always above PDL/PDH mid when trending up). ICT P/D is context,
-        # not a binary filter. Chasing warning still shown in OBI panel.
         entry_zone = np.clip(ob + fvg, 0, 1).astype(np.int8)
         gate = (
             (bias != 0).astype(np.int8)
             * kz
             * entry_zone
         )
+        # Precision gate: Sweep-and-Fill only (no FVG fallback — precision entry)
+        gate_sf = (
+            (bias != 0).astype(np.int8)
+            * kz
+            * ob_sf
+        )
 
         sg["v_ict_bias"]      = bias
         sg["ict_bias_strong"] = bias_strong.astype(np.int8)
         sg["v_ict_kz"]        = kz
         sg["v_ict_ob"]        = ob
+        sg["v_ict_ob_sf"]     = ob_sf
         sg["v_ict_fvg"]       = fvg
         sg["ict_t1_level"]    = t1_lvl
         sg["ict_pd_ok"]       = pd_ok
         sg["v_ict_gate"]      = gate
+        sg["v_ict_gate_sf"]   = gate_sf
         results.append(sg)
 
     out = pd.concat(results).sort_values(["symbol", "ts"]).reset_index(drop=True)

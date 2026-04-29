@@ -178,11 +178,11 @@ none|noop|_)
   run_m5d
   run_ds_quant
   print_urls
-  open_when_ready "http://127.0.0.1:5500/" 180
-  open_when_ready "http://127.0.0.1:5565/"   90
-  open_when_ready "http://127.0.0.1:8050/" 120
+  #open_when_ready "http://127.0.0.1:5500/" 180
+  #open_when_ready "http://127.0.0.1:5565/"   90
+  #open_when_ready "http://127.0.0.1:8050/" 120
   open_when_ready "http://127.0.0.1:5550/" 120
-  open_when_ready "http://127.0.0.1:8000/health/" 30
+  #open_when_ready "http://127.0.0.1:8000/health/" 30
   open_when_ready "http://127.0.0.1:5555/"  90
   open_when_ready "http://127.0.0.1:5556/"  90
   wait || true

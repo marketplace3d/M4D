@@ -21,6 +21,7 @@ import MedallionPage from './pages/MedallionPage'
 import ObiPage from './pages/ObiPage'
 import BacktestLabPage from './pages/BacktestLabPage'
 import TradeLabPage from './pages/TradeLabPage'
+import BtcPage from './pages/BtcPage'
 
 function defaultTextScaleForViewport(): TextScale {
   const w = window.innerWidth
@@ -33,7 +34,7 @@ function defaultTextScaleForViewport(): TextScale {
 
 export default function App() {
   const [theme, setTheme]           = useState<Theme>('navy-subtle')
-  const VALID_PAGES: PageId[] = ['market','market-audit','pulse','trade','ict-smc','starray','perf','alphaseek','medallion','obi','trade-lab','backtest-lab']
+  const VALID_PAGES: PageId[] = ['market','market-audit','pulse','trade','ict-smc','starray','perf','alphaseek','medallion','obi','trade-lab','backtest-lab','btc']
   const [page, setPage] = useState<PageId>(() => {
     const hash = window.location.hash.slice(1) as PageId
     if (VALID_PAGES.includes(hash)) return hash
@@ -95,6 +96,7 @@ export default function App() {
       case 'obi':           return <ObiPage />
       case 'trade-lab':     return <TradeLabPage />
       case 'backtest-lab':  return <BacktestLabPage />
+      case 'btc':           return <BtcPage />
       default:              return null
     }
   }
@@ -133,7 +135,7 @@ export default function App() {
         )}
 
         <main
-          className={`m5d-main${page === 'obi' ? ' m5d-main--fill' : ''}`}
+          className={`m5d-main${page === 'obi' || page === 'btc' ? ' m5d-main--fill' : ''}`}
           style={{ paddingBottom: isMobile ? 64 : undefined }}
         >
           {renderPage()}

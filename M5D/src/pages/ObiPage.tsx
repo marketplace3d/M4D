@@ -11,6 +11,7 @@ import { obiBoomMinimalControls } from '@pwa/lib/obiBoomMinimalControls';
 import { useObPressureStream } from '../hooks/useObPressureStream';
 import { clampHeatLineWidth, type HeatTarget } from '../components/BoomLwChart';
 import BoomLwChart from '../components/BoomLwChart';
+import SteamGovernorHud from '../components/SteamGovernorHud';
 import { SoloMasterOrb, type SoloOrbDirection } from '../viz/SoloMasterOrb';
 import './TvLwChartsPage.css';
 
@@ -596,11 +597,55 @@ const _obiArrowRight = 20
 
 interface PDZoneDS { mid: number; cur_zone: string; pct_of_range: number }
 
-function ObiPanel({ obi, gate, walls, pdZone }: {
-  obi:    NonNullable<ReturnType<typeof computeOBI>>
-  gate:   ObiJediSignal
-  walls:  LiqWall[]
-  pdZone: PDZoneDS | null
+// ── Steam Pressure Indicator ──────────────────────────────────────────────────
+
+const STEAM_C = { ACCUMULATION: '#00d4ff', COMPRESSION: '#ff6b00', POP: '#ffffff' } as const
+
+function PressureIndicator({ p }: { p: import('../hooks/useObPressureStream').ObPressure }) {
+  if (p.status === 'idle') return null
+  const c = STEAM_C[p.phase]
+  const pct = Math.round(Math.abs(p.pressure) * 100)
+  const ddArrow = p.deltaD > 0.008 ? '↑' : p.deltaD < -0.008 ? '↓' : '·'
+  const animDur = p.phase === 'POP' ? '0.4s' : p.phase === 'COMPRESSION' ? '1.2s' : '2.8s'
+  return (
+    <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', padding: '5px 10px 5px', flexShrink: 0 }}>
+      <style>{`@keyframes steamPulse{0%,100%{opacity:0.7}50%{opacity:1}} .steam-pulse{animation:steamPulse ${animDur} ease-in-out infinite}`}</style>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+        <span style={{ fontSize: 7, fontFamily: 'monospace', color: '#475569', letterSpacing: 2 }}>Δ² STEAM</span>
+        <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+          <span style={{ fontSize: 7, fontFamily: 'monospace', color: c, opacity: 0.75 }}>Δ{ddArrow}</span>
+          <span className="steam-pulse" style={{
+            fontSize: p.exhausted ? 9 : 7, fontWeight: 800, fontFamily: 'monospace',
+            color: c, textShadow: p.exhausted ? `0 0 14px ${c}` : 'none',
+            letterSpacing: 1,
+          }}>
+            {p.exhausted ? '◉ CLIMAX' : p.phase}
+          </span>
+        </div>
+      </div>
+      <div style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden' }}>
+        <div style={{
+          height: '100%', width: `${pct}%`,
+          background: c,
+          borderRadius: 2,
+          boxShadow: p.phase !== 'ACCUMULATION' ? `0 0 ${p.phase === 'POP' ? 10 : 5}px ${c}` : 'none',
+          transition: 'width 0.3s ease, background 0.5s ease',
+        }} />
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 2 }}>
+        <span style={{ fontSize: 6, fontFamily: 'monospace', color: '#334155' }}>{p.pressure >= 0 ? 'BUY' : 'SELL'} FLOW</span>
+        <span style={{ fontSize: 7, fontFamily: 'monospace', color: c }}>{pct}%</span>
+      </div>
+    </div>
+  )
+}
+
+function ObiPanel({ obi, gate, walls, pdZone, obPressure }: {
+  obi:         NonNullable<ReturnType<typeof computeOBI>>
+  gate:        ObiJediSignal
+  walls:       LiqWall[]
+  pdZone:      PDZoneDS | null
+  obPressure?: import('../hooks/useObPressureStream').ObPressure
 }) {
 
   const dc = DIR_C[obi.dir] ?? '#60a5fa'
@@ -881,6 +926,7 @@ function ObiPanel({ obi, gate, walls, pdZone }: {
         </div>
         <div style={{ height: 4 }} />
       </div>
+      {obPressure && <PressureIndicator p={obPressure} />}
     </div>
   )
 }
@@ -988,6 +1034,7 @@ export default function ObiPage() {
   const [tickerFocus, setTickerFocus] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [obiVisible, setObiVisible] = useState(false)
+  const [steamHudOpen, setSteamHudOpen] = useState(false)
   const [obiChartLines, setObiChartLines] = useState<ObiChartLines>(() => loadObiChartLines())
   const [showObiTargets, setShowObiTargets] = useState(true)  // ◎ ranked T1–T4 lines on chart
   const [obiBoomMinimal, setObiBoomMinimal] = useState<boolean>(() => loadObiBoomMinimal())
@@ -1550,6 +1597,7 @@ export default function ObiPage() {
               }}
               title="MIN: strip overlays to clean candles. Other buttons still work.">MIN</button>
             <button type="button" className={obiVisible ? 'tv-lw-pill tv-lw-pill--purple-on' : 'tv-lw-pill tv-lw-pill--purple-off'} style={{ fontSize: 8, padding: '1px 5px' }} onClick={() => setObiVisible(v => !v)} title="OBI targets panel">OBI</button>
+            <button type="button" className={steamHudOpen ? 'tv-lw-pill tv-lw-pill--on' : 'tv-lw-pill'} style={{ fontSize: 8, padding: '1px 5px', color: steamHudOpen ? '#ff6a00' : undefined }} onClick={() => setSteamHudOpen(v => !v)} title="McPhee Steam Pressure Governor">♨</button>
             <button type="button" className={controls.safetyDefenseOn ? 'tv-lw-pill tv-lw-pill--on' : 'tv-lw-pill'} style={{ fontSize: 8, padding: '1px 5px' }} onClick={toggleSafetyDefense} title="DEF: strict SIG filters">DEF</button>
             <button type="button" className={settingsOpen ? 'tv-lw-pill tv-lw-pill--on' : 'tv-lw-pill'} style={{ fontSize: 8, padding: '1px 5px' }} onClick={() => setSettingsOpen(v => !v)} title="SIG sliders">⚙</button>
           </div>
@@ -1822,6 +1870,12 @@ export default function ObiPage() {
             )}
           </div>
           {!loading && obiResult && <ObiDirectionArrow obi={obiResult} rightOffset={obiVisible ? 266 : 70} />}
+          {/* Steam Governor HUD — floating bottom-left */}
+          {steamHudOpen && (
+            <div style={{ position: 'absolute', bottom: 12, left: 12, zIndex: 20, pointerEvents: 'all' }}>
+              <SteamGovernorHud obPressure={obPressure} onClose={() => setSteamHudOpen(false)} />
+            </div>
+          )}
         </div>
         {/* OBI panel — fixed width, full height */}
         {obiVisible && obiResult && obiJediGate && (
@@ -1830,6 +1884,7 @@ export default function ObiPage() {
             gate={obiJediGate}
             walls={liquidityWalls}
             pdZone={dsWalls?.pd_zone ?? null}
+            obPressure={obPressure}
           />
         )}
       </div>

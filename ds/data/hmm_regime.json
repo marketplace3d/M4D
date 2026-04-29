@@ -1,0 +1,11 @@
+{
+  "BTC": {
+    "error": "SVD did not converge"
+  },
+  "ETH": {
+    "error": "SVD did not converge"
+  },
+  "SOL": {
+    "error": "SVD did not converge"
+  }
+}

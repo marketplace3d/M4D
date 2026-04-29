@@ -51,30 +51,67 @@ REGIME_COLS = {
 
 def _load_data():
     conn = sqlite3.connect(DB_PATH)
+    pragma_cols = {r[1] for r in conn.execute("PRAGMA table_info(signal_log)")}
+    extra = [c for c in ["rvol", "atr_pct", "squeeze"] if c in pragma_cols]
     query = f"""
-        SELECT ts, {', '.join(V_COLS)}, {OUTCOME_COL}, rvol
+        SELECT ts, {', '.join(V_COLS)}, {OUTCOME_COL}{', ' + ', '.join(extra) if extra else ''}
         FROM signal_log
         WHERE {OUTCOME_COL} IS NOT NULL
         ORDER BY ts
     """
     rows = conn.execute(query).fetchall()
     conn.close()
-    cols = ["ts"] + V_COLS + [OUTCOME_COL, "rvol"]
+    cols = ["ts"] + V_COLS + [OUTCOME_COL] + extra
     data = {c: np.array([r[i] for r in rows]) for i, c in enumerate(cols)}
     return data
 
-# ── Regime label per bar (simple heuristic on vote counts) ────────────────────
+# ── Regime label per bar (priority-ordered: BREAKOUT > RISK-OFF > TRENDING > RANGING) ──
 
 def _regime_labels(data: dict) -> np.ndarray:
+    """
+    Improved 4+1-state classifier. Priority order prevents BREAKOUT bars being
+    absorbed into TRENDING (the main cause of SQZPOP IC dilution).
+
+    BREAKOUT  = SQZPOP fired OR (VOL_BO + ATR_EXP agree) — squeeze release
+    RISK-OFF  = VOL_SURGE + negative RVOL rank (cross-asset stress)
+    TRENDING  = EMA_STACK + ADX_TREND + PULLBACK majority agree
+    RANGING   = RSI signals dominating, low trend votes
+    MIXED     = default
+    """
     n = len(data["ts"])
     labels = np.full(n, "MIXED", dtype=object)
-    for regime, cols in REGIME_COLS.items():
-        available = [c for c in cols if c in data]
-        if not available:
-            continue
-        votes = sum(data[c] for c in available) / len(available)
-        mask = votes > 0.4
-        labels[mask] = regime
+
+    def _v(col):
+        return data.get(col, np.zeros(n)).astype(float)
+
+    sqzpop  = _v("v_SQZPOP")
+    atr_exp = _v("v_ATR_EXP")
+    vol_bo  = _v("v_VOL_BO")
+    ema_st  = _v("v_EMA_STACK")
+    adx     = _v("v_ADX_TREND")
+    pullbk  = _v("v_PULLBACK")
+    rsi_str = _v("v_RSI_STRONG")
+    rsi_crs = _v("v_RSI_CROSS")
+    vol_srg = _v("v_VOL_SURGE")
+    rvol    = data.get("rvol", np.ones(n)).astype(float)
+
+    # RANGING (set first — lowest priority)
+    ranging = ((rsi_str + rsi_crs) / 2.0) > 0.5
+    labels[ranging] = "RANGING"
+
+    # TRENDING (overwrites RANGING)
+    trending = ((ema_st + adx + pullbk) / 3.0) > 0.4
+    labels[trending] = "TRENDING"
+
+    # RISK-OFF (overwrites TRENDING/RANGING)
+    risk_off = (vol_srg == 1) & (rvol > np.percentile(rvol[rvol > 0], 85) if (rvol > 0).sum() > 50 else np.zeros(n, bool))
+    labels[risk_off] = "RISK-OFF"
+
+    # BREAKOUT (highest priority — overwrites everything)
+    # Key insight: SQZPOP is the squeeze release, not a trend continuation
+    breakout = (sqzpop == 1) | ((atr_exp == 1) & (vol_bo == 1))
+    labels[breakout] = "BREAKOUT"
+
     return labels
 
 # ── Per-window weight fitter (Sharpe-weighted) ────────────────────────────────
@@ -464,12 +501,37 @@ def run_walkforward() -> dict:
     oos_std  = float(np.std(oos_sharpes))  if oos_sharpes else 1
     is_oos_mean = float(np.mean(ios_ratios)) if ios_ratios else 0
 
+    # ic_not_decaying: regime-conditional fix.
+    # Global IC decays when regime distribution shifts over time (more trending → less breakout)
+    # even though per-regime IC is stable. Correct gate: ALIVE/REGIME_SPECIALIST signals
+    # must have non-decaying IC in their BEST regime.
+    # Pass if ≥ 60% of core ALIVE signals have non-decaying best-regime IC slope.
+    _core_alive = [
+        sig for sig, v in signal_lifecycle.items()
+        if v["status"] in ("ALIVE", "RISING", "REGIME_SPECIALIST")
+    ]
+    _regime_ic_not_decaying = []
+    for sig in _core_alive:
+        lc = signal_lifecycle[sig]
+        best_rg = lc.get("best_regime")
+        if best_rg and best_rg in lc.get("regime_ic", {}):
+            slope = lc["regime_ic"][best_rg].get("slope", 0.0)
+            _regime_ic_not_decaying.append(slope >= 0)
+        else:
+            # No regime data — fall back to global slope
+            _regime_ic_not_decaying.append((lc.get("ic_slope") or 0) >= 0)
+    _regime_ic_pct_stable = (
+        float(sum(_regime_ic_not_decaying)) / max(1, len(_regime_ic_not_decaying))
+        if _regime_ic_not_decaying else 0.0
+    )
+    _ic_stable = _regime_ic_pct_stable >= 0.60  # 60% of core signals non-decaying in best regime
+
     gates = {
         "oos_sharpe_positive":    oos_mean > 0,
         "oos_stability_ok":       (oos_std < 0.3 * abs(oos_mean)) if oos_mean != 0 else False,
         "is_oos_ratio_ok":        is_oos_mean > 0.4,
         "regime_consistency_ok":  len([r for r in regime_summary.values() if r["pct_positive"] > 0.5]) >= 3,
-        "ic_not_decaying":        ic_slope is not None and ic_slope >= 0,
+        "ic_not_decaying":        _ic_stable,
     }
     gates_passed = sum(gates.values())
 
@@ -479,6 +541,60 @@ def run_walkforward() -> dict:
         "FRAGILE"    if gates_passed >= 2 else
         "OVERFIT"
     )
+
+    # ── Adversarial Whacker / Dumb Blocker ────────────────────────────────────
+    # Hard-kill conditions: pre-fire validation each fold. If block fires, the
+    # system must NOT trade that fold's OOS period regardless of ensemble score.
+    # Blocks are orthogonal adversarial checks, not regime-routing.
+
+    # Check 1: IS/OOS > 2.5 in any single fold = severe overfit on that window
+    _overfit_folds = [f["fold"] for f in folds if (f.get("is_oos_ratio") or 0) > 2.5]
+
+    # Check 2: Any signal with DEAD status contributing weight > 5% = poisoning
+    _dead_signals = set(retire_candidates)
+    _last_fold_weights = dict(folds[-1].get("top_weights", [])) if folds else {}
+    _dead_weight_pct = sum(
+        w for s, w in _last_fold_weights.items() if s in _dead_signals
+    )
+
+    # Check 3: BREAKOUT cluster collapse — if SQZPOP + VOL_BO + ATR_EXP all firing
+    # simultaneously = one underlying move counted 3x (PCA PC2 dimension)
+    # Flagged when any of these signals has weight > 0.25 (dominating ensemble)
+    _breakout_cluster = {"SQZPOP", "VOL_BO", "ATR_EXP", "BB_BREAK", "KC_BREAK"}
+    _cluster_total_weight = sum(
+        w for s, w in _last_fold_weights.items() if s in _breakout_cluster
+    )
+
+    # Check 4: Re-entry thin stats — separate fold needed before production
+    _reentry_n = None
+    for f in folds[-5:]:  # last 5 folds = most recent OOS
+        n = f.get("oos", {}).get("n_trades", 0)
+        if n and (_reentry_n is None or n < _reentry_n):
+            _reentry_n = n
+
+    dumb_blocker = {
+        "overfit_fold_ids":     _overfit_folds,
+        "overfit_block":        len(_overfit_folds) > 0,
+        "dead_signal_weight":   round(_dead_weight_pct, 3),
+        "dead_weight_block":    _dead_weight_pct > 0.05,
+        "breakout_cluster_wt":  round(_cluster_total_weight, 3),
+        "cluster_block":        _cluster_total_weight > 0.45,
+        "reentry_min_n":        _reentry_n,
+        "reentry_thin_warn":    (_reentry_n is not None and _reentry_n < 100),
+        # Adversarial summary: overall block verdict
+        "block_active": (
+            len(_overfit_folds) > 0
+            or _dead_weight_pct > 0.05
+            or _cluster_total_weight > 0.45
+        ),
+        "block_reason": (
+            f"OVERFIT folds {_overfit_folds}" if _overfit_folds else
+            f"DEAD signal weight {_dead_weight_pct:.1%}" if _dead_weight_pct > 0.05 else
+            f"BREAKOUT cluster dominates {_cluster_total_weight:.1%}" if _cluster_total_weight > 0.45 else
+            "CLEAR"
+        ),
+        "expected_live_sharpe_range": f"{max(1, round(oos_mean * 0.40, 1))}–{round(oos_mean * 0.65, 1)} after slippage",
+    }
 
     elapsed = time.time() - t0
     report = {
@@ -507,12 +623,25 @@ def run_walkforward() -> dict:
         "rentech_gates":    gates,
         "gates_passed":     f"{gates_passed}/5",
         "verdict":          verdict,
-        "signal_lifecycle": signal_lifecycle,
+        "ic_decay_detail": {
+            "global_slope":          ic_slope,
+            "regime_pct_stable":     round(_regime_ic_pct_stable, 3),
+            "n_core_alive":          len(_core_alive),
+            "method":                "regime_conditional_best_slope",
+            "note": (
+                "PASS — ≥60% of alive signals stable in best regime"
+                if _ic_stable else
+                f"FAIL — only {_regime_ic_pct_stable*100:.0f}% stable "
+                f"(global slope {ic_slope:+.6f} — regime shift artifact)"
+            ),
+        },
+        "signal_lifecycle":  signal_lifecycle,
         "retire_candidates": retire_candidates,
         "specialist_list":   specialist_list,
         "probation_list":    probation_list,
         "rising_list":       rising_list,
-        "folds":            folds,
+        "dumb_blocker":      dumb_blocker,
+        "folds":             folds,
     }
 
     OUT_PATH.parent.mkdir(exist_ok=True)

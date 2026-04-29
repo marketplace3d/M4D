@@ -26,6 +26,7 @@ const ICON_COLOUR: Record<PageId, string> = {
   obi: '#f43f5e',
   'trade-lab': '#38bdf8',
   'backtest-lab': '#38bdf8',
+  'btc': '#f7931a',
 }
 
 const ICON_NAVY_BLUE: Record<PageId, string> = {
@@ -41,6 +42,7 @@ const ICON_NAVY_BLUE: Record<PageId, string> = {
   obi: '#66b4ff',
   'trade-lab': '#82d5ff',
   'backtest-lab': '#8ad8ff',
+  'btc': '#f7931a',
 }
 
 interface Props {

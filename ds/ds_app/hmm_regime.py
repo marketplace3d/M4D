@@ -160,44 +160,75 @@ def _load_model(symbol: str) -> dict | None:
 
 def posterior_proba(df: pd.DataFrame, symbol: str) -> dict[str, float]:
     """
-    Returns {TRENDING: p, RANGING: p, RISK-OFF: p} from last bar of df.
-    Falls back to equal weights if model not fitted.
+    Returns {TRENDING: p, RANGING: p, RISK-OFF: p} for last bar of df.
+    Uses smoothed marginal probabilities from the fitted HMM (computed at fit time).
+    Falls back to equal weights if model not fitted for this symbol.
     """
     obj = _load_model(symbol)
     if obj is None:
         return {r: 1.0 / N_STATES for r in _REGIMES}
 
-    res            = obj["result"]
+    res             = obj["result"]
     state_to_regime = obj["state_to_regime"]
     regime_to_state = {v: k for k, v in state_to_regime.items()}
 
-    feats = build_features(df)
-    rvol_last = feats["rvol"].iloc[-1]
-
-    # One-step-ahead filter probability from the last observed value
     try:
-        filt = res.predict(exog=np.array([[rvol_last]]), start=len(feats)-1, end=len(feats)-1)
-    except Exception:
-        # fallback: use tail of smoothed probabilities
         proba = res.smoothed_marginal_probabilities
         if hasattr(proba, "iloc"):
-            last = proba.iloc[-1]
+            last = proba.iloc[-1].values
         else:
             last = proba[-1]
         return {r: round(float(last[regime_to_state[r]]), 4) for r in _REGIMES}
+    except Exception:
+        return {r: 1.0 / N_STATES for r in _REGIMES}
 
-    return {r: round(1.0 / N_STATES, 4) for r in _REGIMES}  # inference fallback
+
+def batch_posterior_proba(symbol: str, n_bars: int) -> np.ndarray | None:
+    """
+    Returns (n_bars, N_STATES) array of smoothed HMM state probabilities.
+    Row i = P([TRENDING, RANGING, RISK-OFF]) at bar i.
+    Returns None if model not fitted; caller should fall back to hard-label routing.
+    Aligns to the LAST n_bars of the fitted model's smoothed probabilities.
+    """
+    obj = _load_model(symbol)
+    if obj is None:
+        return None
+    try:
+        res   = obj["result"]
+        state_to_regime = obj["state_to_regime"]
+        regime_to_state = {v: k for k, v in state_to_regime.items()}
+        proba = res.smoothed_marginal_probabilities
+        if hasattr(proba, "values"):
+            arr = proba.values        # DataFrame → numpy
+        else:
+            arr = np.asarray(proba)   # already numpy
+        # arr shape: (n_fitted_bars, N_STATES) — columns ordered by state index
+        # Re-order columns to match _REGIMES order: [TRENDING, RANGING, RISK-OFF]
+        regime_col_idx = [regime_to_state[r] for r in _REGIMES]
+        arr = arr[:, regime_col_idx]
+        # Trim or pad to match n_bars (align to tail — OOS bars are recent)
+        if arr.shape[0] >= n_bars:
+            return arr[-n_bars:]
+        # Fewer fitted bars than requested — prepend equal-weight rows
+        pad = np.full((n_bars - arr.shape[0], N_STATES), 1.0 / N_STATES)
+        return np.vstack([pad, arr])
+    except Exception:
+        return None
 
 
 def soft_regime_weight(signal_id: str, proba: dict[str, float]) -> float:
     """
-    Compute soft regime multiplier as probability-weighted average of SOFT_REGIME_MULT.
-    Usage: replaces single SOFT_REGIME_MULT[signal][hard_regime].
+    Probability-weighted soft multiplier.
+    proba = {TRENDING: p, RANGING: p, RISK-OFF: p}
+    Returns Σ_k P(k) × SOFT_REGIME_MULT[sig][k], using legacy 4-regime fallback.
     """
-    from ds_app.sharpe_ensemble import SOFT_REGIME_MULT
+    from ds_app.sharpe_ensemble import SOFT_REGIME_MULT, _REGIME_FALLBACK
     mult_map = SOFT_REGIME_MULT.get(signal_id, {})
-    w = sum(proba.get(r, 0.0) * mult_map.get(r, 1.0) for r in _REGIMES)
-    return round(w, 4)
+    total = 0.0
+    for r, p in proba.items():
+        mult = mult_map.get(r) or mult_map.get(_REGIME_FALLBACK.get(r, ""), 1.0) or 1.0
+        total += p * mult
+    return round(total, 4)
 
 
 # ── Batch fit all symbols ──────────────────────────────────────────────────────

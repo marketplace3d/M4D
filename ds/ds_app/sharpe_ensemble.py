@@ -342,6 +342,8 @@ SIGNAL_ROUTING = {
     "CONSEC_BULL": ["TRENDING", "BREAKOUT"],
     "ROC_MOM":     ["TRENDING"],
     "CONSOL_BO":   ["BREAKOUT"],
+    # LEGEND-C: mean-reversion — fires in RANGING/RISK-OFF/EXHAUSTION only
+    "LANCE_MR":    ["RANGING", "RISK-OFF"],
 }
 
 # Soft multipliers per signal per regime.
@@ -362,18 +364,21 @@ SOFT_REGIME_MULT: dict[str, dict[str, float]] = {
     # ── Trend-following / momentum — best in TRENDING_STRONG, good in BREAKOUT ──
     # SUPERTREND: regime IC BREAKOUT +0.025 (walkforward 2026-04-19); revived from false-retire
     # _TW=0.05 across ALL signals: ES 3yr WF shows TRENDING_WEAK OOS Sharpe -6.21 (41% pct+)
-    "SUPERTREND":  {_T:1.5, _TS:1.7, _TW:0.05, _B:1.6, _R:0.05, _SQ:0.0, _EX:0.0, _O:0.05},
-    "EMA_CROSS":   {_T:1.5, _TS:1.6, _TW:0.05, _B:0.1, _R:0.05, _SQ:0.0, _EX:0.0, _O:0.05},
-    "EMA_STACK":   {_T:1.5, _TS:1.6, _TW:0.05, _B:1.5, _R:0.05, _SQ:0.0, _EX:0.0, _O:0.20},
-    "MACD_CROSS":  {_T:1.5, _TS:1.7, _TW:0.05, _B:0.1, _R:0.05, _SQ:0.0, _EX:0.0, _O:0.10},
-    "TREND_SMA":   {_T:1.5, _TS:1.6, _TW:0.05, _B:1.5, _R:0.05, _SQ:0.0, _EX:0.0, _O:0.10},
-    "PSAR":        {_T:1.5, _TS:1.6, _TW:0.05, _B:0.1, _R:0.05, _SQ:0.0, _EX:0.0, _O:0.10},
-    "ADX_TREND":   {_T:1.5, _TS:1.6, _TW:0.05, _B:0.1, _R:0.30, _SQ:0.0, _EX:0.0, _O:0.30},
-    "PULLBACK":    {_T:1.5, _TS:1.6, _TW:0.05, _B:0.1, _R:0.10, _SQ:0.0, _EX:0.0, _O:0.10},
+    # IC calibrated 2026-04-29: TRENDING mults corrected from WF IC matrix
+    # SUPERTREND TRENDING IC=-0.018 (penalise), ADX_TREND/PULLBACK TRENDING IC=+0.045/+0.050 (boost)
+    "SUPERTREND":  {_T:0.05, _TS:1.7, _TW:0.05, _B:1.6, _R:0.05, _SQ:0.0, _EX:0.0, _O:0.05},
+    "EMA_CROSS":   {_T:1.5,  _TS:1.6, _TW:0.05, _B:0.1, _R:0.05, _SQ:0.0, _EX:0.0, _O:0.05},
+    "EMA_STACK":   {_T:1.5,  _TS:1.6, _TW:0.05, _B:1.5, _R:0.05, _SQ:0.0, _EX:0.0, _O:0.20},
+    "MACD_CROSS":  {_T:1.5,  _TS:1.7, _TW:0.05, _B:0.1, _R:0.05, _SQ:0.0, _EX:0.0, _O:0.10},
+    "TREND_SMA":   {_T:1.5,  _TS:1.6, _TW:0.05, _B:1.5, _R:0.05, _SQ:0.0, _EX:0.0, _O:0.10},
+    "PSAR":        {_T:1.5,  _TS:1.6, _TW:0.05, _B:0.1, _R:0.05, _SQ:0.0, _EX:0.0, _O:0.10},
+    "ADX_TREND":   {_T:2.0,  _TS:1.6, _TW:0.05, _B:0.1, _R:0.30, _SQ:0.0, _EX:0.0, _O:0.30},
+    "PULLBACK":    {_T:2.0,  _TS:1.6, _TW:0.05, _B:0.1, _R:0.10, _SQ:0.0, _EX:0.0, _O:0.10},
     # ── BREAKOUT specialists ──────────────────────────────────────────────────
     "VOL_BO":      {_T:1.2, _TS:1.2, _TW:0.05, _B:1.8, _R:0.10, _SQ:0.3, _EX:0.0, _O:0.10},
     "BB_BREAK":    {_T:0.3, _TS:0.3, _TW:0.05, _B:1.6, _R:0.30, _SQ:0.3, _EX:0.0, _O:0.10},
-    "SQZPOP":      {_T:0.3, _TS:0.3, _TW:0.05, _B:1.8, _R:0.05, _SQ:0.5, _EX:0.0, _O:0.10},
+    # SQZPOP BREAKOUT IC=+0.033 → boosted to 2.0
+    "SQZPOP":      {_T:0.3, _TS:0.3, _TW:0.05, _B:2.0, _R:0.05, _SQ:0.5, _EX:0.0, _O:0.10},
     "ATR_EXP":     {_T:1.2, _TS:1.2, _TW:0.05, _B:1.6, _R:0.20, _SQ:0.3, _EX:0.0, _O:0.10},
     "CONSOL_BO":   {_T:0.3, _TS:0.3, _TW:0.05, _B:1.6, _R:0.10, _SQ:0.3, _EX:0.0, _O:0.10},
     # ── Mean-reversion oscillators — ranging only ─────────────────────────────
@@ -389,6 +394,8 @@ SOFT_REGIME_MULT: dict[str, dict[str, float]] = {
     "RANGE_POS":   {_T:1.2, _TS:1.4, _TW:0.05, _B:1.5, _R:0.20, _SQ:0.0, _EX:0.0, _O:0.05},
     "EMA_DIST":    {_T:1.2, _TS:1.4, _TW:0.05, _B:1.3, _R:0.10, _SQ:0.0, _EX:0.0, _O:0.05},
     "VWAP_DEV":    {_T:1.0, _TS:1.2, _TW:0.05, _B:1.3, _R:0.30, _SQ:0.0, _EX:0.0, _O:0.05},
+    # LEGEND-C: Breitstein mean-reversion — RANGING/RISK-OFF specialist, near-zero in TRENDING
+    "LANCE_MR":    {_T:0.05, _TS:0.05, _TW:0.05, _B:0.30, _R:2.0, _SQ:1.5, _EX:2.0, _O:1.8},
 }
 # fmt: on
 
@@ -539,7 +546,51 @@ def build_routed_ensemble() -> dict:
     hard_score = np.zeros(n_oos_int, dtype=float)  # binary block (old — kept for comparison)
     soft_score = np.zeros(n_oos_int, dtype=float)  # soft multipliers (P0-A fix)
 
-    oos_regimes = regimes[oos_mask]
+    oos_regimes  = regimes[oos_mask]
+    oos_symbols  = data["symbol"][oos_mask]
+
+    # Pre-build per-bar HMM probability vectors (shape: n_oos × 3, cols = TRENDING/RANGING/RISK-OFF)
+    # Falls back to None per symbol if model not fitted — soft loop handles gracefully.
+    try:
+        from ds_app.hmm_regime import batch_posterior_proba as _hmm_batch, _REGIMES as _HMM_REGIMES
+        _hmm_available = True
+    except Exception:
+        _hmm_available = False
+
+    _hmm_proba_cache: dict[str, np.ndarray | None] = {}
+
+    def _get_hmm_proba(sym: str, n: int) -> np.ndarray | None:
+        if not _hmm_available:
+            return None
+        if sym not in _hmm_proba_cache:
+            _hmm_proba_cache[sym] = _hmm_batch(sym, n)
+        return _hmm_proba_cache[sym]
+
+    # Per-symbol OOS bar indices — needed to slice HMM array correctly per symbol
+    _sym_oos_pos: dict[str, list[int]] = {}
+    for idx, sym in enumerate(oos_symbols):
+        _sym_oos_pos.setdefault(sym, []).append(idx)
+
+    # Build (n_oos,) arrays of TRENDING/RANGING/RISK-OFF probabilities using HMM where available
+    _hmm_T  = np.full(n_oos_int, 1.0 / 3.0)
+    _hmm_R  = np.full(n_oos_int, 1.0 / 3.0)
+    _hmm_RO = np.full(n_oos_int, 1.0 / 3.0)
+    _hmm_used = False
+
+    for sym, pos_list in _sym_oos_pos.items():
+        arr = _get_hmm_proba(sym, len(pos_list))
+        if arr is not None:
+            for local_i, oos_i in enumerate(pos_list):
+                if local_i < arr.shape[0]:
+                    _hmm_T[oos_i]  = arr[local_i, 0]
+                    _hmm_R[oos_i]  = arr[local_i, 1]
+                    _hmm_RO[oos_i] = arr[local_i, 2]
+            _hmm_used = True
+
+    log.info("HMM soft routing: %s (symbols with model: %d/%d)",
+             "ACTIVE" if _hmm_used else "FALLBACK-LABEL",
+             sum(1 for s in _sym_oos_pos if _hmm_proba_cache.get(s) is not None),
+             len(_sym_oos_pos))
 
     n_blocked = np.zeros(n_oos_int, dtype=int)
 
@@ -562,10 +613,17 @@ def build_routed_ensemble() -> dict:
             allowed_mask = np.array([rg in allowed_regimes for rg in oos_regimes])
             hard_score += v_oos * fw * allowed_mask.astype(float)
 
-        # soft branch: per-regime multiplier from SOFT_REGIME_MULT
+        # soft branch: HMM probability-weighted multiplier Σ_k P(k) × mult[sig][k]
         mult_map = SOFT_REGIME_MULT.get(sig, {})
         if mult_map:
-            soft_mults = np.array([mult_map.get(rg, 1.0) for rg in oos_regimes], dtype=float)
+            if _hmm_used:
+                # Probability-weighted: P(T)*m_T + P(R)*m_R + P(RO)*m_RO
+                m_T  = mult_map.get("TRENDING",  mult_map.get("TRENDING_STRONG", 1.0))
+                m_R  = mult_map.get("RANGING",   1.0)
+                m_RO = mult_map.get("RISK-OFF",  1.0)
+                soft_mults = _hmm_T * m_T + _hmm_R * m_R + _hmm_RO * m_RO
+            else:
+                soft_mults = np.array([mult_map.get(rg, 1.0) for rg in oos_regimes], dtype=float)
         else:
             soft_mults = np.ones(n_oos_int, dtype=float)
         soft_score += v_oos * fw * soft_mults
@@ -631,9 +689,11 @@ def build_routed_ensemble() -> dict:
         "soft_routing_verdict": _verdict(soft_delta),
         "signal_routing":  SIGNAL_ROUTING,
         "soft_regime_mult": {k: v for k, v in SOFT_REGIME_MULT.items()},
-        "bars_routed_pct": bars_routed_pct,
-        "n_oos_bars":      n_oos_int,
-        "generated_at":    datetime.now().isoformat(timespec="seconds") if True else "",
+        "bars_routed_pct":  bars_routed_pct,
+        "n_oos_bars":       n_oos_int,
+        "hmm_routing_active": _hmm_used,
+        "hmm_symbols_fitted": sum(1 for s in _sym_oos_pos if _hmm_proba_cache.get(s) is not None),
+        "generated_at":     datetime.now().isoformat(timespec="seconds") if True else "",
     }
 
     ROUTED_OUT.parent.mkdir(parents=True, exist_ok=True)

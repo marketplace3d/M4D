@@ -71,6 +71,10 @@ const LAYER_COLORS: Record<string, string> = {
   'L6a_cis_exit':      '#ff6ec7',
   'L6b_station_tp':    '#40e0ff',
   'L6c_station_cis':   '#ffe066',
+  // Sweep-and-Fill precision layers
+  'L7_ob_sf_gate':     '#a3e635',
+  'L7b_sf_standalone': '#86efac',
+  'L8_sf_station_cis': '#00ff88',
 }
 
 const LAYER_SHORT: Record<string, string> = {
@@ -86,6 +90,9 @@ const LAYER_SHORT: Record<string, string> = {
   'L6a_cis_exit':      'L6a CIS',
   'L6b_station_tp':    'L6b STATION',
   'L6c_station_cis':   'L6c MM TRAIN ★',
+  'L7_ob_sf_gate':     'L7 SF GATE',
+  'L7b_sf_standalone': 'L7b SF SOLO',
+  'L8_sf_station_cis': 'L8 SF+STATION ★',
 }
 
 const MONO = "'JetBrains Mono', 'Fira Code', 'Courier New', monospace"
@@ -220,7 +227,7 @@ function WaterfallChart({ waterfall }: { waterfall: WaterfallRow[] }) {
         const barW = Math.max(2, Math.abs(sh) * scale * BAR_MAX)
         const isNeg = sh < 0
         const color = LAYER_COLORS[row.layer] ?? '#4a9eff'
-        const isWinner = row.layer === 'L6c_station_cis' || row.layer === 'HK_+ict_kz'
+        const isWinner = row.layer === 'L6c_station_cis' || row.layer === 'HK_+ict_kz' || row.layer === 'L8_sf_station_cis'
         const label = LAYER_SHORT[row.layer] ?? row.layer
 
         // Error bar (±1 std)

@@ -27,6 +27,7 @@ const RESEARCH: NavSection[] = [
   { id: 'alphaseek',    icon: '⟡', label: 'ALPHASEEK',    sublabel: '27 Algos · IC · WF',      status: 'idle', group: 'research' },
   { id: 'medallion',   icon: '✦', label: 'MEDALLION',    sublabel: 'RenTech · Run Lab',        status: 'idle', group: 'research' },
   { id: 'backtest-lab',icon: '⧉', label: 'BACKTEST LAB', sublabel: 'ICT Stack · WF · Sharpe',  status: 'idle', group: 'research' },
+  { id: 'btc',         icon: '₿', label: 'BTC PRESSURE', sublabel: 'Live OB · Steam · Orb',    status: 'live', group: 'research' },
 ]
 
 interface Props {
@@ -57,6 +58,7 @@ const ICON_BY_PAGE: Record<PageId, string> = {
   obi: '◉',
   'trade-lab': '◍',
   'backtest-lab': '⧉',
+  'btc': '₿',
 }
 
 const ICON_COLOUR: Record<PageId, string> = {
@@ -72,6 +74,7 @@ const ICON_COLOUR: Record<PageId, string> = {
   obi: '#f43f5e',
   'trade-lab': '#38bdf8',
   'backtest-lab': '#38bdf8',
+  'btc': '#f7931a',
 }
 
 const ICON_NAVY_BLUE: Record<PageId, string> = {
@@ -87,6 +90,7 @@ const ICON_NAVY_BLUE: Record<PageId, string> = {
   obi: '#66b4ff',
   'trade-lab': '#82d5ff',
   'backtest-lab': '#8ad8ff',
+  'btc': '#f7931a',
 }
 
 function contextSublabel(id: PageId, activePage: PageId, jedi: number|null, regime: string|null, activity: string|null, gates: number, equity: number|null): string {

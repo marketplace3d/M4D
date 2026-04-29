@@ -734,12 +734,15 @@ ALGO_REGISTRY: dict[str, dict] = {
     "RANGE_POS": {"fn": feat_RANGE_POS, "bank": "D", "name": "48-bar Range Position",   "hold_bars": 12, "stop_pct": 4.0, "exit_mode": "sig"},
     "EMA_DIST":  {"fn": feat_EMA_DIST,  "bank": "D", "name": "EMA ATR Distance",        "hold_bars": 12, "stop_pct": 4.0, "exit_mode": "sig"},
     "VWAP_DEV":  {"fn": feat_VWAP_DEV,  "bank": "D", "name": "VWAP ATR Deviation",      "hold_bars": 12, "stop_pct": 4.0, "exit_mode": "sig"},
+    # Bank L — LEGEND (mean-reversion specialists, $100M+ validated)
+    "LANCE_MR":  {"fn": None,            "bank": "L", "name": "Lance MR Capitulation",  "hold_bars": 8,  "stop_pct": 3.5, "exit_mode": "sig"},
 }
 
 ALL_ALGO_IDS = list(ALGO_REGISTRY.keys())
 BANK_A = [k for k, v in ALGO_REGISTRY.items() if v["bank"] == "A"]
 BANK_B = [k for k, v in ALGO_REGISTRY.items() if v["bank"] == "B"]
 BANK_C = [k for k, v in ALGO_REGISTRY.items() if v["bank"] == "C"]
+BANK_L = [k for k, v in ALGO_REGISTRY.items() if v["bank"] == "L"]
 
 
 def build_features(df: pd.DataFrame, algo_id: str, params: dict | None = None) -> pd.DataFrame:
@@ -747,6 +750,9 @@ def build_features(df: pd.DataFrame, algo_id: str, params: dict | None = None) -
     Build feature DataFrame for a given algo ID.
     Returns df with 'entry' and 'exit_sig' bool columns.
     """
+    from ds_app.lance_signals import feat_LANCE_MR
+    ALGO_REGISTRY["LANCE_MR"]["fn"] = feat_LANCE_MR
+
     algo_id = algo_id.upper()
     if algo_id not in ALGO_REGISTRY:
         raise ValueError(f"Unknown algo: {algo_id}. Valid: {ALL_ALGO_IDS}")

@@ -12,6 +12,7 @@ export type PageId =
   | 'obi'
   | 'trade-lab'
   | 'backtest-lab'
+  | 'btc'
 
 export interface AlgoVote {
   id: string

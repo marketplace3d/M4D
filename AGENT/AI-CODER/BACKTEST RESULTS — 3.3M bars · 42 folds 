@@ -1,0 +1,57 @@
+BACKTEST RESULTS — 3.3M bars · 42 folds · 2yr
+
+LAYER                                        OOS SH    ±     %+F  N/fold   WR
+─────────────────────────────────────────────────────────────────────────────
+L0  Base ensemble (23 sigs, Sharpe-wt)       +5.67  14.0   69%    2714   52.1%
+L1  + ICT bias (weekly/daily midpoint)       +5.95  17.4   64%    1808   51.4%  ← weak +0.28
+L2  + ICT killzone (London/NY AM)            +8.23  26.5   69%     661   51.8%  ← BIG +2.27
+L3  + T1 is ICT institutional level          +3.95  30.5   64%     512   51.3%  ← DEGRADES
+L4  + OB/FVG entry zone  ← FULL ICT GATE    +4.01  30.2   67%     508   51.3%  ← no recovery
+L5  ICT gate STANDALONE                      +4.75  22.5   60%   23138  51.7%  ← ICT alone is real
+─────────────────────────────────────────────────────────────────────────────
+CTL  HOUR_KILLS only                         +6.14  16.3   67%    1508   52.4%
+★★★  HOUR_KILLS + ICT_KZ                    +11.05 18.5   69%     726   52.8%  ← THE WINNER
+CTL  Bias STRONG (week+day agree)            +5.96  17.4   64%    1804   51.4%
+RenTech: 4/5 PROMISING — fails stability (σ too high on thin-trade layers)
+
+WHAT THE DATA SAYS
+Keep:
+
+HK + ICT_KZ = 11.05 Sharpe — HOUR_KILLS and ICT killzone have only 25% overlap. Together they're additive and produce the best timing gate in the system. This is a real finding. Add v_ict_kz to gate_search.py as a new gate candidate.
+Marginal:
+
+ICT bias adds +0.28 Sharpe but costs 33% of trades. Works best as a Kelly multiplier (STRONG bias → +20% size) rather than hard block.
+Broken:
+
+T1 level filter destroys +4.27 Sharpe — the proxy logic (nearest target is PDH/PDL/PWH/PWL) is too coarse. It's filtering OUT good trades where the ensemble signal fires at a non-PDH level. Fix: flip the polarity or use as a tier-up not a veto.
+
+OB/FVG adds nothing after L3 — not because OB/FVG is bad, but because L3's degradation carries through. Need to test OB/FVG WITHOUT the broken T1 filter.
+
+NEXT ACTIONS (PRIORITY ORDER)
+P	Action
+P0	Add v_ict_kz to gate_search.py — best confirmed gate (+4.9 Sharpe increment on top of HK)
+P1	Test HK + ICT_KZ as a combined gate in the main walkforward
+P2	Test ICT bias as Kelly multiplier (not filter) — 1.2× when STRONG
+P3	Fix T1 level proxy — inverse the filter or test t1_NOT_level
+P4	Test OB/FVG standalone (without T1) — likely adds timing precision
+Now for the UI: the user wants to see all this from the app. Let me look at the AlphaSeek and StarRay pages.
+
+BACKTEST COMPLETE — KEY FINDINGS
+What the 2yr walkforward (42 folds, 3.3M bars) says:
+
+★ THE WINNER: HOUR_KILLS + ICT_KZ = +11.05 Sharpe
+KZ/HOUR_KILLS overlap is only 25% — the two timing systems are genuinely orthogonal. Combining them nearly doubles timing precision. Add v_ict_kz to gate_search.py immediately — this is the highest-value finding.
+
+ICT Bias is marginal (+0.28 Sharpe)
+Weekly/daily midpoint direction barely adds directional edge. Better as a Kelly multiplier (STRONG bias → 1.2× size) than a hard veto.
+
+T1 level proxy is wrong (−4.27 Sharpe)
+The current proxy ("nearest target is PDH/PDL/PWH/PWL") is too aggressive — it's filtering out good signal-fire bars. The logic may be inverted or the tolerance too tight. Don't apply as a gate.
+
+Full ICT gate = 4.01 Sharpe, PROMISING (4/5 RenTech)
+Works but thin (508 trades/fold). Fails stability gate — σ=30 on a 4.0 mean is too volatile. Needs more data history to stabilize.
+
+ICT standalone = 4.75 Sharpe on 23k trades
+ICT structural signals have genuine alpha on their own (not just as a filter). This is encouraging.
+
+UI now live at #alphaseek → ICT BACKTEST tab — shows waterfall chart, RenTech gates, IC values, KZ overlap, devil's advocate. RUN button launches the 5min compute; results persist.

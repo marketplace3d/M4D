@@ -1,1 +1,1 @@
-{"running": true, "phase": "walkforward_folds", "fold": 6, "total_folds": 41, "elapsed_s": 34.2, "pct": 14.6, "started_at": "2026-04-27T22:08:55"}
+{"running": false, "phase": "done", "fold": 42, "total_folds": 42, "elapsed_s": 286.8, "pct": 100.0}

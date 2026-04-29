@@ -1,29 +1,29 @@
 {
   "ok": true,
-  "ts": 1777220984,
+  "ts": 1777426178,
   "cached": false,
-  "value": 33,
+  "value": 26,
   "label": "FEAR",
   "mult": 1.1,
-  "trend": "STABLE",
+  "trend": "FEAR_BUILDING",
   "history": [
     {
-      "ts": 1777161600,
+      "ts": 1777420800,
+      "value": 26,
+      "label": "FEAR",
+      "date": "Fear"
+    },
+    {
+      "ts": 1777334400,
       "value": 33,
       "label": "FEAR",
       "date": "Fear"
     },
     {
-      "ts": 1777075200,
-      "value": 31,
-      "label": "FEAR",
-      "date": "Fear"
-    },
-    {
-      "ts": 1776988800,
-      "value": 39,
-      "label": "FEAR",
-      "date": "Fear"
+      "ts": 1777248000,
+      "value": 47,
+      "label": "NEUTRAL",
+      "date": "Neutral"
     }
   ],
   "source": "api.alternative.me/fng/"

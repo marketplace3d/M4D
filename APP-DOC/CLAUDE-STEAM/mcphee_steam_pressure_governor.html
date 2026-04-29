@@ -1,0 +1,976 @@
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Teko:wght@300;400;600&display=swap');
+
+  :root {
+    --gas: #00bfff;
+    --compression: #ff6a00;
+    --pop: #ffffff;
+    --danger: #ff2244;
+    --safe: #00ff88;
+    --amber: #ffaa00;
+    --dim: rgba(255,255,255,0.12);
+    --track: rgba(255,255,255,0.06);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #050a0f;
+    color: #c8d8e8;
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  #root {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 16px;
+  }
+
+  .hud-grid {
+    display: grid;
+    grid-template-columns: 1fr 260px;
+    gap: 12px;
+  }
+
+  .panel {
+    background: rgba(8,18,28,0.96);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 6px;
+    padding: 12px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .panel::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: var(--phase-color, var(--gas));
+    opacity: 0.6;
+    transition: background 0.4s;
+  }
+
+  .panel-label {
+    font-family: 'Teko', sans-serif;
+    font-size: 11px;
+    font-weight: 300;
+    letter-spacing: 3px;
+    color: rgba(255,255,255,0.35);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+
+  /* ── MAIN GAUGE ── */
+  #gauge-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    height: 300px;
+  }
+
+  #gauge-canvas {
+    position: absolute;
+  }
+
+  #gauge-center {
+    position: relative;
+    text-align: center;
+    z-index: 2;
+  }
+
+  #psi-value {
+    font-family: 'Teko', sans-serif;
+    font-size: 72px;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--phase-color, var(--gas));
+    transition: color 0.3s;
+    text-shadow: 0 0 40px var(--phase-color, var(--gas));
+  }
+
+  #psi-label {
+    font-size: 11px;
+    letter-spacing: 4px;
+    color: rgba(255,255,255,0.3);
+  }
+
+  #phase-tag {
+    font-family: 'Teko', sans-serif;
+    font-size: 20px;
+    font-weight: 400;
+    letter-spacing: 4px;
+    margin-top: 4px;
+    color: var(--phase-color, var(--gas));
+    transition: color 0.3s;
+  }
+
+  #signal-tag {
+    font-size: 11px;
+    color: rgba(255,255,255,0.4);
+    margin-top: 2px;
+  }
+
+  /* ── HISTOGRAM ── */
+  #histogram {
+    height: 60px;
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    margin: 8px 0;
+    padding: 0 2px;
+  }
+
+  .hist-bar {
+    flex: 1;
+    border-radius: 2px 2px 0 0;
+    transition: height 0.1s, background 0.3s;
+    min-height: 2px;
+  }
+
+  /* ── DELTA STRIP ── */
+  #delta-strip {
+    height: 32px;
+    background: var(--track);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+    margin: 6px 0;
+  }
+
+  #delta-fill {
+    position: absolute;
+    top: 0; bottom: 0;
+    left: 50%;
+    width: 0;
+    transition: width 0.12s, background 0.3s;
+    border-radius: 2px;
+  }
+
+  #delta-label {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: rgba(255,255,255,0.5);
+    left: 8px;
+  }
+
+  #delta-val {
+    position: absolute;
+    top: 50%;
+    right: 8px;
+    transform: translateY(-50%);
+    font-size: 13px;
+    color: rgba(255,255,255,0.8);
+  }
+
+  /* ── DD STRIP ── */
+  #dd-strip {
+    height: 24px;
+    background: var(--track);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+    margin: 4px 0;
+  }
+
+  #dd-fill {
+    position: absolute;
+    top: 0; bottom: 0;
+    left: 50%;
+    width: 0;
+    transition: width 0.15s, background 0.3s;
+    border-radius: 2px;
+  }
+
+  #dd-label { position: absolute; top: 50%; transform: translateY(-50%); font-size: 9px; letter-spacing: 2px; color: rgba(255,255,255,0.4); left: 8px; }
+  #dd-val { position: absolute; top: 50%; right: 8px; transform: translateY(-50%); font-size: 11px; }
+
+  /* ── RIGHT COLUMN ── */
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-size: 11px;
+  }
+
+  .stat-key { color: rgba(255,255,255,0.35); letter-spacing: 1px; }
+  .stat-val { font-size: 13px; font-weight: 500; }
+
+  /* ── SIGNAL EVENTS ── */
+  #signal-log {
+    height: 120px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 3px;
+    margin-top: 6px;
+  }
+
+  .sig-event {
+    font-size: 10px;
+    padding: 3px 6px;
+    border-radius: 3px;
+    border-left: 2px solid;
+    background: rgba(255,255,255,0.03);
+    line-height: 1.3;
+    animation: fadein 0.2s ease;
+  }
+
+  @keyframes fadein { from { opacity: 0; transform: translateX(-4px); } to { opacity: 1; transform: none; } }
+
+  .sig-entry { border-color: var(--safe); color: rgba(150,255,200,0.8); }
+  .sig-exit  { border-color: var(--danger); color: rgba(255,100,100,0.8); }
+  .sig-warn  { border-color: var(--amber); color: rgba(255,200,80,0.8); }
+  .sig-info  { border-color: rgba(255,255,255,0.2); color: rgba(180,200,220,0.6); }
+
+  /* ── ALARM BANNER ── */
+  #alarm-banner {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    font-family: 'Teko', sans-serif;
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: 4px;
+    border: 1px solid;
+    animation: pulse-border 0.5s infinite alternate;
+  }
+
+  @keyframes pulse-border { from { border-color: rgba(255,34,68,0.3); } to { border-color: rgba(255,34,68,1); } }
+
+  #alarm-banner.active {
+    display: flex;
+    background: rgba(255,34,68,0.08);
+    border-color: var(--danger);
+    color: var(--danger);
+  }
+
+  .alarm-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--danger);
+    animation: blink 0.4s infinite alternate;
+  }
+
+  @keyframes blink { from { opacity: 1; } to { opacity: 0.1; } }
+
+  /* ── CONTROLS ── */
+  .controls-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+    align-items: center;
+  }
+
+  .btn {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    padding: 6px 12px;
+    border-radius: 3px;
+    border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.04);
+    color: rgba(255,255,255,0.7);
+    cursor: pointer;
+    transition: all 0.15s;
+    text-transform: uppercase;
+  }
+
+  .btn:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.3); }
+  .btn.danger { border-color: rgba(255,34,68,0.5); color: rgba(255,100,130,0.9); }
+  .btn.danger:hover { background: rgba(255,34,68,0.15); border-color: var(--danger); }
+  .btn.green { border-color: rgba(0,255,136,0.4); color: rgba(0,255,136,0.9); }
+  .btn.active { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.4); color: white; }
+
+  .slider-group { display: flex; align-items: center; gap: 8px; font-size: 10px; color: rgba(255,255,255,0.4); }
+  .slider-group input[type=range] { width: 90px; }
+  .slider-group span { min-width: 28px; text-align: right; color: rgba(255,255,255,0.7); }
+
+  /* ── PHASE GLOW ── */
+  @keyframes pop-flash {
+    0%   { background: rgba(255,255,255,0.18); }
+    100% { background: transparent; }
+  }
+
+  #root.pop-phase {
+    animation: pop-flash 0.4s ease-out;
+  }
+
+  /* ── RUST MONITOR STATUS ── */
+  #rust-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 10px;
+    letter-spacing: 1px;
+    color: rgba(255,255,255,0.3);
+    padding: 5px 8px;
+    background: rgba(255,255,255,0.02);
+    border-radius: 4px;
+    border: 1px solid rgba(255,255,255,0.05);
+    margin-top: 6px;
+  }
+
+  .rust-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #888;
+    flex-shrink: 0;
+  }
+
+  .rust-dot.ok { background: var(--safe); box-shadow: 0 0 6px var(--safe); }
+  .rust-dot.warn { background: var(--amber); }
+  .rust-dot.dead { background: var(--danger); animation: blink 0.8s infinite alternate; }
+
+  /* ── PHASE FLAME ── */
+  #flame-canvas {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    pointer-events: none;
+    opacity: 0.55;
+  }
+
+  /* scrollbar */
+  #signal-log::-webkit-scrollbar { width: 3px; }
+  #signal-log::-webkit-scrollbar-track { background: transparent; }
+  #signal-log::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); }
+
+  .section-head {
+    font-family: 'Teko', sans-serif;
+    font-size: 13px;
+    font-weight: 300;
+    letter-spacing: 3px;
+    color: rgba(255,255,255,0.25);
+    margin: 10px 0 4px;
+    text-transform: uppercase;
+  }
+
+  #mcphee-line {
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    color: rgba(255,255,255,0.2);
+    margin-top: 6px;
+  }
+
+  .pos-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 8px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    margin-bottom: 6px;
+    font-size: 11px;
+  }
+
+  .pos-side { font-family: 'Teko', sans-serif; font-size: 16px; font-weight: 600; letter-spacing: 2px; }
+  .pos-pnl { font-size: 13px; }
+</style>
+
+<div id="root">
+
+  <div id="alarm-banner">
+    <div class="alarm-dot"></div>
+    <span id="alarm-text">CLIMAX EXHAUSTION — DECEL EXIT</span>
+  </div>
+
+  <div class="hud-grid">
+
+    <!-- LEFT: MAIN PRESSURE HUD -->
+    <div>
+
+      <!-- BOILER GAUGE -->
+      <div class="panel" id="main-panel" style="--phase-color: var(--gas)">
+        <canvas id="flame-canvas" height="60"></canvas>
+        <div class="panel-label">McPhee Steam Governor · OBI Pressure</div>
+        <div id="gauge-wrap">
+          <canvas id="gauge-canvas" width="280" height="280"></canvas>
+          <div id="gauge-center">
+            <div id="psi-value">0.00</div>
+            <div id="psi-label">PSI · OB VELOCITY / LQ</div>
+            <div id="phase-tag">ACCUMULATION</div>
+            <div id="signal-tag">Δ 0.000 · ΔΔ 0.000</div>
+          </div>
+        </div>
+
+        <!-- PRESSURE HISTOGRAM -->
+        <div class="panel-label" style="margin-bottom:4px">Pressure histogram · 40 ticks</div>
+        <div id="histogram"></div>
+
+        <!-- DELTA STRIP -->
+        <div id="delta-strip">
+          <div id="delta-label">DELTA</div>
+          <div id="delta-fill"></div>
+          <div id="delta-val">0.000</div>
+        </div>
+
+        <!-- DELTA-DELTA STRIP -->
+        <div id="dd-strip">
+          <div id="dd-label">ΔΔ ACCEL</div>
+          <div id="dd-fill"></div>
+          <div id="dd-val">0.000</div>
+        </div>
+
+        <div id="mcphee-line">McPhee Trigger: PSI &gt; 2.5 + ΔΔ &lt; −0.15 → CLIMAX EXIT · Re-entry on ΔΔ flip + PSI &gt; 1.8</div>
+      </div>
+
+      <!-- CONTROLS -->
+      <div class="controls-row" style="margin-top:8px">
+        <button class="btn green" onclick="toggleStream()">⏸ PAUSE</button>
+        <button class="btn danger" onclick="triggerFlatten()">⚡ FLATTEN</button>
+        <button class="btn" onclick="simulateEntry('LONG')">↑ LONG ENTRY</button>
+        <button class="btn" onclick="simulateEntry('SHORT')">↓ SHORT ENTRY</button>
+        <button class="btn" id="alarm-btn" onclick="toggleAlarm()">🔔 ALARM ON</button>
+        <div class="slider-group">
+          <span>POP@</span>
+          <input type="range" min="1.5" max="4.0" step="0.1" value="2.5" id="pop-thresh" oninput="popThresh=+this.value;document.getElementById('pop-thresh-val').textContent=this.value">
+          <span id="pop-thresh-val">2.5</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT: STATS + LOG -->
+    <div style="display:flex;flex-direction:column;gap:8px">
+
+      <!-- POSITION -->
+      <div class="panel" style="--phase-color: var(--safe)">
+        <div class="panel-label">Live Position</div>
+        <div id="pos-display">
+          <div class="pos-row">
+            <span class="pos-side" style="color:rgba(255,255,255,0.3)">FLAT</span>
+            <span style="color:rgba(255,255,255,0.2);font-size:10px">waiting entry gate</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- PRESSURE STATS -->
+      <div class="panel" style="--phase-color: var(--gas)">
+        <div class="panel-label">Pressure Stats</div>
+        <div class="stat-row"><span class="stat-key">PSI NOW</span><span class="stat-val" id="s-psi">—</span></div>
+        <div class="stat-row"><span class="stat-key">PSI PEAK</span><span class="stat-val" id="s-peak">—</span></div>
+        <div class="stat-row"><span class="stat-key">DELTA</span><span class="stat-val" id="s-delta">—</span></div>
+        <div class="stat-row"><span class="stat-key">ΔΔ ACCEL</span><span class="stat-val" id="s-dd">—</span></div>
+        <div class="stat-row"><span class="stat-key">PHASE</span><span class="stat-val" id="s-phase">—</span></div>
+        <div class="stat-row"><span class="stat-key">EXHAUSTED</span><span class="stat-val" id="s-exh">—</span></div>
+        <div class="stat-row"><span class="stat-key">TICKS</span><span class="stat-val" id="s-ticks">0</span></div>
+      </div>
+
+      <!-- RUST MONITOR -->
+      <div class="panel" style="--phase-color: #888">
+        <div class="panel-label">Rust Monitor · Comms Watchdog</div>
+        <div id="rust-status">
+          <div class="rust-dot" id="rust-dot"></div>
+          <span id="rust-text">SIMULATED · cloud proxy offline</span>
+        </div>
+        <div style="font-size:9px;color:rgba(255,255,255,0.18);margin-top:6px;line-height:1.5">
+          In production: Rust cloud monitor holds last known position.
+          On comms breakdown → auto FLATTEN at exchange level.
+          Heartbeat every 250ms. Timeout 2s → kill switch.
+        </div>
+      </div>
+
+      <!-- SIGNAL LOG -->
+      <div class="panel" style="--phase-color: var(--gas); flex:1">
+        <div class="panel-label">Signal Log</div>
+        <div id="signal-log"></div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+const HIST_LEN = 40;
+const pressureHist = Array(HIST_LEN).fill(0);
+let deltaHist = Array(10).fill(0);
+let ticks = 0;
+let streaming = true;
+let alarmEnabled = true;
+let popThresh = 2.5;
+let peakPsi = 0;
+let position = null; // { side, entry, entryPsi }
+let lastAlarmState = false;
+
+// Audio context (lazy init on first interaction)
+let ctx = null;
+function getCtx() {
+  if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+  return ctx;
+}
+
+function playTone(freq, type, dur, vol, time) {
+  try {
+    const c = getCtx();
+    const osc = c.createOscillator();
+    const gain = c.createGain();
+    osc.connect(gain); gain.connect(c.destination);
+    osc.type = type || 'sine';
+    osc.frequency.setValueAtTime(freq, time || c.currentTime);
+    gain.gain.setValueAtTime(vol || 0.15, time || c.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, (time || c.currentTime) + dur);
+    osc.start(time || c.currentTime);
+    osc.stop((time || c.currentTime) + dur + 0.01);
+  } catch(e) {}
+}
+
+function playPressureClick(psi) {
+  try {
+    const c = getCtx();
+    const buf = c.createBuffer(1, c.sampleRate * 0.05, c.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (data.length * 0.3));
+    }
+    const src = c.createBufferSource();
+    const g = c.createGain();
+    src.buffer = buf;
+    src.connect(g); g.connect(c.destination);
+    g.gain.value = Math.min(0.3, psi * 0.05);
+    src.start();
+  } catch(e) {}
+}
+
+function playExhaustionAlarm() {
+  try {
+    const c = getCtx();
+    const t = c.currentTime;
+    // Steam valve release — falling tone burst
+    [880, 660, 440, 330].forEach((f, i) => {
+      playTone(f, 'sawtooth', 0.15, 0.12, t + i * 0.12);
+    });
+    // Low rumble
+    playTone(80, 'square', 0.5, 0.08, t);
+  } catch(e) {}
+}
+
+function playEntryBeep(side) {
+  try {
+    const c = getCtx();
+    const t = c.currentTime;
+    if (side === 'LONG') {
+      playTone(523, 'sine', 0.1, 0.1, t);
+      playTone(659, 'sine', 0.1, 0.1, t + 0.12);
+    } else {
+      playTone(659, 'sine', 0.1, 0.1, t);
+      playTone(523, 'sine', 0.1, 0.1, t + 0.12);
+    }
+  } catch(e) {}
+}
+
+function playFlattenAlarm() {
+  try {
+    const c = getCtx();
+    const t = c.currentTime;
+    [440, 440, 440].forEach((f, i) => {
+      playTone(f, 'square', 0.08, 0.2, t + i * 0.15);
+    });
+  } catch(e) {}
+}
+
+// Phase logic
+function getPhase(psi, dd, exhausted) {
+  if (exhausted) return 'POP';
+  if (Math.abs(psi) > 1.5 || exhausted) return 'COMPRESSION';
+  return 'ACCUMULATION';
+}
+
+const PHASE_COLOR = {
+  ACCUMULATION: '#00bfff',
+  COMPRESSION:  '#ff6a00',
+  POP:          '#ffffff',
+};
+
+const PHASE_DISPLAY = {
+  ACCUMULATION: 'ACCUMULATION · GAS',
+  COMPRESSION:  'COMPRESSION · FIRE',
+  POP:          'POP · STEAM BREAK',
+};
+
+// Flame canvas
+const flameCanvas = document.getElementById('flame-canvas');
+const fCtx = flameCanvas.getContext('2d');
+let flames = [];
+function resizeFlame() {
+  const w = flameCanvas.parentElement.offsetWidth;
+  flameCanvas.width = w;
+  flameCanvas.height = 60;
+}
+function spawnFlame(psi, phase) {
+  if (phase === 'ACCUMULATION') return;
+  const w = flameCanvas.width;
+  const n = Math.ceil(psi * 2);
+  for (let i = 0; i < n; i++) {
+    flames.push({
+      x: Math.random() * w,
+      y: 60,
+      vx: (Math.random() - 0.5) * 1.5,
+      vy: -(1.5 + Math.random() * 2.5),
+      life: 1,
+      decay: 0.025 + Math.random() * 0.03,
+      size: 3 + Math.random() * (phase === 'POP' ? 8 : 4),
+      phase,
+    });
+  }
+}
+function drawFlames(phase) {
+  fCtx.clearRect(0, 0, flameCanvas.width, flameCanvas.height);
+  flames = flames.filter(f => f.life > 0);
+  for (const f of flames) {
+    f.x += f.vx;
+    f.y += f.vy;
+    f.vy *= 0.97;
+    f.life -= f.decay;
+    const a = Math.max(0, f.life);
+    const color = f.phase === 'POP'
+      ? `rgba(255,255,255,${a * 0.7})`
+      : f.phase === 'COMPRESSION'
+        ? `rgba(255,${Math.floor(100 + 60 * (1-f.life))},0,${a * 0.6})`
+        : `rgba(0,180,255,${a * 0.4})`;
+    fCtx.beginPath();
+    fCtx.arc(f.x, f.y, f.size * a, 0, Math.PI * 2);
+    fCtx.fillStyle = color;
+    fCtx.fill();
+  }
+}
+
+// Arc gauge
+const gaugeCanvas = document.getElementById('gauge-canvas');
+const gCtx = gaugeCanvas.getContext('2d');
+function drawGauge(psi, phase) {
+  const W = 280, H = 280, cx = W/2, cy = H/2 + 20;
+  const R = 110;
+  const startA = Math.PI * 0.75;
+  const endA   = Math.PI * 2.25;
+  const fraction = Math.min(1, Math.abs(psi) / 4.0);
+  const fillA = startA + (endA - startA) * fraction;
+  const color = PHASE_COLOR[phase];
+
+  gCtx.clearRect(0, 0, W, H);
+
+  // Track
+  gCtx.beginPath();
+  gCtx.arc(cx, cy, R, startA, endA);
+  gCtx.strokeStyle = 'rgba(255,255,255,0.06)';
+  gCtx.lineWidth = 12;
+  gCtx.lineCap = 'round';
+  gCtx.stroke();
+
+  // Threshold markers
+  [1.5, 2.5, 3.5].forEach((t, i) => {
+    const a = startA + (endA - startA) * (t / 4.0);
+    const mx = cx + R * Math.cos(a);
+    const my = cy + R * Math.sin(a);
+    gCtx.beginPath();
+    gCtx.arc(mx, my, 4, 0, Math.PI * 2);
+    gCtx.fillStyle = ['#00bfff','#ff6a00','#ff2244'][i];
+    gCtx.fill();
+  });
+
+  if (fraction > 0) {
+    // Glow
+    gCtx.beginPath();
+    gCtx.arc(cx, cy, R, startA, fillA);
+    gCtx.strokeStyle = color;
+    gCtx.lineWidth = 18;
+    gCtx.lineCap = 'round';
+    gCtx.globalAlpha = 0.15;
+    gCtx.stroke();
+    gCtx.globalAlpha = 1;
+
+    // Fill arc
+    gCtx.beginPath();
+    gCtx.arc(cx, cy, R, startA, fillA);
+    gCtx.strokeStyle = color;
+    gCtx.lineWidth = 8;
+    gCtx.lineCap = 'round';
+    gCtx.stroke();
+
+    // Tip dot
+    const tx = cx + R * Math.cos(fillA);
+    const ty = cy + R * Math.sin(fillA);
+    gCtx.beginPath();
+    gCtx.arc(tx, ty, 5, 0, Math.PI * 2);
+    gCtx.fillStyle = color;
+    gCtx.fill();
+  }
+}
+
+// Histogram
+const histContainer = document.getElementById('histogram');
+for (let i = 0; i < HIST_LEN; i++) {
+  const bar = document.createElement('div');
+  bar.className = 'hist-bar';
+  bar.style.height = '2px';
+  bar.style.background = 'rgba(255,255,255,0.2)';
+  histContainer.appendChild(bar);
+}
+const histBars = histContainer.querySelectorAll('.hist-bar');
+
+function updateHistogram(phase) {
+  const maxP = Math.max(...pressureHist, 0.01);
+  pressureHist.forEach((p, i) => {
+    const bar = histBars[i];
+    const h = Math.max(2, (Math.abs(p) / Math.max(maxP, 0.01)) * 56);
+    bar.style.height = h + 'px';
+    const frac = Math.abs(p) / 4.0;
+    const r = Math.floor(frac * 255);
+    const b = Math.floor((1-frac) * 255);
+    bar.style.background = phase === 'POP'
+      ? `rgba(255,255,255,${0.4 + frac * 0.6})`
+      : `rgba(${r},${Math.floor(100*(1-frac))},${b},0.8)`;
+  });
+}
+
+// Log
+function addLog(type, msg) {
+  const log = document.getElementById('signal-log');
+  const el = document.createElement('div');
+  el.className = `sig-event sig-${type}`;
+  const now = new Date();
+  const ts = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+  el.textContent = `${ts} ${msg}`;
+  log.prepend(el);
+  if (log.children.length > 60) log.removeChild(log.lastChild);
+}
+
+// Position display
+function renderPosition(psi) {
+  const el = document.getElementById('pos-display');
+  if (!position) {
+    el.innerHTML = `<div class="pos-row">
+      <span class="pos-side" style="color:rgba(255,255,255,0.3)">FLAT</span>
+      <span style="color:rgba(255,255,255,0.2);font-size:10px">waiting entry gate</span>
+    </div>`;
+    return;
+  }
+  const diff = psi - position.entry;
+  const pnl = position.side === 'LONG' ? diff : -diff;
+  const pnlColor = pnl >= 0 ? 'var(--safe)' : 'var(--danger)';
+  el.innerHTML = `<div class="pos-row">
+    <span class="pos-side" style="color:${position.side === 'LONG' ? 'var(--safe)' : 'var(--danger)'}">${position.side}</span>
+    <div style="text-align:right">
+      <div style="font-size:10px;color:rgba(255,255,255,0.4)">@ ${position.entry.toFixed(3)}</div>
+      <div class="pos-pnl" style="color:${pnlColor}">${pnl >= 0 ? '+' : ''}${pnl.toFixed(3)}</div>
+    </div>
+  </div>`;
+}
+
+function simulateEntry(side) {
+  position = { side, entry: pressureHist[HIST_LEN-1] || 1.0, entryPsi: pressureHist[HIST_LEN-1] };
+  playEntryBeep(side);
+  addLog('entry', `${side} ENTRY · PSI ${(pressureHist[HIST_LEN-1]||0).toFixed(3)}`);
+}
+
+function triggerFlatten() {
+  if (position) {
+    const psi = pressureHist[HIST_LEN-1] || 0;
+    const diff = psi - position.entry;
+    const pnl = position.side === 'LONG' ? diff : -diff;
+    addLog('exit', `FLATTEN ${position.side} · PnL ${pnl >= 0 ? '+' : ''}${pnl.toFixed(3)} · McPhee Exit`);
+  } else {
+    addLog('exit', 'FLATTEN · already flat');
+  }
+  position = null;
+  playFlattenAlarm();
+  renderPosition(0);
+}
+
+function toggleStream() {
+  streaming = !streaming;
+  const btn = document.querySelector('.btn.green');
+  btn.textContent = streaming ? '⏸ PAUSE' : '▶ RESUME';
+}
+
+function toggleAlarm() {
+  alarmEnabled = !alarmEnabled;
+  const btn = document.getElementById('alarm-btn');
+  btn.textContent = alarmEnabled ? '🔔 ALARM ON' : '🔕 ALARM OFF';
+  btn.className = alarmEnabled ? 'btn active' : 'btn';
+}
+
+// Rust watchdog sim
+let rustTick = 0;
+function updateRustStatus() {
+  rustTick++;
+  const dot = document.getElementById('rust-dot');
+  const txt = document.getElementById('rust-text');
+  const panel = document.getElementById('rust-status').closest('.panel');
+  if (!streaming) {
+    dot.className = 'rust-dot dead';
+    txt.textContent = 'COMMS BREAK · Flatten trigger armed';
+    panel.style.setProperty('--phase-color', 'var(--danger)');
+  } else {
+    dot.className = 'rust-dot ok';
+    txt.textContent = `HEARTBEAT ${rustTick} · Proxy OK · 250ms`;
+    panel.style.setProperty('--phase-color', 'var(--safe)');
+  }
+}
+
+// Main sim loop
+let baseFreq = 0.05;
+let phaseT = 0;
+let lastPhase = 'ACCUMULATION';
+let exhaustedLatch = false;
+let reentryArmed = false;
+
+function tick() {
+  if (!streaming) {
+    updateRustStatus();
+    requestAnimationFrame(tick);
+    return;
+  }
+
+  phaseT += baseFreq;
+  ticks++;
+
+  // Simulate realistic OBI pressure — sine + harmonics + noise + occasional spikes
+  const base = Math.sin(phaseT * 0.7) * 1.4
+              + Math.sin(phaseT * 1.3) * 0.7
+              + Math.sin(phaseT * 3.1) * 0.3
+              + (Math.random() - 0.5) * 0.4;
+  const spike = Math.random() < 0.015 ? (Math.random() - 0.5) * 3.5 : 0;
+  const rawPsi = base + spike;
+
+  // Push history
+  pressureHist.push(rawPsi);
+  pressureHist.shift();
+
+  // Delta series
+  const n = pressureHist.length;
+  const delta = n >= 2 ? pressureHist[n-1] - pressureHist[n-2] : 0;
+  const prevDelta = n >= 3 ? pressureHist[n-2] - pressureHist[n-3] : 0;
+  const dd = delta - prevDelta;
+
+  deltaHist.push(delta);
+  deltaHist.shift();
+
+  const psi = pressureHist[n-1];
+  const absPsi = Math.abs(psi);
+  if (absPsi > peakPsi) peakPsi = absPsi;
+
+  // McPhee Exhaustion: high absolute PSI + negative ΔΔ
+  const exhausted = absPsi > popThresh && dd < -0.15;
+
+  // Phase
+  const phase = getPhase(absPsi, dd, exhausted);
+  const color = PHASE_COLOR[phase];
+
+  // Alarm on exhaustion
+  if (exhausted && !lastAlarmState) {
+    lastAlarmState = true;
+    if (alarmEnabled) {
+      playExhaustionAlarm();
+      document.getElementById('alarm-banner').className = 'alarm-banner active';
+      document.getElementById('alarm-text').textContent =
+        absPsi > 3.0 ? 'CRITICAL EXHAUSTION · CLIMAX EXIT NOW' : 'EXHAUSTION DETECTED · DECEL EXIT';
+      addLog('exit', `McPhee: EXHAUSTION · PSI ${absPsi.toFixed(3)} · ΔΔ ${dd.toFixed(3)} · EXIT SIGNAL`);
+      if (position) triggerFlatten();
+    }
+    document.getElementById('root').classList.add('pop-phase');
+    setTimeout(() => document.getElementById('root').classList.remove('pop-phase'), 400);
+    reentryArmed = true;
+  }
+
+  if (!exhausted) {
+    lastAlarmState = false;
+    if (document.getElementById('alarm-banner').className.includes('active')) {
+      setTimeout(() => {
+        document.getElementById('alarm-banner').className = 'alarm-banner';
+      }, 2000);
+    }
+    // Re-entry signal: ΔΔ flip positive after exhaustion
+    if (reentryArmed && dd > 0.1 && absPsi > 1.8) {
+      reentryArmed = false;
+      addLog('entry', `McPhee: REENTRY ARMED · PSI ${absPsi.toFixed(3)} · ΔΔ ${dd.toFixed(3)} · valid`);
+    }
+  }
+
+  // Phase change log
+  if (phase !== lastPhase) {
+    addLog('info', `Phase: ${lastPhase} → ${phase} · PSI ${absPsi.toFixed(3)}`);
+    lastPhase = phase;
+  }
+
+  // Click sound on high ticks
+  if (ticks % 3 === 0 && absPsi > 0.5) playPressureClick(absPsi);
+
+  // DOM updates
+  const mainPanel = document.getElementById('main-panel');
+  mainPanel.style.setProperty('--phase-color', color);
+
+  document.getElementById('psi-value').textContent = psi.toFixed(2);
+  document.getElementById('psi-value').style.color = color;
+  document.getElementById('psi-value').style.textShadow = `0 0 40px ${color}`;
+  document.getElementById('phase-tag').textContent = PHASE_DISPLAY[phase];
+  document.getElementById('phase-tag').style.color = color;
+  document.getElementById('signal-tag').textContent = `Δ ${delta.toFixed(3)} · ΔΔ ${dd.toFixed(3)}${exhausted ? ' · ⚠ EXHAUSTED' : ''}`;
+
+  // Delta strip
+  const dFrac = Math.min(1, Math.abs(delta) / 0.5);
+  const dFill = document.getElementById('delta-fill');
+  dFill.style.width = (dFrac * 48) + '%';
+  dFill.style.left = delta >= 0 ? '50%' : (50 - dFrac * 48) + '%';
+  dFill.style.background = delta >= 0 ? 'rgba(0,200,100,0.5)' : 'rgba(255,80,80,0.5)';
+  document.getElementById('delta-val').textContent = delta.toFixed(3);
+
+  // DD strip
+  const ddFrac = Math.min(1, Math.abs(dd) / 0.3);
+  const ddFill = document.getElementById('dd-fill');
+  ddFill.style.width = (ddFrac * 48) + '%';
+  ddFill.style.left = dd >= 0 ? '50%' : (50 - ddFrac * 48) + '%';
+  ddFill.style.background = exhausted ? 'rgba(255,34,68,0.7)' : dd < 0 ? 'rgba(255,140,0,0.5)' : 'rgba(100,180,255,0.4)';
+  document.getElementById('dd-val').textContent = dd.toFixed(3);
+  document.getElementById('dd-val').style.color = exhausted ? '#ff2244' : 'rgba(255,255,255,0.8)';
+
+  // Stats
+  document.getElementById('s-psi').textContent = psi.toFixed(4);
+  document.getElementById('s-peak').textContent = peakPsi.toFixed(4);
+  document.getElementById('s-delta').textContent = delta.toFixed(4);
+  document.getElementById('s-dd').textContent = dd.toFixed(4);
+  document.getElementById('s-phase').textContent = phase;
+  document.getElementById('s-phase').style.color = color;
+  document.getElementById('s-exh').textContent = exhausted ? '⚠ YES' : 'no';
+  document.getElementById('s-exh').style.color = exhausted ? '#ff2244' : 'rgba(255,255,255,0.4)';
+  document.getElementById('s-ticks').textContent = ticks;
+
+  // Gauge + histogram
+  drawGauge(psi, phase);
+  updateHistogram(phase);
+
+  // Flames
+  if (ticks % 4 === 0) spawnFlame(absPsi, phase);
+  drawFlames(phase);
+
+  // Position
+  renderPosition(psi);
+
+  updateRustStatus();
+
+  setTimeout(() => requestAnimationFrame(tick), 80);
+}
+
+// Init
+resizeFlame();
+window.addEventListener('resize', resizeFlame);
+addLog('info', 'McPhee Governor online · Steam pressure live');
+addLog('info', 'Grandfather drove the boiler — we watch the gauge');
+requestAnimationFrame(tick);
+</script>

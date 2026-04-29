@@ -907,6 +907,9 @@ const SIM_PAPER_NOTIONAL_USD = 10_000
 
 type TradeMode = 'COUNCIL' | 'ICT' | 'BOTH' | 'JEDI' | 'JEDI_MASTER' | 'BOOM' | 'ALL'
 const SIM_TUNE_MODES: Exclude<TradeMode, 'ALL'>[] = ['COUNCIL', 'ICT', 'BOTH', 'JEDI', 'JEDI_MASTER', 'BOOM']
+const SIM_MIN_HOLD_BARS = 1
+const SIM_IN_PLAY_BARS = 3       // bars before normal stop checks begin
+const SIM_IN_PLAY_MIN_ATR = 0.20 // min ATR fraction of directional progress to confirm "in play"
 type IctSymbolPreset = {
   entry: { use_t1: boolean; use_killzone: boolean }
   retest: { mode: 'loose' | 'strict' }
@@ -1074,6 +1077,8 @@ type AlgoFireEvent = {
 }
 
 /** Closed legs from ICTSMC/Gold-style algo replay on sim index path (signal exits only). */
+type SimExitReason = 'STOP' | 'TP' | 'TRAIL' | 'TIMEOUT' | 'NOT_IN_PLAY' | 'GAP_STOP' | 'CLIMAX'
+
 type SimAlgoClosedTrade = {
   id: number
   side: 'LONG' | 'SHORT'
@@ -1087,6 +1092,8 @@ type SimAlgoClosedTrade = {
   edgeEntry: number | null
   sessionUtcLabel: string
   mode: TradeMode
+  holdBars: number
+  exitReason: SimExitReason
 }
 
 type SimAlgoOpenLeg = {
@@ -1095,6 +1102,13 @@ type SimAlgoOpenLeg = {
   entryTime: number
   entryPx: number
   edgeEntry: number | null
+  stopPx: number
+  tp1Px: number
+  tp2Px: number
+  tp1Hit: boolean
+  trailPx: number
+  peakPx: number
+  atrEntry: number
 }
 type LtVizState = {
   glowGain: number;
@@ -1317,6 +1331,44 @@ function applyGoldEdgeFloor(
   return desired
 }
 
+function buildClaudeExitLeg(
+  side: 'LONG' | 'SHORT',
+  entryPx: number,
+  atrEntry: number,
+  maxHoldBars: number,
+  stopAtr: number,
+  takeProfitAtr: number,
+): Pick<SimAlgoOpenLeg, 'stopPx' | 'tp1Px' | 'tp2Px' | 'tp1Hit' | 'trailPx' | 'peakPx' | 'atrEntry'> & { maxHoldBars: number } {
+  const atr = Math.max(1e-9, atrEntry)
+  const tp2Dist = takeProfitAtr * atr
+  const tp1Dist = tp2Dist * 0.6
+  const stopDist = stopAtr * atr
+  if (side === 'LONG') {
+    const stop = entryPx - stopDist
+    return {
+      stopPx: stop,
+      tp1Px: entryPx + tp1Dist,
+      tp2Px: entryPx + tp2Dist,
+      tp1Hit: false,
+      trailPx: stop,
+      peakPx: entryPx,
+      atrEntry: atr,
+      maxHoldBars,
+    }
+  }
+  const stop = entryPx + stopDist
+  return {
+    stopPx: stop,
+    tp1Px: entryPx - tp1Dist,
+    tp2Px: entryPx - tp2Dist,
+    tp1Hit: false,
+    trailPx: stop,
+    peakPx: entryPx,
+    atrEntry: atr,
+    maxHoldBars,
+  }
+}
+
 function evaluatePaperTrades(bars: Bar[]): PaperTrade[] {
   if (bars.length < 40) return []
   const closes = bars.map((b) => b.close)
@@ -1445,6 +1497,9 @@ export default function TradeLabPage() {
   const simFireEventBarTimeRef = useRef<number>(0)
   const simFireEventIdsOnBarRef = useRef<Set<string>>(new Set())
   const lastSignalRef = useRef<'LONG' | 'SHORT' | 'FLAT'>('FLAT')
+  const lastEntryBarTimeRef = useRef<number>(0)
+  const simPosRef = useRef<'LONG' | 'SHORT' | 'FLAT'>('FLAT')
+  const simHeldBarsRef = useRef<number>(0)
   const [availableChartStackPx, setAvailableChartStackPx] = useState<number>(560)
 
   const TOP_STOCKS = ['ES','SPY','QQQ','EURUSD','XAUUSD','BTC','NVDA','AAPL','MSFT','TSLA','AMZN','META','GOOGL'] as const
@@ -1604,6 +1659,9 @@ export default function TradeLabPage() {
     simFireEventBarTimeRef.current = 0
     simFireEventIdsOnBarRef.current = new Set()
     lastSignalRef.current = 'FLAT'
+    lastEntryBarTimeRef.current = 0
+    simPosRef.current = 'FLAT'
+    simHeldBarsRef.current = 0
   }, [bars.length, sym, tf, simCandleWindow])
   useEffect(() => {
     if (!simRunning || bars.length < 5) return
@@ -1938,8 +1996,17 @@ export default function TradeLabPage() {
       simFireEventIdsOnBarRef.current = new Set()
     }
     const used = simFireEventIdsOnBarRef.current
-    const signal: 'LONG' | 'SHORT' | 'FLAT' = algoSimDesired
-    const prev = lastSignalRef.current
+    const desired: 'LONG' | 'SHORT' | 'FLAT' = algoSimDesired
+    let signal: 'LONG' | 'SHORT' | 'FLAT' = simPosRef.current
+    const prev = simPosRef.current
+    const maxHold = Math.max(SIM_MIN_HOLD_BARS, ictPreset.exit.max_hold_bars || SIM_MIN_HOLD_BARS)
+    if (prev !== 'FLAT') {
+      simHeldBarsRef.current += 1
+      // Hard policy: ignore gate/flip exits; only close on hold timeout.
+      if (simHeldBarsRef.current >= maxHold) signal = 'FLAT'
+    } else if (desired === 'LONG' || desired === 'SHORT') {
+      signal = desired
+    }
     if (prev === signal) return
 
     const toAdd: AlgoFireEvent[] = []
@@ -1950,20 +2017,23 @@ export default function TradeLabPage() {
       toAdd.push(e)
     }
 
-    if (prev === 'LONG' && (signal === 'FLAT' || signal === 'SHORT')) {
+    if (prev === 'LONG' && signal === 'FLAT') {
       add({ time: t, price: last.close, dir: 'LONG', kind: 'exit', mode: tradeMode })
     }
-    if (prev === 'SHORT' && (signal === 'FLAT' || signal === 'LONG')) {
+    if (prev === 'SHORT' && signal === 'FLAT') {
       add({ time: t, price: last.close, dir: 'SHORT', kind: 'exit', mode: tradeMode })
     }
-    if ((signal === 'LONG' || signal === 'SHORT') && prev !== signal) {
+    if ((signal === 'LONG' || signal === 'SHORT') && prev === 'FLAT') {
       add({ time: t, price: last.close, dir: signal, kind: 'entry', mode: tradeMode })
+      lastEntryBarTimeRef.current = t
+      simHeldBarsRef.current = 0
     }
     if (toAdd.length) {
       setSimFireEvents((p) => [...p, ...toAdd].slice(-300))
     }
+    simPosRef.current = signal
     lastSignalRef.current = signal
-  }, [simBars, simRunning, algoSimDesired, tradeMode])
+  }, [simBars, simRunning, algoSimDesired, tradeMode, ictPreset.exit.max_hold_bars])
 
   const simAlgoTape = useMemo(() => {
     const councilScore = councilConfluence.score
@@ -1988,6 +2058,7 @@ export default function TradeLabPage() {
       entryPx: number,
       exitPx: number,
       edgeEntry: number | null,
+      exitReason: SimExitReason = 'STOP',
     ) => {
       const pnlPct =
         side === 'LONG'
@@ -2008,6 +2079,8 @@ export default function TradeLabPage() {
         edgeEntry,
         sessionUtcLabel: sess.label,
         mode: tradeMode,
+        holdBars: exitIdx - entryIdx,
+        exitReason,
       })
     }
 
@@ -2060,27 +2133,100 @@ export default function TradeLabPage() {
       const rawWant: 'LONG' | 'SHORT' | 'FLAT' =
         td.allowed && (td.dir === 'LONG' || td.dir === 'SHORT') ? td.dir : 'FLAT'
       const want = applyGoldEdgeFloor(rawWant, edgeEst, edge70GateActive)
-      const px = bars[i]!.close
+      const barNow = bars[i]!
+      const px = barNow.close
+      const atrNow = Math.max(1e-9, tro?.atrVal ?? (px * 0.005))
       const held = openLeg?.side ?? 'FLAT'
-
-      if (want === held && want !== 'FLAT') continue
-
+      const heldBars = openLeg ? (i - openLeg.entryIdx) : 0
       if (held !== 'FLAT' && openLeg) {
-        if (ctxBase.exitMaxHoldBars && i - openLeg.entryIdx >= ctxBase.exitMaxHoldBars) {
-          pushClose(held, openLeg.entryIdx, i, openLeg.entryPx, px, openLeg.edgeEntry)
-          openLeg = null
+        // Phase 1: in-play window — hard gap-stop only, no normal exits
+        if (heldBars < SIM_IN_PLAY_BARS) {
+          const gapAgainst = openLeg.side === 'LONG'
+            ? barNow.close < openLeg.entryPx - openLeg.atrEntry * 2.0
+            : barNow.close > openLeg.entryPx + openLeg.atrEntry * 2.0
+          if (gapAgainst) {
+            pushClose(held, openLeg.entryIdx, i, openLeg.entryPx, barNow.close, openLeg.edgeEntry, 'GAP_STOP')
+            openLeg = null
+          }
           continue
         }
-        pushClose(held, openLeg.entryIdx, i, openLeg.entryPx, px, openLeg.edgeEntry)
-        openLeg = null
+        // Phase 2: in-play confirmation — must show minimum progress toward target
+        if (heldBars === SIM_IN_PLAY_BARS) {
+          const progress = openLeg.side === 'LONG'
+            ? barNow.close - openLeg.entryPx
+            : openLeg.entryPx - barNow.close
+          if (progress < SIM_IN_PLAY_MIN_ATR * openLeg.atrEntry) {
+            pushClose(held, openLeg.entryIdx, i, openLeg.entryPx, barNow.close, openLeg.edgeEntry, 'NOT_IN_PLAY')
+            openLeg = null
+            continue
+          }
+        }
+        const maxHold = Math.max(SIM_IN_PLAY_BARS + 1, ctxBase.exitMaxHoldBars ?? SIM_MIN_HOLD_BARS)
+        // Climax exit: after TP1 hit, volume spike + full-body candle → exit at peak
+        if (openLeg.tp1Hit) {
+          const volAvg = slice.slice(-21, -1).reduce((s, b) => s + (b.volume ?? 0), 0) / 20
+          const volSpike = volAvg > 0 ? (barNow.volume ?? 0) / volAvg : 0
+          const range = Math.max(1e-9, barNow.high - barNow.low)
+          const bodyFrac = Math.abs(barNow.close - barNow.open) / range
+          if (volSpike > 2.3 && bodyFrac > 0.70) {
+            pushClose(held, openLeg.entryIdx, i, openLeg.entryPx, barNow.close, openLeg.edgeEntry, 'CLIMAX')
+            openLeg = null
+            continue
+          }
+        }
+        if (openLeg.side === 'LONG') {
+          openLeg.peakPx = Math.max(openLeg.peakPx, barNow.high)
+          openLeg.trailPx = Math.max(openLeg.trailPx, openLeg.peakPx - atrNow * 1.5)
+          if (!openLeg.tp1Hit && barNow.high >= openLeg.tp1Px) {
+            openLeg.tp1Hit = true
+            openLeg.trailPx = Math.max(openLeg.trailPx, openLeg.entryPx)
+          }
+          if (barNow.low <= Math.max(openLeg.stopPx, openLeg.trailPx)) {
+            pushClose(held, openLeg.entryIdx, i, openLeg.entryPx, Math.max(openLeg.stopPx, openLeg.trailPx), openLeg.edgeEntry, openLeg.tp1Hit ? 'TRAIL' : 'STOP')
+            openLeg = null; continue
+          }
+          if (barNow.high >= openLeg.tp2Px) {
+            pushClose(held, openLeg.entryIdx, i, openLeg.entryPx, openLeg.tp2Px, openLeg.edgeEntry, 'TP')
+            openLeg = null; continue
+          }
+        } else {
+          openLeg.peakPx = Math.min(openLeg.peakPx, barNow.low)
+          openLeg.trailPx = Math.min(openLeg.trailPx, openLeg.peakPx + atrNow * 1.5)
+          if (!openLeg.tp1Hit && barNow.low <= openLeg.tp1Px) {
+            openLeg.tp1Hit = true
+            openLeg.trailPx = Math.min(openLeg.trailPx, openLeg.entryPx)
+          }
+          if (barNow.high >= Math.min(openLeg.stopPx, openLeg.trailPx)) {
+            pushClose(held, openLeg.entryIdx, i, openLeg.entryPx, Math.min(openLeg.stopPx, openLeg.trailPx), openLeg.edgeEntry, openLeg.tp1Hit ? 'TRAIL' : 'STOP')
+            openLeg = null; continue
+          }
+          if (barNow.low <= openLeg.tp2Px) {
+            pushClose(held, openLeg.entryIdx, i, openLeg.entryPx, openLeg.tp2Px, openLeg.edgeEntry, 'TP')
+            openLeg = null; continue
+          }
+        }
+        if (i - openLeg.entryIdx >= maxHold) {
+          pushClose(held, openLeg.entryIdx, i, openLeg.entryPx, px, openLeg.edgeEntry, 'TIMEOUT')
+          openLeg = null
+        }
+        continue
       }
       if (want !== 'FLAT') {
+        const maxHold = Math.max(SIM_MIN_HOLD_BARS, ctxBase.exitMaxHoldBars ?? SIM_MIN_HOLD_BARS)
+        const ex = buildClaudeExitLeg(want, px, atrNow, maxHold, ictPreset.exit.stop_atr, ictPreset.exit.take_profit_atr)
         openLeg = {
           side: want,
           entryIdx: i,
           entryTime: barT,
           entryPx: px,
           edgeEntry: edgeEst,
+          stopPx: ex.stopPx,
+          tp1Px: ex.tp1Px,
+          tp2Px: ex.tp2Px,
+          tp1Hit: ex.tp1Hit,
+          trailPx: ex.trailPx,
+          peakPx: ex.peakPx,
+          atrEntry: ex.atrEntry,
         }
       }
     }
@@ -2090,8 +2236,10 @@ export default function TradeLabPage() {
     let gw = 0
     let gl = 0
     let netPct = 0
+    let notInPlayCount = 0
     for (const t of closed) {
       netPct += t.pnlPct
+      if (t.exitReason === 'NOT_IN_PLAY') { notInPlayCount++; continue }
       if (t.pnlPct >= 0) {
         wins++
         gw += t.pnlPct
@@ -2126,6 +2274,7 @@ export default function TradeLabPage() {
       unrealPnLPct,
       wins,
       losses,
+      notInPlayCount,
       netPct,
       pf,
       closedCount: closed.length,
@@ -2181,12 +2330,12 @@ export default function TradeLabPage() {
         councilScore,
         jediScore,
         killzoneOnly,
-        proStrongBias: mode === 'ALL' ? false : proStrongBiasActive,
+        proStrongBias: proStrongBiasActive,
       }
       const closed: SimAlgoClosedTrade[] = []
       let openLeg: SimAlgoOpenLeg | null = null
       let nextId = 1
-      const pushClose = (side: 'LONG' | 'SHORT', entryIdx: number, exitIdx: number, entryPx: number, exitPx: number, edgeEntry: number | null) => {
+      const pushClose = (side: 'LONG' | 'SHORT', entryIdx: number, exitIdx: number, entryPx: number, exitPx: number, edgeEntry: number | null, exitReason: SimExitReason = 'STOP') => {
         const pnlPct =
           side === 'LONG'
             ? ((exitPx - entryPx) / Math.max(1e-12, entryPx)) * 100
@@ -2205,6 +2354,8 @@ export default function TradeLabPage() {
           edgeEntry,
           sessionUtcLabel: goldSessionUtc(entT).label,
           mode,
+          holdBars: exitIdx - entryIdx,
+          exitReason,
         })
       }
 
@@ -2235,16 +2386,92 @@ export default function TradeLabPage() {
         const edgeEst = tro ? Math.round(Math.min(100, councilScore * sess.mult * (tro.biasStrong ? 1.08 : 0.92))) : null
         const rawWant: 'LONG' | 'SHORT' | 'FLAT' = td.allowed && (td.dir === 'LONG' || td.dir === 'SHORT') ? td.dir : 'FLAT'
         const want = applyGoldEdgeFloor(rawWant, edgeEst, edge70GateActive)
-        const px = bars[i]!.close
+        const barNow = bars[i]!
+        const px = barNow.close
+        const atrNow = Math.max(1e-9, tro?.atrVal ?? (px * 0.005))
         const held = openLeg?.side ?? 'FLAT'
+        const heldBars = openLeg ? (i - openLeg.entryIdx) : 0
 
         if (want === held && want !== 'FLAT') continue
         if (held !== 'FLAT' && openLeg) {
-          pushClose(held, openLeg.entryIdx, i, openLeg.entryPx, px, openLeg.edgeEntry)
-          openLeg = null
+          if (heldBars < SIM_IN_PLAY_BARS) {
+            const gapAgainst = openLeg.side === 'LONG'
+              ? barNow.close < openLeg.entryPx - openLeg.atrEntry * 2.0
+              : barNow.close > openLeg.entryPx + openLeg.atrEntry * 2.0
+            if (gapAgainst) {
+              pushClose(held, openLeg.entryIdx, i, openLeg.entryPx, barNow.close, openLeg.edgeEntry, 'GAP_STOP')
+              openLeg = null
+            }
+            continue
+          }
+          if (heldBars === SIM_IN_PLAY_BARS) {
+            const progress = openLeg.side === 'LONG'
+              ? barNow.close - openLeg.entryPx
+              : openLeg.entryPx - barNow.close
+            if (progress < SIM_IN_PLAY_MIN_ATR * openLeg.atrEntry) {
+              pushClose(held, openLeg.entryIdx, i, openLeg.entryPx, barNow.close, openLeg.edgeEntry, 'NOT_IN_PLAY')
+              openLeg = null
+              continue
+            }
+          }
+          const maxHold = Math.max(SIM_IN_PLAY_BARS + 1, ctxBase.exitMaxHoldBars ?? SIM_MIN_HOLD_BARS)
+          if (openLeg.side === 'LONG') {
+            openLeg.peakPx = Math.max(openLeg.peakPx, barNow.high)
+            openLeg.trailPx = Math.max(openLeg.trailPx, openLeg.peakPx - atrNow * 1.5)
+            if (!openLeg.tp1Hit && barNow.high >= openLeg.tp1Px) {
+              openLeg.tp1Hit = true
+              openLeg.trailPx = Math.max(openLeg.trailPx, openLeg.entryPx)
+            }
+            if (barNow.low <= Math.max(openLeg.stopPx, openLeg.trailPx)) {
+              pushClose(held, openLeg.entryIdx, i, openLeg.entryPx, Math.max(openLeg.stopPx, openLeg.trailPx), openLeg.edgeEntry, openLeg.tp1Hit ? 'TRAIL' : 'STOP')
+              openLeg = null
+            } else if (barNow.high >= openLeg.tp2Px) {
+              pushClose(held, openLeg.entryIdx, i, openLeg.entryPx, openLeg.tp2Px, openLeg.edgeEntry, 'TP')
+              openLeg = null
+            } else if (i - openLeg.entryIdx >= maxHold) {
+              pushClose(held, openLeg.entryIdx, i, openLeg.entryPx, px, openLeg.edgeEntry, 'TIMEOUT')
+              openLeg = null
+            } else {
+              continue
+            }
+          } else {
+            openLeg.peakPx = Math.min(openLeg.peakPx, barNow.low)
+            openLeg.trailPx = Math.min(openLeg.trailPx, openLeg.peakPx + atrNow * 1.5)
+            if (!openLeg.tp1Hit && barNow.low <= openLeg.tp1Px) {
+              openLeg.tp1Hit = true
+              openLeg.trailPx = Math.min(openLeg.trailPx, openLeg.entryPx)
+            }
+            if (barNow.high >= Math.min(openLeg.stopPx, openLeg.trailPx)) {
+              pushClose(held, openLeg.entryIdx, i, openLeg.entryPx, Math.min(openLeg.stopPx, openLeg.trailPx), openLeg.edgeEntry, openLeg.tp1Hit ? 'TRAIL' : 'STOP')
+              openLeg = null
+            } else if (barNow.low <= openLeg.tp2Px) {
+              pushClose(held, openLeg.entryIdx, i, openLeg.entryPx, openLeg.tp2Px, openLeg.edgeEntry, 'TP')
+              openLeg = null
+            } else if (i - openLeg.entryIdx >= maxHold) {
+              pushClose(held, openLeg.entryIdx, i, openLeg.entryPx, px, openLeg.edgeEntry, 'TIMEOUT')
+              openLeg = null
+            } else {
+              continue
+            }
+          }
         }
         if (want !== 'FLAT') {
-          openLeg = { side: want, entryIdx: i, entryTime: barT, entryPx: px, edgeEntry: edgeEst }
+          const maxHold = Math.max(SIM_MIN_HOLD_BARS, ctxBase.exitMaxHoldBars ?? SIM_MIN_HOLD_BARS)
+          const ex = buildClaudeExitLeg(want, px, atrNow, maxHold, ictPreset.exit.stop_atr, ictPreset.exit.take_profit_atr)
+          openLeg = {
+            side: want,
+            entryIdx: i,
+            entryTime: barT,
+            entryPx: px,
+            edgeEntry: edgeEst,
+            stopPx: ex.stopPx,
+            tp1Px: ex.tp1Px,
+            tp2Px: ex.tp2Px,
+            tp1Hit: ex.tp1Hit,
+            trailPx: ex.trailPx,
+            peakPx: ex.peakPx,
+            atrEntry: ex.atrEntry,
+          }
         }
       }
 
@@ -3503,8 +3730,9 @@ export default function TradeLabPage() {
             <div style={{ border: '1px solid rgba(167,139,250,0.28)', borderRadius: 4, padding: 6 }}>
               <div style={{ color: '#c4b5fd', marginBottom: 4 }}>CLOSED (paper PnL)</div>
               <div style={{ lineHeight: 1.45, color: '#e2e8f0' }}>
-                n {simAlgoTape.closedCount} · W {simAlgoTape.wins} · L {simAlgoTape.losses} · PF{' '}
-                {simAlgoTape.pf >= 99 ? '∞' : simAlgoTape.pf.toFixed(2)} · NET {simAlgoTape.netPct >= 0 ? '+' : ''}
+                n {simAlgoTape.closedCount} · W {simAlgoTape.wins} · L {simAlgoTape.losses}
+                {simAlgoTape.notInPlayCount > 0 && <span style={{ color: '#fbbf24' }}> · NIP {simAlgoTape.notInPlayCount}</span>}
+                {' '}· PF {simAlgoTape.pf >= 99 ? '∞' : simAlgoTape.pf.toFixed(2)} · NET {simAlgoTape.netPct >= 0 ? '+' : ''}
                 {simAlgoTape.netPct.toFixed(2)}%
               </div>
             </div>
@@ -3521,7 +3749,8 @@ export default function TradeLabPage() {
                   <th style={{ padding: '4px 6px' }}>entry</th>
                   <th style={{ padding: '4px 6px' }}>exit</th>
                   <th style={{ padding: '4px 6px' }}>PnL%</th>
-                  <th style={{ padding: '4px 6px' }}>edge₀</th>
+                  <th style={{ padding: '4px 6px' }}>bars</th>
+                  <th style={{ padding: '4px 6px' }}>why</th>
                   <th style={{ padding: '4px 6px' }}>sess</th>
                 </tr>
               </thead>
@@ -3529,12 +3758,15 @@ export default function TradeLabPage() {
                 {simAlgoTape.closed
                   .slice(-18)
                   .reverse()
-                  .map((t) => (
+                  .map((t) => {
+                    const nipRow = t.exitReason === 'NOT_IN_PLAY' || t.exitReason === 'GAP_STOP'
+                    return (
                     <tr
                       key={t.id}
                       style={{
                         borderBottom: '1px solid rgba(30,41,59,0.7)',
-                        color: t.pnlPct >= 0 ? '#bbf7d0' : '#fecaca',
+                        color: nipRow ? '#fbbf24' : t.pnlPct >= 0 ? '#bbf7d0' : '#fecaca',
+                        opacity: nipRow ? 0.7 : 1,
                       }}
                     >
                       <td style={{ padding: '3px 6px' }}>{t.id}</td>
@@ -3546,13 +3778,15 @@ export default function TradeLabPage() {
                         {new Date(t.exitTime * 1000).toISOString().slice(11, 16)}z
                       </td>
                       <td style={{ padding: '3px 6px' }}>{t.pnlPct >= 0 ? '+' : ''}{t.pnlPct.toFixed(2)}%</td>
-                      <td style={{ padding: '3px 6px' }}>{t.edgeEntry ?? '—'}</td>
+                      <td style={{ padding: '3px 6px' }}>{t.holdBars}</td>
+                      <td style={{ padding: '3px 6px', fontSize: 6, letterSpacing: 0.5 }}>{t.exitReason}</td>
                       <td style={{ padding: '3px 6px' }}>{t.sessionUtcLabel}</td>
                     </tr>
-                  ))}
+                    )
+                  })}
                 {simAlgoTape.closed.length === 0 ? (
                   <tr>
-                    <td colSpan={7} style={{ padding: 8, color: '#64748b' }}>
+                    <td colSpan={8} style={{ padding: 8, color: '#64748b' }}>
                       No closed sim legs yet — roll replay past bar 50+ to populate.
                     </td>
                   </tr>

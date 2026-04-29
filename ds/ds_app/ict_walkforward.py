@@ -55,10 +55,12 @@ PROGRESS_PATH = _DS_ROOT / "data" / "ict_wf_progress.json"
 ANNUAL = 252 * 288  # annualisation: 5m bars per year
 
 EXISTING_SIGNALS = [
-    "DON_BO","BB_BREAK","KC_BREAK","SQZPOP","ATR_EXP","VOL_BO",
-    "NEW_HIGH","EMA_CROSS","EMA_STACK","MACD_CROSS","SUPERTREND",
+    # Retired (DISTILL-LIST.md Phase 1): DON_BO, NEW_HIGH, EMA_CROSS, RSI_CROSS
+    # Retired clones: BB_BREAK, KC_BREAK, VOL_SURGE (redundant with SQZPOP/ATR_EXP)
+    "SQZPOP","ATR_EXP","VOL_BO",
+    "EMA_STACK","MACD_CROSS","SUPERTREND",
     "ADX_TREND","GOLDEN","PSAR","PULLBACK","TREND_SMA",
-    "RSI_CROSS","RSI_STRONG","VOL_SURGE","CONSEC_BULL","OBV_TREND",
+    "RSI_STRONG","CONSEC_BULL","OBV_TREND",
 ]
 
 SOFT_REGIME_MULT = {
@@ -93,6 +95,11 @@ CIS_JEDI_FLIP     = 2.0   # JEDI crossed opposing side beyond this = exit
 TP_LOOKBACK       = 100   # bars to scan backwards for opposing OB station
 TP_DISPLACE_MULT  = 0.8   # relaxed displacement for TP stations (identifying, not qualifying)
 TP_MIN_ATR_DIST   = 0.5   # TP must be ≥ 0.5 × ATR from entry (avoid noise-level targets)
+
+# In-play guard (mirrors TradeLabPage 3-phase logic)
+IN_PLAY_BARS      = 3     # bars 0-1: gap-stop only; bar 2: NOT_IN_PLAY check
+IN_PLAY_GAP_ATR   = 2.0   # gap-stop threshold (2×ATR close gap against position)
+IN_PLAY_MIN_ATR   = 0.20  # bar-3 progress check: < 0.20×ATR = NOT_IN_PLAY → neutral exit
 
 # EOD enforcement (ICT is intraday — all trades must close by session end)
 NY_OFF            = 5 * 3600   # UTC→NY offset (EST, no DST; same as ict_signals.py)
@@ -206,6 +213,7 @@ def apply_layers(df: pd.DataFrame, score: np.ndarray, outcome: np.ndarray) -> di
     bias   = df["v_ict_bias"].fillna(0).values.astype(int)
     kz     = df["v_ict_kz"].fillna(0).values.astype(int)
     ob     = df["v_ict_ob"].fillna(0).values.astype(int)
+    ob_sf  = df["v_ict_ob_sf"].fillna(0).values.astype(int) if "v_ict_ob_sf" in df.columns else np.zeros(len(df), dtype=int)
     fvg    = df["v_ict_fvg"].fillna(0).values.astype(int)
     t1_lvl = df["ict_t1_level"].fillna(0).values.astype(int)
     b_str  = df["ict_bias_strong"].fillna(0).values.astype(int)
@@ -218,6 +226,9 @@ def apply_layers(df: pd.DataFrame, score: np.ndarray, outcome: np.ndarray) -> di
         "L3_+t1_level":       base_entry & (bias != 0) & (kz == 1) & (t1_lvl == 1),
         "L4_+ob_fvg":         base_entry & (bias != 0) & (kz == 1) & (t1_lvl == 1) & (entry_zone == 1),
         "L5_ict_standalone":  (bias != 0) & (kz == 1) & (t1_lvl == 1) & (entry_zone == 1),
+        # Sweep-and-Fill precision layers
+        "L7_ob_sf_gate":      base_entry & (bias != 0) & (kz == 1) & (ob_sf == 1),
+        "L7b_sf_standalone":  (bias != 0) & (kz == 1) & (ob_sf == 1),
         # Control comparisons
         "HOUR_KILLS_only":    base_entry & kill_mask,
         "HK_+ict_kz":         base_entry & kill_mask & (kz == 1),
@@ -346,6 +357,7 @@ def _simulate_station_fold(
     df_oos: pd.DataFrame,
     score: np.ndarray,
     mode: str,
+    gate_col: str = "v_ict_gate",
 ) -> dict:
     """
     Simulate ICT-gate trades with variable exit logic. 4 modes:
@@ -357,9 +369,10 @@ def _simulate_station_fold(
 
     P&L uses actual close prices (no outcome_1h_pct lookahead for exit decisions).
     Per-symbol simulation prevents cross-symbol bleed.
+    gate_col: column to use for trade entry gate (default v_ict_gate, can be v_ict_gate_sf)
     Returns apply_layers()-compatible dict.
     """
-    gate_arr = df_oos["v_ict_gate"].fillna(0).values.astype(int)
+    gate_arr = df_oos[gate_col].fillna(0).values.astype(int) if gate_col in df_oos.columns else np.zeros(len(df_oos), dtype=int)
     gate_total = int(gate_arr.sum())
     if gate_total == 0:
         return {"sharpe": None, "n": 0, "win_rate": None, "mean_ret": None, "pct_of_base": 0.0}
@@ -372,7 +385,8 @@ def _simulate_station_fold(
     low_g   = df_r["low"].values.astype(float)
     atr_g   = (df_r["atr_pct"].fillna(0).values * close_g).astype(float)
     bias_g  = df_r["v_ict_bias"].fillna(0).values.astype(int)
-    gate_g  = df_r["v_ict_gate"].fillna(0).values.astype(int)
+    _gc = gate_col if gate_col in df_r.columns else "v_ict_gate"
+    gate_g  = df_r[_gc].fillna(0).values.astype(int)
     jedi_g  = df_r["jedi_raw"].fillna(0).values.astype(float)
     o4h_g   = df_r["outcome_4h_pct"].fillna(0).values.astype(float)
     ts_g    = df_r["ts"].values.astype(np.int64)
@@ -417,7 +431,29 @@ def _simulate_station_fold(
 
             cur    = c[i]
             ret    = (cur - e_price) / (e_price + 1e-9) * e_b
+            held   = i - e_i
             exited = False
+
+            # ── In-play guard (3-phase) ────────────────────────────────────────
+            if held < IN_PLAY_BARS:
+                # Phase 1: bars 1-2 — gap-stop only (2×ATR close gap against position)
+                gap_against = (
+                    (e_b == 1  and cur < e_price - IN_PLAY_GAP_ATR * at[e_i]) or
+                    (e_b == -1 and cur > e_price + IN_PLAY_GAP_ATR * at[e_i])
+                )
+                if gap_against:
+                    all_rets.append(ret)
+                    in_trade = False
+                continue   # skip normal exit logic
+            if held == IN_PLAY_BARS:
+                # Phase 2: bar 3 — progress check
+                progress = (cur - e_price) * e_b
+                if progress < IN_PLAY_MIN_ATR * max(at[e_i], 1e-9):
+                    # NOT_IN_PLAY — exit at breakeven (trade had no momentum)
+                    all_rets.append(0.0)
+                    in_trade = False
+                    continue
+            # ── Phase 3: bar 4+ — normal exit management ───────────────────────
 
             # EOD force-close at 15:30 ET — ICT intraday, no overnight holds
             if ny_min >= EOD_FORCE_CLOSE_MIN:
@@ -516,13 +552,18 @@ def run_folds(df: pd.DataFrame, outcome_col: str) -> list[dict]:
 
         layer_results = apply_layers(df_oos, oos_score, oos_out)
 
-        # Station-hold comparison (4-way exit strategy test)
+        # Station-hold comparison (4-way exit strategy test on standard ICT gate)
         for _mode, _key in (
             ("cis_exit",    "L6a_cis_exit"),
             ("station_hold","L6b_station_tp"),
             ("station_cis", "L6c_station_cis"),
         ):
             layer_results[_key] = _simulate_station_fold(df_oos, oos_score, _mode)
+
+        # Station-hold on Sweep-and-Fill gate (precision entries only)
+        layer_results["L8_sf_station_cis"] = _simulate_station_fold(
+            df_oos, oos_score, "station_cis", gate_col="v_ict_gate_sf"
+        )
 
         # IS Sharpe for overfit check
         df_train["regime"] = regime_label(df_train).values
@@ -657,10 +698,12 @@ def run() -> dict:
         "v_ict_bias_neutral":round(float((df["v_ict_bias"] == 0).mean()), 4),
         "v_ict_kz":          round(float(df["v_ict_kz"].mean()), 4),
         "v_ict_ob":          round(float(df["v_ict_ob"].mean()), 4),
+        "v_ict_ob_sf":       round(float(df["v_ict_ob_sf"].mean()), 4) if "v_ict_ob_sf" in df.columns else 0.0,
         "v_ict_fvg":         round(float(df["v_ict_fvg"].mean()), 4),
         "ict_t1_level":      round(float(df["ict_t1_level"].mean()), 4),
         "ict_bias_strong":   round(float(df["ict_bias_strong"].mean()), 4),
         "v_ict_gate":        round(float(df["v_ict_gate"].mean()), 4),
+        "v_ict_gate_sf":     round(float(df["v_ict_gate_sf"].mean()), 4) if "v_ict_gate_sf" in df.columns else 0.0,
     }
     print("  Signal fire rates:", {k: v for k, v in signal_fire_rates.items()})
 
@@ -697,19 +740,24 @@ def run() -> dict:
     # ── Waterfall table ───────────────────────────────────────────────────────
     waterfall = []
     layer_labels = {
-        "L0_base":           "L0  Base ensemble (23 sigs, Sharpe-wt, no extra gates)",
-        "L1_+bias":          "L1  + ICT weekly/daily bias",
-        "L2_+kz":            "L2  + ICT killzone",
-        "L3_+t1_level":      "L3  + T1 is ICT institutional level",
-        "L4_+ob_fvg":        "L4  + OB or FVG entry zone  ← FULL ICT GATE",
-        "L5_ict_standalone": "L5  ICT gate STANDALONE (no ensemble)",
-        "HOUR_KILLS_only":   "CTL HOUR_KILLS only (existing gate)",
-        "HK_+ict_kz":        "CTL HOUR_KILLS + ICT_KZ",
-        "bias_strong_only":  "CTL Bias STRONG (week+day agree)",
+        "L0_base":            "L0  Base ensemble (14 sigs, Sharpe-wt, no extra gates)",
+        "L1_+bias":           "L1  + ICT weekly/daily bias",
+        "L2_+kz":             "L2  + ICT killzone",
+        "L3_+t1_level":       "L3  + T1 is ICT institutional level",
+        "L4_+ob_fvg":         "L4  + OB or FVG entry zone  ← FULL ICT GATE",
+        "L5_ict_standalone":  "L5  ICT gate STANDALONE (no ensemble)",
+        # Sweep-and-Fill precision layers
+        "L7_ob_sf_gate":      "L7  + OB Sweep-and-Fill (wick sweep + close back inside)",
+        "L7b_sf_standalone":  "L7b SF STANDALONE (bias + KZ + OB SF only)",
+        "HOUR_KILLS_only":    "CTL HOUR_KILLS only (existing gate)",
+        "HK_+ict_kz":         "CTL HOUR_KILLS + ICT_KZ",
+        "bias_strong_only":   "CTL Bias STRONG (week+day agree)",
         # Station-hold 4-way comparison (variable-exit simulation on ICT gate entries)
-        "L6a_cis_exit":      "L6a ICT + CIS exit (score/JEDI decay → emergency stop)",
-        "L6b_station_tp":    "L6b ICT + Station TP (next opposing OB → draw on liq)",
-        "L6c_station_cis":   "L6c ICT + Station TP + CIS emergency  ← MM TRAIN",
+        "L6a_cis_exit":       "L6a ICT + CIS exit (score/JEDI decay → emergency stop)",
+        "L6b_station_tp":     "L6b ICT + Station TP (next opposing OB → draw on liq)",
+        "L6c_station_cis":    "L6c ICT + Station TP + CIS emergency  ← MM TRAIN",
+        # Precision entry + station hold
+        "L8_sf_station_cis":  "L8  OB SF + Station TP + CIS  ← PRECISION MM TRAIN ★",
     }
     for lname, label in layer_labels.items():
         s = agg.get(lname, {})

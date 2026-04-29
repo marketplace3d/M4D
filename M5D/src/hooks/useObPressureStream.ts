@@ -1,12 +1,24 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+
+export type SteamPhase = 'ACCUMULATION' | 'COMPRESSION' | 'POP'
 
 export type ObPressure = {
-  pressure: number; // [-1..1], +buy / -sell
+  pressure: number;   // [-1..1], +buy / -sell
   confidence: number; // [0..1]
+  delta: number;      // velocity: Δ of EMA pressure
+  deltaD: number;     // acceleration: ΔΔ (delta of delta)
+  phase: SteamPhase;
+  exhausted: boolean; // high abs pressure + ΔΔ turning negative → climax
   status: 'idle' | 'live' | 'error';
 };
 
-const INIT: ObPressure = { pressure: 0, confidence: 0, status: 'idle' };
+const INIT: ObPressure = { pressure: 0, confidence: 0, delta: 0, deltaD: 0, phase: 'ACCUMULATION', exhausted: false, status: 'idle' };
+
+function toPhase(pressure: number, exhausted: boolean): SteamPhase {
+  if (exhausted) return 'POP'
+  if (Math.abs(pressure) > 0.28) return 'COMPRESSION'
+  return 'ACCUMULATION'
+}
 
 function toForexPair(sym: string): string | null {
   const s = sym.toUpperCase();
@@ -27,6 +39,7 @@ function toCryptoPair(sym: string): string | null {
 
 export function useObPressureStream(symbol: string, polygonKey?: string): ObPressure {
   const [snap, setSnap] = useState<ObPressure>(INIT);
+  const histRef = useRef<number[]>([]);  // rolling last 4 EMA values
   const channel = useMemo(() => {
     const fx = toForexPair(symbol);
     if (fx) return { url: 'wss://socket.polygon.io/forex', sub: `C.${fx}`, ev: 'C' };
@@ -39,6 +52,7 @@ export function useObPressureStream(symbol: string, polygonKey?: string): ObPres
   }, [symbol]);
 
   useEffect(() => {
+    histRef.current = [];
     if (!polygonKey || !channel) {
       setSnap(INIT);
       return;
@@ -69,8 +83,17 @@ export function useObPressureStream(symbol: string, polygonKey?: string): ObPres
         const total = bidSize + askSize;
         const rawPressure = total > 0 ? (bidSize - askSize) / total : 0;
         ema = ema * (1 - a) + rawPressure * a;
+        const pressure = Math.max(-1, Math.min(1, ema));
+        const hist = histRef.current;
+        hist.push(pressure);
+        if (hist.length > 4) hist.shift();
+        const n = hist.length;
+        const d1 = n >= 2 ? hist[n-1]! - hist[n-2]! : 0;  // velocity
+        const d0 = n >= 3 ? hist[n-2]! - hist[n-3]! : 0;  // prev velocity
+        const deltaD = d1 - d0;
+        const exhausted = Math.abs(pressure) > 0.42 && deltaD < -0.018;
         const confidence = Math.min(1, Math.abs(ema) * 2.2);
-        setSnap({ pressure: Math.max(-1, Math.min(1, ema)), confidence, status: 'live' });
+        setSnap({ pressure, confidence, delta: d1, deltaD, phase: toPhase(pressure, exhausted), exhausted, status: 'live' });
       }
     };
     ws.onerror = err;
